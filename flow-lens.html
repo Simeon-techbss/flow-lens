@@ -153,21 +153,39 @@
     .empty-state { text-align: center; padding: 3rem; color: #94a3b8; font-size: 0.875rem; line-height: 1.6; }
     .error-msg { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; border-radius: 8px; padding: 0.75rem 1rem; margin-top: 1rem; font-size: 0.875rem; }
 
-    /* ── Insights tab ── */
-    .insights-top { display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; margin-bottom: 1rem; }
-    .insights-left { display: flex; flex-direction: column; gap: 1rem; }
-    .insights-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.25rem 1.5rem; }
-    .ic-title { font-size: 0.95rem; font-weight: 700; display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
-    .ic-title .ic-q { font-size: 0.8rem; font-weight: 400; color: #94a3b8; }
-    .ic-stats { display: flex; flex-wrap: wrap; gap: 1.25rem; }
-    .ic-stat { display: flex; align-items: center; gap: 0.45rem; font-size: 0.85rem; color: #374151; }
-    .ic-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-    .wip-panel { text-align: center; padding: 1.5rem 1rem 2rem; }
-    .wip-panel .wip-head { font-size: 0.95rem; font-weight: 700; margin-bottom: 0.2rem; }
-    .wip-panel .wip-sub { font-size: 0.78rem; color: #94a3b8; margin-bottom: 1.25rem; }
-    .wip-panel .wip-num { font-size: 4.5rem; font-weight: 700; color: #0f172a; line-height: 1; }
-    .insights-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-    .insights-charts .chart-wrap { height: 300px; }
+    /* ── Insights v2 ── */
+    .ic2-top { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1rem; }
+    .ic2-mid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+    .ic2-bot { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .ic2-card {
+      background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+      padding: 1.25rem 1.5rem; border-left: 4px solid #6366f1;
+    }
+    .ic2-card.ic2-emerald { border-left-color: #10b981; }
+    .ic2-card.ic2-warn    { border-left-color: #f59e0b; }
+    .ic2-card.ic2-teal    { border-left-color: #0ea5e9; }
+    .ic2-card.ic2-plain   { border-left: none; }
+    .ic2-card.ic2-dark    { background: #1e1b4b; border-color: #312e81; border-left-color: #818cf8; }
+    .ic2-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #6366f1; margin-bottom: 0.3rem; }
+    .ic2-card.ic2-dark .ic2-label    { color: #a5b4fc; }
+    .ic2-card.ic2-emerald .ic2-label { color: #059669; }
+    .ic2-card.ic2-warn .ic2-label    { color: #d97706; }
+    .ic2-card.ic2-teal .ic2-label    { color: #0284c7; }
+    .ic2-q   { font-size: 0.95rem; font-weight: 700; color: #1e293b; margin-bottom: 0.15rem; }
+    .ic2-card.ic2-dark .ic2-q { color: #f1f5f9; }
+    .ic2-sub { font-size: 0.78rem; color: #94a3b8; margin-bottom: 0.9rem; line-height: 1.35; }
+    .ic2-bignum { font-size: 3rem; font-weight: 700; line-height: 1; color: #6366f1; }
+    .ic2-card.ic2-dark .ic2-bignum { color: white; }
+    .ic2-card.ic2-warn .ic2-bignum { color: #f59e0b; }
+    .ic2-stat-row { display: flex; align-items: center; gap: 0.45rem; font-size: 0.85rem; color: #374151; margin-bottom: 0.4rem; }
+    .ic2-dot  { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .ic2-signal { display: inline-flex; align-items: center; font-size: 0.8rem; font-weight: 600; padding: 0.22rem 0.65rem; border-radius: 20px; margin-top: 0.75rem; }
+    .ic2-signal.green { background: #dcfce7; color: #15803d; }
+    .ic2-signal.amber { background: #fef3c7; color: #92400e; }
+    .ic2-signal.red   { background: #fee2e2; color: #991b1b; }
+    .ic2-smelly-item  { font-size: 0.78rem; color: #475569; padding: 0.35rem 0; border-bottom: 1px solid #fef3c7; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+    .ic2-smelly-item:last-child { border-bottom: none; }
+    .ic2-smelly-age   { font-weight: 700; color: #d97706; white-space: nowrap; flex-shrink: 0; }
 
     #data-footer {
       display: none; margin-top: 0.75rem;
@@ -182,7 +200,7 @@
     }
     #data-footer .copy-btn:hover { border-color: #38bdf8; color: #0ea5e9; }
 
-    @media (max-width: 900px) { .insights-top { grid-template-columns: 1fr; } .insights-charts { grid-template-columns: 1fr; } }
+    @media (max-width: 900px) { .ic2-top { grid-template-columns: 1fr; } .ic2-mid { grid-template-columns: 1fr; } .ic2-bot { grid-template-columns: 1fr; } }
     @media (max-width: 640px) {
       main { padding: 1rem; }
       .config-grid { grid-template-columns: 1fr 1fr; }
@@ -298,33 +316,51 @@
     </div>
 
     <div id="tab-insights" class="tab-pane active">
-      <div class="insights-top">
-        <div class="insights-left">
-          <div class="insights-card">
-            <div class="ic-title">Cycle Time <span class="ic-q">How long did it take to complete past work items?</span></div>
-            <div class="ic-stats" id="ic-ct-stats"><span style="color:#94a3b8;font-size:0.85rem">No data yet</span></div>
-          </div>
-          <div class="insights-card">
-            <div class="ic-title">"How many?" Forecast <span class="ic-q">How many items are you likely to finish in the next 30 days?</span></div>
-            <div class="ic-stats" id="ic-fc-stats"><span style="color:#94a3b8;font-size:0.85rem">No data yet</span></div>
-          </div>
+      <div class="ic2-top">
+        <div class="ic2-card">
+          <div class="ic2-label">Speed</div>
+          <div class="ic2-q">How fast do we finish?</div>
+          <div class="ic2-sub">Cycle time percentiles — how long completed items actually took</div>
+          <div id="ic-ct-stats"><span style="color:#94a3b8;font-size:0.85rem">No data yet</span></div>
         </div>
-        <div class="insights-card wip-panel">
-          <div class="wip-head">WIP</div>
-          <div class="wip-sub">How many work items are in progress?</div>
-          <div class="wip-num" id="ic-wip-num">—</div>
+        <div class="ic2-card ic2-emerald">
+          <div class="ic2-label">Forecast</div>
+          <div class="ic2-q">What can we close this month?</div>
+          <div class="ic2-sub">Monte Carlo — likely completions in the next 30 days</div>
+          <div id="ic-fc-stats"><span style="color:#94a3b8;font-size:0.85rem">No data yet</span></div>
+        </div>
+        <div class="ic2-card ic2-dark">
+          <div class="ic2-label">WIP</div>
+          <div class="ic2-q">How much are we juggling?</div>
+          <div class="ic2-sub">Items currently in progress</div>
+          <div class="ic2-bignum" id="ic-wip-num">—</div>
+          <div id="ic-wip-context" style="font-size:0.8rem;color:#a5b4fc;margin-top:0.5rem"></div>
         </div>
       </div>
-      <div class="insights-charts">
-        <div class="insights-card">
-          <div class="ic-title">Pace: Start vs Finish</div>
-          <div style="font-size:0.78rem;color:#94a3b8;margin-bottom:1rem">Are you starting and completing work at a consistent rate?</div>
-          <div class="chart-wrap"><canvas id="chart-pace"></canvas></div>
+      <div class="ic2-mid">
+        <div class="ic2-card ic2-warn">
+          <div class="ic2-label">Risk</div>
+          <div class="ic2-q">Smelly tickets</div>
+          <div class="ic2-sub">WIP items in progress longer than your 85th percentile cycle time</div>
+          <div id="ic-smelly-content"><span style="color:#94a3b8;font-size:0.85rem">No data yet</span></div>
         </div>
-        <div class="insights-card">
-          <div class="ic-title">WIP &amp; WIP Age</div>
-          <div style="font-size:0.78rem;color:#94a3b8;margin-bottom:1rem">Are you managing these to improve cycle time and reduce risk?</div>
-          <div class="chart-wrap"><canvas id="chart-wipage"></canvas></div>
+        <div class="ic2-card ic2-teal">
+          <div class="ic2-label">Focus</div>
+          <div class="ic2-q">How many balls in the air when we start something?</div>
+          <div class="ic2-sub">Average in-progress items at the moment each new item is started</div>
+          <div id="ic-multitask-content"><span style="color:#94a3b8;font-size:0.85rem">No data yet</span></div>
+        </div>
+      </div>
+      <div class="ic2-bot">
+        <div class="ic2-card ic2-plain">
+          <div class="ic2-q">Are we finishing what we start?</div>
+          <div class="ic2-sub">Items started vs completed per week</div>
+          <div class="chart-wrap" style="height:230px"><canvas id="chart-pace"></canvas></div>
+        </div>
+        <div class="ic2-card ic2-plain">
+          <div class="ic2-q">Are tickets getting stale?</div>
+          <div class="ic2-sub">WIP count, total age and average age over time</div>
+          <div class="chart-wrap" style="height:230px"><canvas id="chart-wipage"></canvas></div>
         </div>
       </div>
     </div>
@@ -1287,6 +1323,23 @@ function renderData() {
 }
 
 // ── Flow Insights ──────────────────────────────────────────────────────────
+function calculateMultitaskingIndex(cfg) {
+  const items = allRows
+    .filter(row => !cfg.filterType || row[cfg.typeCol] === cfg.filterType)
+    .map(row => ({ start: parseDate(row[cfg.startCol]), end: parseDate(row[cfg.endCol]) }))
+    .filter(r => r.start);
+  if (items.length < 2) return null;
+  let total = 0;
+  items.forEach(item => {
+    total += items.filter(other =>
+      other !== item &&
+      other.start < item.start &&
+      (!other.end || other.end > item.start)
+    ).length;
+  });
+  return total / items.length;
+}
+
 function runMonteCarlo(completed, days) {
   days = days || 30;
   if (completed.length < 4) return null;
@@ -1323,7 +1376,9 @@ function runMonteCarlo(completed, days) {
 }
 
 function renderInsights(completed, wip, p50, p70, p85, p95) {
-  // Cycle time panel
+  const cfg = getConfig();
+
+  // Cycle time card
   const ctEl = document.getElementById('ic-ct-stats');
   if (completed.length) {
     ctEl.innerHTML = [
@@ -1331,16 +1386,13 @@ function renderInsights(completed, wip, p50, p70, p85, p95) {
       { pct: 85, val: p85, color: '#86efac' },
       { pct: 70, val: p70, color: '#eab308' },
       { pct: 50, val: p50, color: '#f97316' },
-    ].map(s => `<div class="ic-stat"><span class="ic-dot" style="background:${s.color}"></span><strong>${s.pct}%</strong>&nbsp;took&nbsp;<strong>${Math.ceil(s.val)}</strong>&nbsp;days or less</div>`).join('');
-    // Blocked note
+    ].map(s => `<div class="ic2-stat-row"><span class="ic2-dot" style="background:${s.color}"></span><strong>${s.pct}%</strong>&nbsp;in&nbsp;<strong>${Math.ceil(s.val)}</strong>&nbsp;days or less</div>`).join('');
     const blockedItems = completed.filter(d => d.blockedDays > 0);
-    if (getConfig().blockedDaysCol && blockedItems.length) {
+    if (cfg.blockedDaysCol && blockedItems.length) {
       const avgBlocked = (blockedItems.reduce((s, d) => s + d.blockedDays, 0) / blockedItems.length).toFixed(1);
       ctEl.insertAdjacentHTML('beforeend',
-        `<div style="width:100%;margin-top:0.6rem;padding-top:0.6rem;border-top:1px solid #f1f5f9;font-size:0.78rem;color:#94a3b8">
-          <span style="color:#eab308">⚠</span>&nbsp;
-          ${blockedItems.length} of ${completed.length} items were blocked at some point
-          (avg ${avgBlocked}d blocked per item)
+        `<div style="margin-top:0.6rem;padding-top:0.6rem;border-top:1px solid #f1f5f9;font-size:0.78rem;color:#94a3b8">
+          <span style="color:#eab308">⚠</span>&nbsp;${blockedItems.length} of ${completed.length} blocked (avg ${avgBlocked}d each)
         </div>`
       );
     }
@@ -1348,10 +1400,7 @@ function renderInsights(completed, wip, p50, p70, p85, p95) {
     ctEl.innerHTML = '<span style="color:#94a3b8;font-size:0.85rem">No completed items yet</span>';
   }
 
-  // WIP count
-  document.getElementById('ic-wip-num').textContent = wip.length;
-
-  // Forecast panel
+  // Forecast card
   const fcEl = document.getElementById('ic-fc-stats');
   const fc = runMonteCarlo(completed);
   if (fc) {
@@ -1360,9 +1409,60 @@ function renderInsights(completed, wip, p50, p70, p85, p95) {
       { pct: 85, val: fc.p85, color: '#86efac' },
       { pct: 70, val: fc.p70, color: '#eab308' },
       { pct: 50, val: fc.p50, color: '#f97316' },
-    ].map(s => `<div class="ic-stat"><span class="ic-dot" style="background:${s.color}"></span><strong>${s.pct}%</strong>&nbsp;chance of&nbsp;<strong>${s.val}</strong>&nbsp;or more</div>`).join('');
+    ].map(s => `<div class="ic2-stat-row"><span class="ic2-dot" style="background:${s.color}"></span><strong>${s.pct}%</strong>&nbsp;chance of&nbsp;<strong>${s.val}</strong>&nbsp;or more</div>`).join('');
   } else {
-    fcEl.innerHTML = '<span style="color:#94a3b8;font-size:0.85rem">Not enough history — need at least 4 completed items across 2+ weeks</span>';
+    fcEl.innerHTML = '<span style="color:#94a3b8;font-size:0.85rem">Need at least 4 completed items across 2+ weeks</span>';
+  }
+
+  // WIP card
+  document.getElementById('ic-wip-num').textContent = wip.length || '—';
+  const smellyItems = wip.filter(i => i.age > p85);
+  const wipCtxEl = document.getElementById('ic-wip-context');
+  if (wip.length && completed.length && p85 > 0) {
+    wipCtxEl.textContent = smellyItems.length > 0
+      ? `${smellyItems.length} over the 85th percentile`
+      : 'All within normal range';
+  } else {
+    wipCtxEl.textContent = '';
+  }
+
+  // Smelly tickets card
+  const smellyEl = document.getElementById('ic-smelly-content');
+  if (!completed.length || p85 === 0) {
+    smellyEl.innerHTML = '<div style="font-size:0.85rem;color:#94a3b8">Need completed items to calculate the threshold</div>';
+  } else if (!smellyItems.length) {
+    smellyEl.innerHTML = `
+      <div class="ic2-bignum" style="color:#15803d">0</div>
+      <div class="ic2-signal green">All WIP items within normal range</div>`;
+  } else {
+    const top5 = smellyItems.slice(0, 5);
+    smellyEl.innerHTML = `
+      <div class="ic2-bignum">${smellyItems.length}</div>
+      <div style="font-size:0.78rem;color:#92400e;margin:0.4rem 0 0.75rem">
+        item${smellyItems.length > 1 ? 's' : ''} older than ${Math.ceil(p85)}d — your 85th percentile cycle time
+      </div>
+      ${top5.map(i => `
+        <div class="ic2-smelly-item">
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${i.id ? `<strong>${i.id}</strong> ` : ''}${(i.title || 'Untitled').slice(0, 40)}${(i.title || '').length > 40 ? '…' : ''}</span>
+          <span class="ic2-smelly-age">${Math.round(i.age)}d</span>
+        </div>`).join('')}
+      ${smellyItems.length > 5 ? `<div style="font-size:0.75rem;color:#94a3b8;margin-top:0.35rem">+${smellyItems.length - 5} more</div>` : ''}`;
+  }
+
+  // Multitasking index card
+  const mtEl = document.getElementById('ic-multitask-content');
+  const mtIdx = calculateMultitaskingIndex(cfg);
+  if (mtIdx === null) {
+    mtEl.innerHTML = '<div style="font-size:0.85rem;color:#94a3b8">Not enough data</div>';
+  } else {
+    const signal = mtIdx < 3 ? 'green' : mtIdx < 7 ? 'amber' : 'red';
+    const label  = mtIdx < 3 ? 'Low — focused team' : mtIdx < 7 ? 'Moderate — worth watching' : 'High — consider limiting WIP';
+    mtEl.innerHTML = `
+      <div class="ic2-bignum" style="color:#0ea5e9">${mtIdx.toFixed(1)}</div>
+      <div style="font-size:0.82rem;color:#475569;margin-top:0.4rem;line-height:1.4">
+        other items already in progress on average when each new item starts
+      </div>
+      <div class="ic2-signal ${signal}">${label}</div>`;
   }
 
   renderPaceChart(completed);
