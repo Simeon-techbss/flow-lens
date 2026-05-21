@@ -1097,22 +1097,29 @@ function buildCFDData() {
     );
   });
 
-  // Average time spent in each stage (stage entry → next stage entry), from items that moved through both
+  // Average time spent in each stage: for each item that entered the stage,
+  // find the first SUBSEQUENT stage (in full workflowStages order) that the item
+  // actually reached — regardless of whether it skipped intermediate stages.
+  // Last visible stage shows null (no exit to measure).
   const avgStageDays = {};
-  visibleStages.forEach((col, si) => {
-    const nextCol = visibleStages[si + 1];
-    if (!nextCol) { avgStageDays[col] = null; return; }
+  const allStageCols = workflowStages; // full ordered list including hidden
+  visibleStages.forEach((col) => {
+    const stageIdx = allStageCols.indexOf(col);
+    const laterCols = allStageCols.slice(stageIdx + 1);
+    if (!laterCols.length) { avgStageDays[col] = null; return; }
     const times = [];
     rows.forEach(row => {
       const enter = parseDate(row[col]);
-      const exit  = parseDate(row[nextCol]);
-      if (enter && exit && exit >= enter) times.push((exit - enter) / 86400000);
+      if (!enter) return;
+      // Find the first later stage this item actually has a date for
+      for (const next of laterCols) {
+        const exit = parseDate(row[next]);
+        if (exit && exit >= enter) { times.push((exit - enter) / 86400000); break; }
+      }
     });
     avgStageDays[col] = times.length ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) : null;
   });
-  const systemDays = Object.values(avgStageDays).filter(v => v !== null).reduce((a, b) => a + b, 0);
-
-  return { weeks, stageCounts, visibleStages, avgStageDays, systemDays };
+  return { weeks, stageCounts, visibleStages, avgStageDays };
 }
 
 function renderCFD() {
@@ -1167,11 +1174,8 @@ function renderCFD() {
                 : ctx.parsed.y - ctx.chart.data.datasets[ctx.datasetIndex - 1].data[ctx.dataIndex];
               const stage = ctx.dataset.label;
               const avg = data.avgStageDays[stage];
-              const ctPart = avg !== null ? `  ·  avg ${avg}d in stage` : '';
+              const ctPart = avg !== null ? `  ·  ${avg}d avg` : '';
               return `${stage}: ${wip} ${wip === 1 ? 'item' : 'items'}${ctPart}`;
-            },
-            footer() {
-              return data.systemDays > 0 ? `Avg total CT: ${data.systemDays}d` : '';
             }
           }
         }
