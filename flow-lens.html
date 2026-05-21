@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flow Lens</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #f8fafc; color: #1e293b; min-height: 100vh; }
+
+    header {
+      background: #0f172a;
+      color: white;
+      padding: 0.9rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    header h1 { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.03em; }
+    header h1 span { color: #38bdf8; }
+    #file-status { font-size: 0.8rem; color: #94a3b8; display: flex; align-items: center; gap: 0.75rem; }
+    #reload-btn {
+      font-size: 0.75rem;
+      color: #38bdf8;
+      background: none;
+      border: 1px solid #334155;
+      border-radius: 4px;
+      padding: 0.25rem 0.6rem;
+      cursor: pointer;
+    }
+    #reload-btn:hover { border-color: #38bdf8; }
+
+    main { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+
+    /* ── Upload ────────────────────────────────────────────── */
+    .upload-zone {
+      border: 2px dashed #cbd5e1;
+      border-radius: 12px;
+      padding: 3.5rem 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: white;
+    }
+    .upload-zone:hover, .upload-zone.drag-over { border-color: #38bdf8; background: #f0f9ff; }
+    .upload-zone svg { margin: 0 auto 1rem; display: block; }
+    .upload-zone h2 { font-size: 1.05rem; color: #475569; margin-bottom: 0.4rem; }
+    .upload-zone p { font-size: 0.82rem; color: #94a3b8; }
+
+    /* ── Config panel ─────────────────────────────────────── */
+    #config-panel {
+      display: none;
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      margin-top: 1.25rem;
+    }
+    .config-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+    .config-header h3 { font-size: 0.78rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; }
+    .config-header small { font-size: 0.78rem; color: #38bdf8; }
+    .config-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 1rem; }
+    .config-field label { display: block; font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 0.2rem; }
+    .config-field .hint { font-size: 0.72rem; color: #94a3b8; margin-bottom: 0.4rem; line-height: 1.3; }
+    .config-field select {
+      width: 100%;
+      padding: 0.45rem 0.7rem;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 0.83rem;
+      background: white;
+      color: #1e293b;
+    }
+    .config-field select:focus { outline: none; border-color: #38bdf8; box-shadow: 0 0 0 3px rgba(56,189,248,0.1); }
+
+    .filters { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #f1f5f9; display: flex; gap: 1rem; flex-wrap: wrap; }
+    .filter-field label { display: block; font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 0.2rem; }
+    .filter-field select { padding: 0.45rem 0.7rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.83rem; background: white; color: #1e293b; }
+    .filter-field select:focus { outline: none; border-color: #38bdf8; }
+
+    /* ── Stats bar ─────────────────────────────────────────── */
+    #stats-bar {
+      background: #0f172a;
+      border-radius: 10px;
+      padding: 1rem 1.5rem;
+      margin-top: 1.25rem;
+      display: none;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 1rem;
+    }
+    .stat .value { font-size: 1.6rem; font-weight: 700; color: #38bdf8; line-height: 1; }
+    .stat .label { font-size: 0.72rem; color: #64748b; margin-top: 0.25rem; }
+
+    /* ── Tabs ─────────────────────────────────────────────── */
+    #tabs { display: none; margin-top: 1.5rem; }
+    .tab-bar { display: flex; gap: 0; border-bottom: 2px solid #e2e8f0; margin-bottom: 1.5rem; }
+    .tab-btn {
+      padding: 0.6rem 1.25rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #64748b;
+      background: none;
+      border: none;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .tab-btn:hover { color: #0ea5e9; }
+    .tab-btn.active { color: #0ea5e9; border-bottom-color: #0ea5e9; font-weight: 600; }
+
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* ── Chart cards ──────────────────────────────────────── */
+    .chart-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.5rem; }
+    .chart-card h2 { font-size: 1rem; font-weight: 600; margin-bottom: 0.2rem; }
+    .chart-card .subtitle { font-size: 0.8rem; color: #94a3b8; margin-bottom: 1.25rem; line-height: 1.4; }
+    .chart-wrap { position: relative; height: 420px; }
+
+    .pct-legend { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #f1f5f9; }
+    .pct-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; color: #475569; }
+    .pct-swatch { width: 22px; height: 3px; border-radius: 2px; display: inline-block; }
+
+    /* ── Aging WIP ────────────────────────────────────────── */
+    .aging-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    .aging-table th {
+      text-align: left; padding: 0.6rem 1rem;
+      background: #f8fafc;
+      border-bottom: 2px solid #e2e8f0;
+      font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; white-space: nowrap;
+    }
+    .aging-table td { padding: 0.7rem 1rem; border-bottom: 1px solid #f1f5f9; }
+    .aging-table tr:last-child td { border-bottom: none; }
+    .aging-table tr:hover td { background: #fafafa; }
+    .age-chip { display: inline-block; padding: 0.2rem 0.65rem; border-radius: 20px; font-weight: 700; font-size: 0.78rem; }
+    .age-green  { background: #dcfce7; color: #16a34a; }
+    .age-amber  { background: #fef9c3; color: #a16207; }
+    .age-orange { background: #ffedd5; color: #ea580c; }
+    .age-red    { background: #fee2e2; color: #dc2626; }
+
+    .empty-state { text-align: center; padding: 3rem; color: #94a3b8; font-size: 0.875rem; line-height: 1.6; }
+    .error-msg { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; border-radius: 8px; padding: 0.75rem 1rem; margin-top: 1rem; font-size: 0.875rem; }
+
+    @media (max-width: 640px) {
+      main { padding: 1rem; }
+      .config-grid { grid-template-columns: 1fr 1fr; }
+      .chart-wrap { height: 300px; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Flow<span>Lens</span></h1>
+  <div id="file-status">
+    <span id="status-text">No data loaded</span>
+    <button id="reload-btn" style="display:none" onclick="resetTool()">Load new file</button>
+  </div>
+</header>
+
+<main>
+  <!-- Upload -->
+  <div class="upload-zone" id="upload-zone">
+    <input type="file" id="file-input" accept=".csv" style="display:none">
+    <svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+      <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+    </svg>
+    <h2>Drop your CSV here or click to browse</h2>
+    <p>Works with Actionable Agile format and any CSV with date columns &nbsp;·&nbsp; Data stays on your machine</p>
+  </div>
+
+  <div id="error-area"></div>
+
+  <!-- Column config -->
+  <div id="config-panel">
+    <div class="config-header">
+      <h3>Column mapping</h3>
+      <small>Change these anytime — charts update instantly</small>
+    </div>
+    <div class="config-grid">
+      <div class="config-field">
+        <label>Start Date *</label>
+        <div class="hint">When the item entered your flow — e.g. "In Dev", "Committed"</div>
+        <select id="col-start"></select>
+      </div>
+      <div class="config-field">
+        <label>End Date *</label>
+        <div class="hint">When the item was done — e.g. "Closed", "Released"</div>
+        <select id="col-end"></select>
+      </div>
+      <div class="config-field">
+        <label>Item ID</label>
+        <div class="hint">Ticket reference for tooltips</div>
+        <select id="col-id"><option value="">— none —</option></select>
+      </div>
+      <div class="config-field">
+        <label>Title / Summary</label>
+        <div class="hint">Display name for tooltips</div>
+        <select id="col-title"><option value="">— none —</option></select>
+      </div>
+      <div class="config-field">
+        <label>Type</label>
+        <div class="hint">Work type for filtering</div>
+        <select id="col-type"><option value="">— none —</option></select>
+      </div>
+    </div>
+    <div class="filters">
+      <div class="filter-field">
+        <label>Filter by type</label>
+        <select id="filter-type"><option value="">All types</option></select>
+      </div>
+      <div class="filter-field">
+        <label>Date range</label>
+        <select id="filter-range">
+          <option value="">All time</option>
+          <option value="90">Last 90 days</option>
+          <option value="180">Last 6 months</option>
+          <option value="365">Last 12 months</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div id="stats-bar">
+    <div class="stat"><div class="value" id="stat-count">—</div><div class="label">Items completed</div></div>
+    <div class="stat"><div class="value" id="stat-median">—</div><div class="label">Median cycle time</div></div>
+    <div class="stat"><div class="value" id="stat-p85">—</div><div class="label">85th percentile</div></div>
+    <div class="stat"><div class="value" id="stat-throughput">—</div><div class="label">Avg / week</div></div>
+    <div class="stat"><div class="value" id="stat-wip">—</div><div class="label">WIP items</div></div>
+  </div>
+
+  <!-- Tabs -->
+  <div id="tabs">
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="scatter">Control Chart</button>
+      <button class="tab-btn" data-tab="throughput">Throughput</button>
+      <button class="tab-btn" data-tab="histogram">Histogram</button>
+      <button class="tab-btn" data-tab="aging">Aging WIP</button>
+    </div>
+
+    <div id="tab-scatter" class="tab-pane active">
+      <div class="chart-card">
+        <h2>Cycle Time Control Chart</h2>
+        <div class="subtitle">Each dot is one completed item. Percentile lines show where most of your work lands — aim to keep items below the 85th.</div>
+        <div class="chart-wrap"><canvas id="chart-scatter"></canvas></div>
+        <div class="pct-legend">
+          <div class="pct-item"><span class="pct-swatch" style="background:#22c55e"></span><span id="legend-p50">50th percentile</span></div>
+          <div class="pct-item"><span class="pct-swatch" style="background:#eab308"></span><span id="legend-p70">70th percentile</span></div>
+          <div class="pct-item"><span class="pct-swatch" style="background:#f97316"></span><span id="legend-p85">85th percentile</span></div>
+          <div class="pct-item"><span class="pct-swatch" style="background:#ef4444"></span><span id="legend-p95">95th percentile</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-throughput" class="tab-pane">
+      <div class="chart-card">
+        <h2>Throughput</h2>
+        <div class="subtitle">Items completed per week. The orange line is a 4-week rolling average — flat and steady is what you want.</div>
+        <div class="chart-wrap"><canvas id="chart-throughput"></canvas></div>
+      </div>
+    </div>
+
+    <div id="tab-histogram" class="tab-pane">
+      <div class="chart-card">
+        <h2>Cycle Time Distribution</h2>
+        <div class="subtitle">How often items take a given number of days. A tight cluster to the left = predictable team. Long tail to the right = outliers worth investigating.</div>
+        <div class="chart-wrap"><canvas id="chart-histogram"></canvas></div>
+      </div>
+    </div>
+
+    <div id="tab-aging" class="tab-pane">
+      <div class="chart-card">
+        <h2>Aging WIP</h2>
+        <div class="subtitle">Items that have started but not completed, ordered by age. Colour shows where each item sits against your completed cycle time percentiles.</div>
+        <div id="aging-content"></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let allRows = [];
+let columns = [];
+let charts = {};
+
+// ── Date parsing ───────────────────────────────────────────────────────────
+function parseDate(str) {
+  if (!str || typeof str !== 'string') return null;
+  str = str.trim();
+  if (!str) return null;
+
+  let m;
+  // ISO: 2024-03-15 or 2024-03-15T10:00:00
+  m = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return new Date(+m[1], +m[2]-1, +m[3]);
+
+  // DD/MM/YYYY or DD-MM-YYYY
+  m = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if (m) {
+    const d = +m[1], mo = +m[2], y = +m[3];
+    // If day > 12, must be DD/MM. Otherwise default DD/MM (UK convention).
+    return new Date(y, mo-1, d);
+  }
+
+  // DD/MM/YY
+  m = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})$/);
+  if (m) {
+    const y = +m[3] + (+m[3] > 50 ? 1900 : 2000);
+    return new Date(y, +m[2]-1, +m[1]);
+  }
+
+  // Fallback to JS parser
+  const d = new Date(str);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function daysBetween(a, b) { return (b - a) / 86400000; }
+
+function percentile(sorted, p) {
+  if (!sorted.length) return 0;
+  const idx = (p / 100) * (sorted.length - 1);
+  const lo = Math.floor(idx), hi = Math.ceil(idx);
+  if (lo === hi) return sorted[lo];
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+}
+
+function weekStart(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const day = d.getDay();
+  d.setDate(d.getDate() - (day === 0 ? 6 : day - 1)); // Monday
+  return d;
+}
+
+function fmtDate(d) {
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+// ── Upload ─────────────────────────────────────────────────────────────────
+const uploadZone = document.getElementById('upload-zone');
+const fileInput  = document.getElementById('file-input');
+
+uploadZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', e => { if (e.target.files[0]) processFile(e.target.files[0]); });
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+});
+
+function processFile(file) {
+  clearError();
+  Papa.parse(file, {
+    header: true,
+    skipEmptyLines: true,
+    complete(results) {
+      if (!results.data.length) { showError('CSV appears to be empty or could not be parsed.'); return; }
+      allRows = results.data;
+      columns = results.meta.fields || [];
+      document.getElementById('status-text').textContent = `${file.name} · ${allRows.length.toLocaleString()} rows`;
+      document.getElementById('reload-btn').style.display = 'inline-block';
+      setupConfig();
+    },
+    error(err) { showError('Could not read file: ' + err.message); }
+  });
+}
+
+function resetTool() {
+  allRows = []; columns = [];
+  Object.values(charts).forEach(c => c.destroy());
+  charts = {};
+  document.getElementById('config-panel').style.display = 'none';
+  document.getElementById('stats-bar').style.display = '';
+  document.getElementById('tabs').style.display = 'none';
+  document.getElementById('status-text').textContent = 'No data loaded';
+  document.getElementById('reload-btn').style.display = 'none';
+  fileInput.value = '';
+  clearError();
+}
+
+function showError(msg) { document.getElementById('error-area').innerHTML = `<div class="error-msg">${msg}</div>`; }
+function clearError()   { document.getElementById('error-area').innerHTML = ''; }
+
+// ── Column config ──────────────────────────────────────────────────────────
+function setupConfig() {
+  const panel = document.getElementById('config-panel');
+  panel.style.display = 'block';
+
+  ['col-start','col-end','col-id','col-title','col-type'].forEach(id => {
+    const sel = document.getElementById(id);
+    const hasNone = id !== 'col-start' && id !== 'col-end';
+    sel.innerHTML = hasNone ? '<option value="">— none —</option>' : '<option value="">Select column…</option>';
+    columns.forEach(col => {
+      const opt = document.createElement('option');
+      opt.value = col; opt.textContent = col;
+      sel.appendChild(opt);
+    });
+  });
+
+  autoDetect();
+
+  ['col-start','col-end','col-id','col-title','col-type','filter-type','filter-range'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', () => {
+      if (id === 'col-type') populateTypeFilter();
+      renderAll();
+    });
+  });
+}
+
+function autoDetect() {
+  const lower = columns.map(c => c.toLowerCase());
+
+  const find = (candidates) => {
+    for (const c of candidates) {
+      const exact = lower.findIndex(l => l === c.toLowerCase());
+      if (exact >= 0) return columns[exact];
+      const partial = lower.findIndex(l => l.includes(c.toLowerCase()));
+      if (partial >= 0) return columns[partial];
+    }
+    return '';
+  };
+
+  const start = find(['commitment date','committed date','start date','in progress date','activated','started','begin date','dev start']);
+  const end   = find(['completion date','completed date','done date','closed date','resolved date','end date','finish date']);
+  const id    = find(['id','issue id','key','ticket','number','ref','sys_id']);
+  const title = find(['title','summary','name','short description','description']);
+  const type  = find(['type','issue type','work type','category','sys_class_name']);
+
+  if (start) document.getElementById('col-start').value = start;
+  if (end)   document.getElementById('col-end').value   = end;
+  if (id)    document.getElementById('col-id').value    = id;
+  if (title) document.getElementById('col-title').value = title;
+  if (type)  { document.getElementById('col-type').value = type; populateTypeFilter(); }
+
+  renderAll();
+}
+
+function populateTypeFilter() {
+  const col = document.getElementById('col-type').value;
+  const sel = document.getElementById('filter-type');
+  sel.innerHTML = '<option value="">All types</option>';
+  if (col) {
+    const types = [...new Set(allRows.map(r => r[col]).filter(Boolean))].sort();
+    types.forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t; opt.textContent = t;
+      sel.appendChild(opt);
+    });
+  }
+}
+
+// ── Data processing ────────────────────────────────────────────────────────
+function getConfig() {
+  return {
+    startCol:   document.getElementById('col-start').value,
+    endCol:     document.getElementById('col-end').value,
+    idCol:      document.getElementById('col-id').value,
+    titleCol:   document.getElementById('col-title').value,
+    typeCol:    document.getElementById('col-type').value,
+    filterType: document.getElementById('filter-type').value,
+    filterDays: +document.getElementById('filter-range').value || 0,
+  };
+}
+
+function processData(cfg) {
+  if (!cfg.startCol || !cfg.endCol) return { completed: [], wip: [] };
+  const cutoff = cfg.filterDays ? new Date(Date.now() - cfg.filterDays * 86400000) : null;
+  const completed = [], wip = [];
+
+  allRows.forEach(row => {
+    if (cfg.filterType && row[cfg.typeCol] !== cfg.filterType) return;
+    const startDate = parseDate(row[cfg.startCol]);
+    const endDate   = parseDate(row[cfg.endCol]);
+    const id    = cfg.idCol    ? (row[cfg.idCol]    || '') : '';
+    const title = cfg.titleCol ? (row[cfg.titleCol] || '') : '';
+    const type  = cfg.typeCol  ? (row[cfg.typeCol]  || '') : '';
+
+    if (startDate && endDate && endDate >= startDate) {
+      const ct = daysBetween(startDate, endDate);
+      if (ct < 0) return;
+      if (cutoff && endDate < cutoff) return;
+      completed.push({ id, title, type, startDate, endDate, cycleTime: ct });
+    } else if (startDate && !endDate) {
+      const age = daysBetween(startDate, new Date());
+      if (age >= 0) wip.push({ id, title, type, startDate, age });
+    }
+  });
+
+  completed.sort((a, b) => a.endDate - b.endDate);
+  wip.sort((a, b) => b.age - a.age);
+  return { completed, wip };
+}
+
+// ── Render all ─────────────────────────────────────────────────────────────
+function renderAll() {
+  const cfg = getConfig();
+  if (!cfg.startCol || !cfg.endCol) return;
+
+  const { completed, wip } = processData(cfg);
+
+  if (!completed.length && !wip.length) {
+    showError('No usable rows found. Check your start and end date column selection.');
+    return;
+  }
+  clearError();
+
+  const sortedCT = completed.map(d => d.cycleTime).sort((a, b) => a - b);
+  const p50 = percentile(sortedCT, 50);
+  const p70 = percentile(sortedCT, 70);
+  const p85 = percentile(sortedCT, 85);
+  const p95 = percentile(sortedCT, 95);
+
+  // Stats bar
+  const statsBar = document.getElementById('stats-bar');
+  statsBar.style.display = 'grid';
+  document.getElementById('stat-count').textContent      = completed.length.toLocaleString();
+  document.getElementById('stat-median').textContent     = completed.length ? p50.toFixed(1) + 'd' : '—';
+  document.getElementById('stat-p85').textContent        = completed.length ? p85.toFixed(1) + 'd' : '—';
+  document.getElementById('stat-wip').textContent        = wip.length;
+
+  if (completed.length > 1) {
+    const spanWeeks = daysBetween(completed[0].endDate, completed[completed.length-1].endDate) / 7;
+    document.getElementById('stat-throughput').textContent = spanWeeks > 0 ? (completed.length / spanWeeks).toFixed(1) : '—';
+  } else {
+    document.getElementById('stat-throughput').textContent = '—';
+  }
+
+  // Percentile legend labels
+  document.getElementById('legend-p50').textContent = `50th — ${p50.toFixed(1)}d`;
+  document.getElementById('legend-p70').textContent = `70th — ${p70.toFixed(1)}d`;
+  document.getElementById('legend-p85').textContent = `85th — ${p85.toFixed(1)}d`;
+  document.getElementById('legend-p95').textContent = `95th — ${p95.toFixed(1)}d`;
+
+  document.getElementById('tabs').style.display = 'block';
+
+  renderScatter(completed, p50, p70, p85, p95);
+  renderThroughput(completed);
+  renderHistogram(completed, p50, p70, p85, p95);
+  renderAging(wip, p50, p70, p85, p95);
+}
+
+// ── Scatter / control chart ────────────────────────────────────────────────
+function renderScatter(data, p50, p70, p85, p95) {
+  const ctx = document.getElementById('chart-scatter').getContext('2d');
+  if (charts.scatter) { charts.scatter.destroy(); }
+
+  if (!data.length) { return; }
+
+  const minD = new Date(data[0].endDate.getTime() - 7 * 86400000);
+  const maxD = new Date(data[data.length-1].endDate.getTime() + 7 * 86400000);
+
+  const pctLines = [
+    { v: p50, color: '#22c55e', label: '50th' },
+    { v: p70, color: '#eab308', label: '70th' },
+    { v: p85, color: '#f97316', label: '85th' },
+    { v: p95, color: '#ef4444', label: '95th' },
+  ];
+
+  charts.scatter = new Chart(ctx, {
+    type: 'scatter',
+    data: {
+      datasets: [
+        {
+          type: 'scatter',
+          label: 'Items',
+          data: data.map(d => ({ x: d.endDate, y: d.cycleTime, _id: d.id, _title: d.title, _type: d.type })),
+          backgroundColor: 'rgba(56,189,248,0.5)',
+          pointRadius: 5,
+          pointHoverRadius: 7,
+          order: 10,
+        },
+        ...pctLines.map((pl, i) => ({
+          type: 'line',
+          label: pl.label,
+          data: [{ x: minD, y: pl.v }, { x: maxD, y: pl.v }],
+          borderColor: pl.color,
+          borderWidth: 1.5,
+          borderDash: [6, 4],
+          pointRadius: 0,
+          fill: false,
+          order: i,
+          tension: 0,
+        }))
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label(ctx) {
+              if (ctx.datasetIndex === 0) {
+                const d = ctx.raw;
+                const parts = [];
+                if (d._id) parts.push(d._id);
+                if (d._title) parts.push(d._title.slice(0, 45) + (d._title.length > 45 ? '…' : ''));
+                parts.push(`${d.y.toFixed(1)} days`);
+                return parts.join('  ·  ');
+              }
+              return `${ctx.dataset.label}: ${ctx.raw.y.toFixed(1)}d`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          type: 'time',
+          time: { unit: 'month', displayFormats: { month: 'MMM yy' } },
+          title: { display: true, text: 'Completion date', color: '#94a3b8', font: { size: 11 } },
+          grid: { color: '#f1f5f9' },
+          ticks: { color: '#94a3b8', font: { size: 11 } }
+        },
+        y: {
+          title: { display: true, text: 'Cycle time (days)', color: '#94a3b8', font: { size: 11 } },
+          grid: { color: '#f1f5f9' },
+          ticks: { color: '#94a3b8', font: { size: 11 } },
+          min: 0
+        }
+      }
+    }
+  });
+}
+
+// ── Throughput ─────────────────────────────────────────────────────────────
+function renderThroughput(data) {
+  const ctx = document.getElementById('chart-throughput').getContext('2d');
+  if (charts.throughput) charts.throughput.destroy();
+  if (!data.length) return;
+
+  const byWeek = {};
+  data.forEach(d => {
+    const k = weekStart(d.endDate).toISOString().slice(0,10);
+    byWeek[k] = (byWeek[k] || 0) + 1;
+  });
+
+  const keys   = Object.keys(byWeek).sort();
+  const values = keys.map(k => byWeek[k]);
+  const labels = keys.map(k => new Date(k + 'T00:00:00'));
+
+  // 4-week rolling average
+  const rolling = values.map((_, i) => {
+    const slice = values.slice(Math.max(0, i-3), i+1);
+    return +(slice.reduce((a,b) => a+b, 0) / slice.length).toFixed(2);
+  });
+
+  charts.throughput = new Chart(ctx, {
+    data: {
+      labels,
+      datasets: [
+        {
+          type: 'bar',
+          label: 'Items / week',
+          data: values,
+          backgroundColor: 'rgba(56,189,248,0.55)',
+          borderColor: 'rgba(56,189,248,0.85)',
+          borderWidth: 1,
+          order: 2,
+        },
+        {
+          type: 'line',
+          label: '4-week avg',
+          data: rolling,
+          borderColor: '#f97316',
+          borderWidth: 2,
+          pointRadius: 0,
+          fill: false,
+          order: 1,
+          tension: 0.35,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#475569', font: { size: 11 }, boxWidth: 16 } },
+        tooltip: { mode: 'index', intersect: false }
+      },
+      scales: {
+        x: {
+          type: 'time',
+          time: { unit: 'week', displayFormats: { week: 'd MMM' } },
+          grid: { color: '#f1f5f9' },
+          ticks: { color: '#94a3b8', font: { size: 11 } }
+        },
+        y: {
+          title: { display: true, text: 'Items completed', color: '#94a3b8', font: { size: 11 } },
+          grid: { color: '#f1f5f9' },
+          ticks: { color: '#94a3b8', font: { size: 11 }, stepSize: 1 },
+          min: 0
+        }
+      }
+    }
+  });
+}
+
+// ── Histogram ──────────────────────────────────────────────────────────────
+function renderHistogram(data, p50, p70, p85, p95) {
+  const ctx = document.getElementById('chart-histogram').getContext('2d');
+  if (charts.histogram) charts.histogram.destroy();
+  if (!data.length) return;
+
+  const cycleTimes = data.map(d => d.cycleTime);
+  const maxCT    = Math.ceil(Math.max(...cycleTimes));
+  const binCount = Math.min(25, Math.max(5, Math.ceil(Math.sqrt(cycleTimes.length))));
+  const binSize  = Math.max(1, Math.ceil(maxCT / binCount));
+
+  const actualBins = Math.ceil(maxCT / binSize);
+  const bins = Array(actualBins).fill(0);
+  cycleTimes.forEach(ct => {
+    const i = Math.min(Math.floor(ct / binSize), actualBins - 1);
+    bins[i]++;
+  });
+
+  const labels = bins.map((_, i) => {
+    const lo = i * binSize + 1;
+    const hi = (i+1) * binSize;
+    return lo === hi ? `${lo}d` : `${lo}–${hi}d`;
+  });
+
+  const barColors = bins.map((_, i) => {
+    const mid = (i + 0.5) * binSize;
+    if (mid <= p50) return 'rgba(34,197,94,0.7)';
+    if (mid <= p70) return 'rgba(234,179,8,0.7)';
+    if (mid <= p85) return 'rgba(249,115,22,0.7)';
+    return 'rgba(239,68,68,0.7)';
+  });
+
+  charts.histogram = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ label: 'Frequency', data: bins, backgroundColor: barColors, borderWidth: 0 }] },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: {
+          title: { display: true, text: 'Cycle time', color: '#94a3b8', font: { size: 11 } },
+          grid: { display: false },
+          ticks: { color: '#94a3b8', font: { size: 10 }, maxRotation: 45 }
+        },
+        y: {
+          title: { display: true, text: 'Number of items', color: '#94a3b8', font: { size: 11 } },
+          grid: { color: '#f1f5f9' },
+          ticks: { color: '#94a3b8', font: { size: 11 }, stepSize: 1 },
+          min: 0
+        }
+      }
+    }
+  });
+}
+
+// ── Aging WIP ──────────────────────────────────────────────────────────────
+function renderAging(wip, p50, p70, p85, p95) {
+  const container = document.getElementById('aging-content');
+
+  if (!wip.length) {
+    container.innerHTML = `<div class="empty-state">No in-progress items found.<br>Items appear here when they have a start date but no end date.</div>`;
+    return;
+  }
+
+  function chipClass(age) {
+    if (age <= p50) return 'age-green';
+    if (age <= p70) return 'age-amber';
+    if (age <= p85) return 'age-orange';
+    return 'age-red';
+  }
+
+  const hasType = wip.some(i => i.type);
+  const rows = wip.map(item => `
+    <tr>
+      <td style="color:#64748b;white-space:nowrap">${item.id || '—'}</td>
+      <td style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${item.title}">${item.title || '—'}</td>
+      ${hasType ? `<td style="color:#64748b">${item.type || ''}</td>` : ''}
+      <td style="white-space:nowrap;color:#64748b">${fmtDate(item.startDate)}</td>
+      <td><span class="age-chip ${chipClass(item.age)}">${item.age.toFixed(0)}d</span></td>
+    </tr>
+  `).join('');
+
+  container.innerHTML = `
+    <table class="aging-table">
+      <thead>
+        <tr>
+          <th>ID</th><th>Title</th>
+          ${hasType ? '<th>Type</th>' : ''}
+          <th>Started</th><th>Age</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <p style="margin-top:1rem;font-size:0.76rem;color:#94a3b8">
+      Age colour = where this item sits against completed cycle time percentiles &nbsp;
+      <span style="color:#16a34a">≤50th</span> ·
+      <span style="color:#a16207">≤70th</span> ·
+      <span style="color:#ea580c">≤85th</span> ·
+      <span style="color:#dc2626">&gt;85th — investigate</span>
+    </p>
+  `;
+}
+
+// ── Tab switching ──────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+</script>
+</body>
+</html>
