@@ -81,7 +81,10 @@
     }
     .stage-type-btn.queue   { background: #e2e8f0; color: #64748b; }
     .stage-type-btn.process { background: #bae6fd; color: #0369a1; }
-    .stage-item.stage-hidden { opacity: 0.4; }
+    .stage-item.stage-hidden {
+      opacity: 0.45; background: #f8fafc; border-style: dashed; border-color: #cbd5e1;
+    }
+    .stage-item.stage-hidden span:not(.stage-num):not(.stage-handle) { text-decoration: line-through; color: #94a3b8; }
     .stage-vis-btn {
       background: none; border: none; cursor: pointer;
       color: #cbd5e1; font-size: 0.8rem; line-height: 1; padding: 0 0.1rem; flex-shrink: 0;
@@ -1152,6 +1155,7 @@ function renderCFD() {
         legend: { position: 'bottom', reverse: true, labels: { color: '#475569', font: { size: 11 }, boxWidth: 14, padding: 14 } },
         tooltip: {
           mode: 'index', intersect: false,
+          itemSort(a, b) { return b.datasetIndex - a.datasetIndex; },
           callbacks: {
             title(items) {
               const d = new Date(items[0].parsed.x);
@@ -1164,7 +1168,7 @@ function renderCFD() {
               const stage = ctx.dataset.label;
               const avg = data.avgStageDays[stage];
               const ctPart = avg !== null ? `  ·  avg ${avg}d in stage` : '';
-              return `${stage}: ${wip} items${ctPart}`;
+              return `${stage}: ${wip} ${wip === 1 ? 'item' : 'items'}${ctPart}`;
             },
             footer() {
               return data.systemDays > 0 ? `Avg total CT: ${data.systemDays}d` : '';
