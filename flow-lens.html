@@ -1094,7 +1094,22 @@ function buildCFDData() {
     );
   });
 
-  return { weeks, stageCounts, visibleStages };
+  // Average time spent in each stage (stage entry → next stage entry), from items that moved through both
+  const avgStageDays = {};
+  visibleStages.forEach((col, si) => {
+    const nextCol = visibleStages[si + 1];
+    if (!nextCol) { avgStageDays[col] = null; return; }
+    const times = [];
+    rows.forEach(row => {
+      const enter = parseDate(row[col]);
+      const exit  = parseDate(row[nextCol]);
+      if (enter && exit && exit >= enter) times.push((exit - enter) / 86400000);
+    });
+    avgStageDays[col] = times.length ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) : null;
+  });
+  const systemDays = Object.values(avgStageDays).filter(v => v !== null).reduce((a, b) => a + b, 0);
+
+  return { weeks, stageCounts, visibleStages, avgStageDays, systemDays };
 }
 
 function renderCFD() {
@@ -1138,11 +1153,21 @@ function renderCFD() {
         tooltip: {
           mode: 'index', intersect: false,
           callbacks: {
+            title(items) {
+              const d = new Date(items[0].parsed.x);
+              return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+            },
             label(ctx) {
               const wip = ctx.datasetIndex === 0
                 ? ctx.parsed.y
                 : ctx.parsed.y - ctx.chart.data.datasets[ctx.datasetIndex - 1].data[ctx.dataIndex];
-              return `${ctx.dataset.label}: ${wip}`;
+              const stage = ctx.dataset.label;
+              const avg = data.avgStageDays[stage];
+              const ctPart = avg !== null ? `  ·  avg ${avg}d in stage` : '';
+              return `${stage}: ${wip} items${ctPart}`;
+            },
+            footer() {
+              return data.systemDays > 0 ? `Avg total CT: ${data.systemDays}d` : '';
             }
           }
         }
