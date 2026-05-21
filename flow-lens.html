@@ -126,8 +126,28 @@
     .tab-pane.active { display: block; }
 
     .chart-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.5rem; }
-    .chart-card h2 { font-size: 1rem; font-weight: 600; margin-bottom: 0.2rem; }
-    .chart-card .subtitle { font-size: 0.8rem; color: #94a3b8; margin-bottom: 1.25rem; line-height: 1.4; }
+    .chart-card h2 { font-size: 1rem; font-weight: 600; margin-bottom: 0.2rem; display: flex; align-items: center; gap: 0.4rem; }
+    .chart-card .subtitle { font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.75rem; line-height: 1.4; }
+
+    .info-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 1.25rem; height: 1.25rem; border-radius: 50%; flex-shrink: 0;
+      border: 1.5px solid #cbd5e1; background: none; cursor: pointer;
+      font-size: 0.68rem; color: #94a3b8; line-height: 1; transition: all 0.15s;
+    }
+    .info-btn:hover, .info-btn.open { border-color: #38bdf8; color: #0ea5e9; background: #f0f9ff; }
+    .info-panel {
+      display: none; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;
+      padding: 1rem 1.25rem; margin-bottom: 1rem; font-size: 0.81rem; color: #475569; line-height: 1.65;
+    }
+    .info-panel.open { display: block; }
+    .info-row { margin-bottom: 0.65rem; }
+    .info-row:last-child { margin-bottom: 0; }
+    .info-row strong { color: #0f172a; display: block; font-size: 0.79rem; margin-bottom: 0.1rem; }
+    .info-formula {
+      display: inline-block; background: white; border: 1px solid #e2e8f0; border-radius: 4px;
+      padding: 0.15rem 0.55rem; font-family: monospace; font-size: 0.77rem; color: #0f172a; margin: 0.2rem 0;
+    }
     .chart-wrap { position: relative; height: 420px; }
 
     .pct-legend { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #f1f5f9; }
@@ -349,19 +369,31 @@
     <div id="tab-insights" class="tab-pane active">
       <div class="ic2-top">
         <div class="ic2-card">
-          <div class="ic2-label">Speed</div>
+          <div class="ic2-label" style="display:flex;align-items:center;gap:0.4rem">Speed <button class="info-btn" data-info="info-speed" onclick="toggleInfo('info-speed')" title="How this is calculated">ℹ</button></div>
+          <div class="info-panel" id="info-speed" style="margin:0.5rem 0 0.25rem">
+            <div class="info-row"><strong>Cycle time</strong> is measured from your configured start stage (e.g. To Do) to your end stage (e.g. Done). It is the total time an item spent in your system — including queues. This is what your stakeholders experience as "how long did that take?"</div>
+            <div class="info-row"><strong>The 85th percentile</strong> is your Service Level Expectation — commit to delivering 85% of items within this number of days. It's realistic (not best-case) and builds trust over time.</div>
+          </div>
           <div class="ic2-q">How fast do we finish?</div>
           <div class="ic2-sub">Cycle time percentiles — how long completed items actually took</div>
           <div id="ic-ct-stats"><span style="color:#94a3b8;font-size:0.85rem">No data yet</span></div>
         </div>
         <div class="ic2-card ic2-emerald">
-          <div class="ic2-label">Forecast</div>
+          <div class="ic2-label" style="display:flex;align-items:center;gap:0.4rem">Forecast <button class="info-btn" data-info="info-forecast" onclick="toggleInfo('info-forecast')" title="How this is calculated">ℹ</button></div>
+          <div class="info-panel" id="info-forecast" style="margin:0.5rem 0 0.25rem">
+            <div class="info-row"><strong>Monte Carlo simulation</strong> runs your historical weekly throughput through 10,000 simulated 30-day periods to estimate how many items you are likely to complete. The result is a probability distribution — not a single number.</div>
+            <div class="info-row"><strong>How to read it:</strong> "85% chance of 6 or more" means that in 85% of simulated futures you complete at least 6 items. More reliable than velocity because it captures the natural variability in your actual delivery, not an idealised average.</div>
+          </div>
           <div class="ic2-q">What can we close this month?</div>
           <div class="ic2-sub">Monte Carlo — likely completions in the next 30 days</div>
           <div id="ic-fc-stats"><span style="color:#94a3b8;font-size:0.85rem">No data yet</span></div>
         </div>
         <div class="ic2-card ic2-dark">
-          <div class="ic2-label">WIP</div>
+          <div class="ic2-label" style="display:flex;align-items:center;gap:0.4rem">WIP <button class="info-btn" data-info="info-wip-ins" onclick="toggleInfo('info-wip-ins')" style="border-color:#4338ca;color:#a5b4fc" title="How this is calculated">ℹ</button></div>
+          <div class="info-panel" id="info-wip-ins" style="margin:0.5rem 0 0.25rem;background:#1e1b4b;border-color:#312e81;color:#c7d2fe">
+            <div class="info-row"><strong style="color:#e0e7ff">Work in progress</strong> = items that have entered your start stage but not yet reached your end stage as of today.</div>
+            <div class="info-row"><strong style="color:#e0e7ff">Little's Law:</strong> <span class="info-formula" style="background:#312e81;border-color:#4338ca;color:#e0e7ff">Cycle Time = WIP ÷ Throughput</span> High WIP directly causes long cycle times. Reducing WIP is usually the fastest lever for improving delivery speed.</div>
+          </div>
           <div class="ic2-q">How much are we juggling?</div>
           <div class="ic2-sub">Items currently in progress</div>
           <div class="ic2-bignum" id="ic-wip-num">—</div>
@@ -370,13 +402,22 @@
       </div>
       <div class="ic2-mid">
         <div class="ic2-card ic2-warn">
-          <div class="ic2-label">Risk</div>
+          <div class="ic2-label" style="display:flex;align-items:center;gap:0.4rem">Risk <button class="info-btn" data-info="info-smelly" onclick="toggleInfo('info-smelly')" style="border-color:#d97706;color:#d97706" title="How this is calculated">ℹ</button></div>
+          <div class="info-panel" id="info-smelly" style="margin:0.5rem 0 0.25rem;background:#fffbeb;border-color:#fde68a">
+            <div class="info-row"><strong>Smelly tickets</strong> are WIP items older than your 85th percentile cycle time. By definition, 85% of your completed items finished faster than this threshold — so anything still in progress beyond it is a statistical outlier worth reviewing.</div>
+            <div class="info-row">The name comes from <em>code smell</em> — not necessarily broken, but worth a closer look. Ask: is it blocked? Forgotten? Too large to finish? The older it gets, the more it is slowing everything else down (Little's Law).</div>
+          </div>
           <div class="ic2-q">Smelly tickets</div>
           <div class="ic2-sub">WIP items in progress longer than your 85th percentile cycle time</div>
           <div id="ic-smelly-content"><span style="color:#94a3b8;font-size:0.85rem">No data yet</span></div>
         </div>
         <div class="ic2-card ic2-teal">
-          <div class="ic2-label">Focus</div>
+          <div class="ic2-label" style="display:flex;align-items:center;gap:0.4rem">Focus <button class="info-btn" data-info="info-multitask" onclick="toggleInfo('info-multitask')" style="border-color:#0d9488;color:#0d9488" title="How this is calculated">ℹ</button></div>
+          <div class="info-panel" id="info-multitask" style="margin:0.5rem 0 0.25rem;background:#f0fdfa;border-color:#99f6e4">
+            <div class="info-row"><strong>Multitasking index</strong> = for each item that was started, count how many other items were already in progress at that moment. Average this across all items. A high number means the team is constantly context-switching.</div>
+            <div class="info-row"><strong>Research suggests</strong> that switching between more than 2–3 tasks simultaneously causes significant overhead. Each switch costs focus time and delays everything in flight. High multitasking index is a leading indicator of long cycle times.</div>
+            <div class="info-row"><strong>How to improve it:</strong> Set a WIP limit. Finish existing items before starting new ones. Even one person fully finishing one thing before picking up another makes a measurable difference.</div>
+          </div>
           <div class="ic2-q">How many balls in the air when we start something?</div>
           <div class="ic2-sub">Average in-progress items at the moment each new item is started</div>
           <div id="ic-multitask-content"><span style="color:#94a3b8;font-size:0.85rem">No data yet</span></div>
@@ -398,8 +439,14 @@
 
     <div id="tab-scatter" class="tab-pane">
       <div class="chart-card">
-        <h2>Cycle Time Control Chart</h2>
+        <h2>Cycle Time Control Chart <button class="info-btn" data-info="info-scatter" onclick="toggleInfo('info-scatter')" title="How to read this">ℹ</button></h2>
         <div class="subtitle">Each dot is one completed item. Percentile lines show where most of your work lands — aim to keep items below the 85th.</div>
+        <div class="info-panel" id="info-scatter">
+          <div class="info-row"><strong>What is cycle time?</strong>Cycle time is how long it takes to complete an item, measured from when it enters your start stage to when it enters your end stage (as set in column mapping). It is the customer's experience of wait time.</div>
+          <div class="info-row"><strong>What do the percentile lines mean?</strong>50% of items complete within the green line. 85% complete within the orange line. Use the 85th as your <em>Service Level Expectation (SLE)</em> — a realistic commitment: "We will deliver 85% of items within X days."</div>
+          <div class="info-row"><strong>Orange dots</strong> were blocked at some point during their journey. Compare blocked vs unblocked dots to see how much blocking inflates cycle time.</div>
+          <div class="info-row"><strong>What to look for:</strong> Dots clustering tightly below the 85th line = predictable team. Outliers above the 95th = worth a conversation. Trend upward over time = system is slowing — check WIP.</div>
+        </div>
         <div class="chart-wrap"><canvas id="chart-scatter"></canvas></div>
         <div class="pct-legend">
           <div class="pct-item"><span class="pct-swatch" style="background:#22c55e"></span><span id="legend-p50">50th percentile</span></div>
@@ -412,24 +459,42 @@
 
     <div id="tab-throughput" class="tab-pane">
       <div class="chart-card">
-        <h2>Throughput</h2>
+        <h2>Throughput <button class="info-btn" data-info="info-throughput" onclick="toggleInfo('info-throughput')" title="How to read this">ℹ</button></h2>
         <div class="subtitle">Items completed per week. The orange line is a 4-week rolling average — flat and steady is what you want.</div>
+        <div class="info-panel" id="info-throughput">
+          <div class="info-row"><strong>What is throughput?</strong>The number of items completed in a given week. This is the engine of your system — throughput drives forecasts, and combined with WIP it determines cycle time.</div>
+          <div class="info-row"><strong>Why use a rolling average?</strong>Weekly counts are noisy (holidays, sprints, batch releases). The 4-week rolling average smooths this out so you can see the real trend.</div>
+          <div class="info-row"><strong>What to look for:</strong> Steady or rising average = healthy. A sustained drop = investigate (team capacity, blocking, process issues). Spiky pattern with long gaps = work is being batched rather than flowing continuously.</div>
+          <div class="info-row"><strong>Throughput and forecasting:</strong> The Monte Carlo forecast on the Flow Insights tab samples this historical throughput distribution to estimate future completions. More stable throughput = tighter, more reliable forecast range.</div>
+        </div>
         <div class="chart-wrap"><canvas id="chart-throughput"></canvas></div>
       </div>
     </div>
 
     <div id="tab-wiptime" class="tab-pane">
       <div class="chart-card">
-        <h2>WIP Over Time</h2>
+        <h2>WIP Over Time <button class="info-btn" data-info="info-wiptime" onclick="toggleInfo('info-wiptime')" title="How to read this">ℹ</button></h2>
         <div class="subtitle">Work in progress count each week. A stable or declining WIP leads to more predictable flow — rising WIP means more is starting than finishing.</div>
+        <div class="info-panel" id="info-wiptime">
+          <div class="info-row"><strong>Little's Law</strong>The most important equation in flow metrics: <span class="info-formula">Cycle Time = WIP ÷ Throughput</span> If WIP doubles and throughput stays flat, cycle time doubles. You cannot improve cycle time without managing WIP.</div>
+          <div class="info-row"><strong>Rising WIP</strong> means more is being started than finished. This is the single most common cause of long cycle times — not team capacity or skill, but too many things in flight at once.</div>
+          <div class="info-row"><strong>What to look for:</strong> Flat or declining WIP = sustainable system. Steadily rising WIP = overloaded system heading for slowdown. A sudden WIP spike = something got stuck (check Aging WIP for the culprit).</div>
+          <div class="info-row"><strong>What to do:</strong> Set a WIP limit. Stop starting, start finishing. Even a soft limit ("flag it if WIP goes above X") creates useful conversation.</div>
+        </div>
         <div class="chart-wrap"><canvas id="chart-wiptime"></canvas></div>
       </div>
     </div>
 
     <div id="tab-cfd" class="tab-pane">
       <div class="chart-card">
-        <h2>Cumulative Flow Diagram</h2>
+        <h2>Cumulative Flow Diagram <button class="info-btn" data-info="info-cfd" onclick="toggleInfo('info-cfd')" title="How to read this">ℹ</button></h2>
         <div class="subtitle">Done anchors the bottom — its slope is your throughput. To Do sits at the top — its growth is your commitment rate.</div>
+        <div class="info-panel" id="info-cfd">
+          <div class="info-row"><strong>How to read the bands</strong>Each coloured band is a workflow stage. The height of the band at any point = WIP in that stage. A band that widens over time = work is accumulating there — a bottleneck. A flat or shrinking band = flow is moving through.</div>
+          <div class="info-row"><strong>Slopes and lines</strong>The slope of any line = its throughput rate (items per day). Two lines with the same slope = balanced flow between those stages. The horizontal distance between any two lines at a point = approximate cycle time between those stages.</div>
+          <div class="info-row"><strong>Tooltip: cycle time per stage</strong>The <em>~Xd</em> shown in the tooltip is an approximate average cycle time for that stage, calculated using <strong>Little's Law</strong>: <span class="info-formula">CT ≈ WIP in stage ÷ recent throughput rate</span> This is the same method Actionable Agile uses (they label it "Approximate" too). It reflects the current state of flow at that point on the chart — if WIP is high and throughput is low, it estimates a longer cycle time. It is not the same as the historical average time individual items spent in the stage.</div>
+          <div class="info-row"><strong>What to look for:</strong> Parallel lines with equal slope = smooth, predictable flow. Diverging lines = WIP growing. Flat bottom (Done) line = throughput has stalled. A big orange or red band = your bottleneck.</div>
+        </div>
         <div style="display:flex;gap:2rem;flex-wrap:wrap;margin-bottom:1rem;font-size:0.78rem;color:#475569">
           <span><strong style="color:#0f172a">Band height</strong> = WIP in that stage</span>
           <span><strong style="color:#0f172a">Band widens</strong> = work piling up, possible bottleneck</span>
@@ -449,16 +514,33 @@
 
     <div id="tab-histogram" class="tab-pane">
       <div class="chart-card">
-        <h2>Cycle Time Distribution</h2>
+        <h2>Cycle Time Distribution <button class="info-btn" data-info="info-histogram" onclick="toggleInfo('info-histogram')" title="How to read this">ℹ</button></h2>
         <div class="subtitle">How often items take a given number of days. A tight cluster to the left = predictable team. Long tail to the right = outliers worth investigating.</div>
+        <div class="info-panel" id="info-histogram">
+          <div class="info-row"><strong>What this shows</strong>The shape of your delivery. Each bar = how many items completed at that cycle time. The shaded background regions correspond to percentile bands (50th, 70th, 85th, 95th).</div>
+          <div class="info-row"><strong>Tight cluster on the left</strong> means most work completes quickly and consistently — highly predictable. The team has found a reliable way of working.</div>
+          <div class="info-row"><strong>Long right tail</strong> means some items take much longer than most. This makes forecasting harder and erodes stakeholder trust. Usually caused by: items being too large, blockers, context switching, or items sitting in queues.</div>
+          <div class="info-row"><strong>Two peaks (bimodal)</strong> suggests two different types of work with different natural cycle times — consider whether they should be tracked separately.</div>
+        </div>
         <div class="chart-wrap"><canvas id="chart-histogram"></canvas></div>
       </div>
     </div>
 
     <div id="tab-aging" class="tab-pane">
       <div class="chart-card">
-        <h2>Aging WIP</h2>
+        <h2>Aging WIP <button class="info-btn" data-info="info-aging" onclick="toggleInfo('info-aging')" title="How to read this">ℹ</button></h2>
         <div class="subtitle">Items in progress by current workflow stage and age. Colour shows where each item sits against your completed cycle time percentiles.</div>
+        <div class="info-panel" id="info-aging">
+          <div class="info-row"><strong>What this shows</strong>Every dot is a work item currently in progress. X-axis = which stage it is currently in. Y-axis = how many days it has been in the system (age from start date to today).</div>
+          <div class="info-row"><strong>Colour = risk level</strong> compared to your historical cycle time percentiles:
+            <br>🟢 <strong>Green</strong> — below your 50th percentile. On track, no concern.
+            <br>🟡 <strong>Yellow</strong> — between 50th and 70th. Worth keeping an eye on.
+            <br>🟠 <strong>Orange</strong> — between 70th and 85th. At risk. Consider a conversation.
+            <br>🔴 <strong>Red</strong> — above 85th percentile. 85% of completed items finished faster than this. Needs attention now.
+          </div>
+          <div class="info-row"><strong>Click any dot</strong> to open the ticket directly (if a Link column is mapped).</div>
+          <div class="info-row"><strong>What to look for:</strong> Red dots in early stages (To Do, Doing) are most concerning — they have a long way to go. Red dots in Done but not yet closed = process issue, not delivery issue.</div>
+        </div>
         <div class="chart-wrap"><canvas id="chart-aging"></canvas></div>
         <div id="aging-legend" style="margin-top:1rem;padding-top:1rem;border-top:1px solid #f1f5f9;font-size:0.76rem;color:#94a3b8;line-height:2"></div>
       </div>
@@ -728,6 +810,14 @@ function toggleStageVis(col) {
   event.stopPropagation();
   if (hiddenStages.has(col)) hiddenStages.delete(col); else hiddenStages.add(col);
   buildWorkflowUI(); renderAll();
+}
+
+function toggleInfo(id) {
+  const panel = document.getElementById(id);
+  const btn   = document.querySelector(`[data-info="${id}"]`);
+  if (!panel) return;
+  const open = panel.classList.toggle('open');
+  if (btn) btn.classList.toggle('open', open);
 }
 
 function toggleStageType(col, btn) {
@@ -1097,29 +1187,34 @@ function buildCFDData() {
     );
   });
 
-  // Average time spent in each stage: for each item that entered the stage,
-  // find the first SUBSEQUENT stage (in full workflowStages order) that the item
-  // actually reached — regardless of whether it skipped intermediate stages.
-  // Last visible stage shows null (no exit to measure).
-  const avgStageDays = {};
-  const allStageCols = workflowStages; // full ordered list including hidden
-  visibleStages.forEach((col) => {
-    const stageIdx = allStageCols.indexOf(col);
-    const laterCols = allStageCols.slice(stageIdx + 1);
-    if (!laterCols.length) { avgStageDays[col] = null; return; }
-    const times = [];
-    rows.forEach(row => {
-      const enter = parseDate(row[col]);
-      if (!enter) return;
-      // Find the first later stage this item actually has a date for
-      for (const next of laterCols) {
-        const exit = parseDate(row[next]);
-        if (exit && exit >= enter) { times.push((exit - enter) / 86400000); break; }
+  // Little's Law CT per stage per week: ~CT = WIP ÷ (exits in last 28 days / 28)
+  // Same method as Actionable Agile. Last visible stage has no exit, always null.
+  const llCtPerStage = visibleStages.map((col, si) => {
+    const stageIdx = workflowStages.indexOf(col);
+    const isLast = si === visibleStages.length - 1;
+    if (isLast) return weeks.map(() => null);
+    return weeks.map((wk, wi) => {
+      const windowMs = 28 * 86400000;
+      const windowStart = new Date(wk.getTime() - windowMs);
+      // WIP in this stage at wk = items reached here but not yet reached next visible stage
+      const wip = stageCounts[si][wi] - stageCounts[si + 1][wi];
+      if (wip <= 0) return null;
+      // Throughput = items that exited this stage (entered any later stage) in the 28-day window
+      let tp = 0;
+      for (const dates of allStagesParsed) {
+        const enter = dates[stageIdx];
+        if (!enter || enter > wk) continue;
+        for (let j = stageIdx + 1; j < workflowStages.length; j++) {
+          const exit = dates[j];
+          if (exit && exit >= windowStart && exit <= wk) { tp++; break; }
+        }
       }
+      if (tp === 0) return null;
+      return Math.round(wip / (tp / 28));
     });
-    avgStageDays[col] = times.length ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) : null;
   });
-  return { weeks, stageCounts, visibleStages, avgStageDays };
+
+  return { weeks, stageCounts, visibleStages, llCtPerStage };
 }
 
 function renderCFD() {
@@ -1173,10 +1268,12 @@ function renderCFD() {
                 ? ctx.parsed.y
                 : ctx.parsed.y - ctx.chart.data.datasets[ctx.datasetIndex - 1].data[ctx.dataIndex];
               const stage = ctx.dataset.label;
-              const avg = data.avgStageDays[stage];
-              const ctPart = avg !== null ? `  ·  ${avg}d avg` : '';
+              const si = data.visibleStages.indexOf(stage);
+              const llCt = data.llCtPerStage[si] ? data.llCtPerStage[si][ctx.dataIndex] : null;
+              const ctPart = llCt !== null ? `  ·  ~${llCt}d` : '';
               return `${stage}: ${wip} ${wip === 1 ? 'item' : 'items'}${ctPart}`;
-            }
+            },
+            footer() { return '* Approximate — Little\'s Law (WIP ÷ throughput)'; }
           }
         }
       },
