@@ -7,124 +7,114 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: system-ui, -apple-system, sans-serif; background: #f8fafc; color: #1e293b; min-height: 100vh; }
 
     header {
-      background: #0f172a;
-      color: white;
+      background: #0f172a; color: white;
       padding: 0.9rem 2rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      position: sticky;
-      top: 0;
-      z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 100;
     }
     header h1 { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.03em; }
     header h1 span { color: #38bdf8; }
     #file-status { font-size: 0.8rem; color: #94a3b8; display: flex; align-items: center; gap: 0.75rem; }
     #reload-btn {
-      font-size: 0.75rem;
-      color: #38bdf8;
-      background: none;
-      border: 1px solid #334155;
-      border-radius: 4px;
-      padding: 0.25rem 0.6rem;
-      cursor: pointer;
+      font-size: 0.75rem; color: #38bdf8; background: none;
+      border: 1px solid #334155; border-radius: 4px; padding: 0.25rem 0.6rem; cursor: pointer;
     }
     #reload-btn:hover { border-color: #38bdf8; }
 
     main { max-width: 1200px; margin: 0 auto; padding: 2rem; }
 
-    /* ── Upload ────────────────────────────────────────────── */
     .upload-zone {
-      border: 2px dashed #cbd5e1;
-      border-radius: 12px;
-      padding: 3.5rem 2rem;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.2s;
-      background: white;
+      border: 2px dashed #cbd5e1; border-radius: 12px; padding: 3.5rem 2rem;
+      text-align: center; cursor: pointer; transition: all 0.2s; background: white;
     }
     .upload-zone:hover, .upload-zone.drag-over { border-color: #38bdf8; background: #f0f9ff; }
     .upload-zone svg { margin: 0 auto 1rem; display: block; }
     .upload-zone h2 { font-size: 1.05rem; color: #475569; margin-bottom: 0.4rem; }
     .upload-zone p { font-size: 0.82rem; color: #94a3b8; }
 
-    /* ── Config panel ─────────────────────────────────────── */
     #config-panel {
-      display: none;
-      background: white;
-      border: 1px solid #e2e8f0;
-      border-radius: 12px;
-      padding: 1.25rem 1.5rem;
-      margin-top: 1.25rem;
+      display: none; background: white; border: 1px solid #e2e8f0;
+      border-radius: 12px; padding: 1.25rem 1.5rem; margin-top: 1.25rem;
     }
-    .config-header {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      margin-bottom: 1rem;
-    }
+    .config-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 1rem; }
     .config-header h3 { font-size: 0.78rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; }
     .config-header small { font-size: 0.78rem; color: #38bdf8; }
     .config-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 1rem; }
     .config-field label { display: block; font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 0.2rem; }
     .config-field .hint { font-size: 0.72rem; color: #94a3b8; margin-bottom: 0.4rem; line-height: 1.3; }
     .config-field select {
-      width: 100%;
-      padding: 0.45rem 0.7rem;
-      border: 1px solid #d1d5db;
-      border-radius: 6px;
-      font-size: 0.83rem;
-      background: white;
-      color: #1e293b;
+      width: 100%; padding: 0.45rem 0.7rem; border: 1px solid #d1d5db;
+      border-radius: 6px; font-size: 0.83rem; background: white; color: #1e293b;
     }
     .config-field select:focus { outline: none; border-color: #38bdf8; box-shadow: 0 0 0 3px rgba(56,189,248,0.1); }
+
+    .workflow-section { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #f1f5f9; }
+    .workflow-section-header { display: flex; align-items: baseline; gap: 0.75rem; margin-bottom: 0.55rem; }
+    .workflow-section-header span { font-size: 0.78rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; }
+    .workflow-section-header small { font-size: 0.72rem; color: #94a3b8; }
+    .stage-list { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; min-height: 2.2rem; }
+    .stage-item {
+      display: flex; align-items: center; gap: 0.35rem;
+      padding: 0.3rem 0.7rem 0.3rem 0.45rem; border-radius: 20px;
+      background: #f1f5f9; border: 1px solid #e2e8f0;
+      font-size: 0.8rem; color: #374151; cursor: grab; user-select: none; transition: border-color 0.12s, background 0.12s;
+    }
+    .stage-item:active { cursor: grabbing; }
+    .stage-item.dragging { opacity: 0.35; }
+    .stage-item.drag-over { border-color: #38bdf8; background: #e0f2fe; }
+    .stage-num {
+      background: #cbd5e1; color: #475569; font-size: 0.65rem; font-weight: 700;
+      width: 1.25rem; height: 1.25rem; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .stage-handle { color: #94a3b8; font-size: 0.9rem; line-height: 1; }
+    .stage-type-btn {
+      font-size: 0.65rem; font-weight: 700; letter-spacing: 0.03em;
+      padding: 0.15rem 0.35rem; border-radius: 3px; border: none;
+      cursor: pointer; flex-shrink: 0; transition: all 0.15s; line-height: 1;
+    }
+    .stage-type-btn.queue   { background: #e2e8f0; color: #64748b; }
+    .stage-type-btn.process { background: #bae6fd; color: #0369a1; }
+    .stage-item.stage-hidden { opacity: 0.4; }
+    .stage-vis-btn {
+      background: none; border: none; cursor: pointer;
+      color: #cbd5e1; font-size: 0.8rem; line-height: 1; padding: 0 0.1rem; flex-shrink: 0;
+    }
+    .stage-vis-btn:hover { color: #ef4444; }
+    .stage-item.stage-hidden .stage-vis-btn { color: #94a3b8; }
+    .stage-item.stage-hidden .stage-vis-btn:hover { color: #22c55e; }
 
     .filters { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #f1f5f9; display: flex; gap: 1rem; flex-wrap: wrap; }
     .filter-field label { display: block; font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 0.2rem; }
     .filter-field select { padding: 0.45rem 0.7rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.83rem; background: white; color: #1e293b; }
     .filter-field select:focus { outline: none; border-color: #38bdf8; }
 
-    /* ── Stats bar ─────────────────────────────────────────── */
     #stats-bar {
-      background: #0f172a;
-      border-radius: 10px;
-      padding: 1rem 1.5rem;
-      margin-top: 1.25rem;
-      display: none;
-      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-      gap: 1rem;
+      background: #0f172a; border-radius: 10px; padding: 1rem 1.5rem;
+      margin-top: 1.25rem; display: none;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 1rem;
     }
     .stat .value { font-size: 1.6rem; font-weight: 700; color: #38bdf8; line-height: 1; }
     .stat .label { font-size: 0.72rem; color: #64748b; margin-top: 0.25rem; }
 
-    /* ── Tabs ─────────────────────────────────────────────── */
     #tabs { display: none; margin-top: 1.5rem; }
-    .tab-bar { display: flex; gap: 0; border-bottom: 2px solid #e2e8f0; margin-bottom: 1.5rem; }
+    .tab-bar { display: flex; gap: 0; border-bottom: 2px solid #e2e8f0; margin-bottom: 1.5rem; overflow-x: auto; }
     .tab-btn {
-      padding: 0.6rem 1.25rem;
-      font-size: 0.875rem;
-      font-weight: 500;
-      color: #64748b;
-      background: none;
-      border: none;
-      cursor: pointer;
-      border-bottom: 2px solid transparent;
-      margin-bottom: -2px;
-      transition: all 0.15s;
-      white-space: nowrap;
+      padding: 0.6rem 1.25rem; font-size: 0.875rem; font-weight: 500; color: #64748b;
+      background: none; border: none; cursor: pointer;
+      border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; white-space: nowrap;
     }
     .tab-btn:hover { color: #0ea5e9; }
     .tab-btn.active { color: #0ea5e9; border-bottom-color: #0ea5e9; font-weight: 600; }
-
     .tab-pane { display: none; }
     .tab-pane.active { display: block; }
 
-    /* ── Chart cards ──────────────────────────────────────── */
     .chart-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.5rem; }
     .chart-card h2 { font-size: 1rem; font-weight: 600; margin-bottom: 0.2rem; }
     .chart-card .subtitle { font-size: 0.8rem; color: #94a3b8; margin-bottom: 1.25rem; line-height: 1.4; }
@@ -134,26 +124,65 @@
     .pct-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; color: #475569; }
     .pct-swatch { width: 22px; height: 3px; border-radius: 2px; display: inline-block; }
 
-    /* ── Aging WIP ────────────────────────────────────────── */
+    .cfd-zoom {
+      display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
+      margin-bottom: 1rem; font-size: 0.82rem; color: #475569;
+    }
+    .cfd-zoom label { display: flex; align-items: center; gap: 0.35rem; }
+    .cfd-zoom input[type="date"] {
+      padding: 0.3rem 0.5rem; border: 1px solid #d1d5db; border-radius: 6px;
+      font-size: 0.82rem; color: #1e293b; background: white;
+    }
+    .cfd-zoom input[type="date"]:focus { outline: none; border-color: #38bdf8; }
+    .cfd-zoom button {
+      padding: 0.3rem 0.75rem; border: 1px solid #d1d5db; border-radius: 6px;
+      font-size: 0.82rem; cursor: pointer; background: white; color: #475569;
+    }
+    .cfd-zoom button:hover { border-color: #38bdf8; color: #0ea5e9; }
+
     .aging-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
     .aging-table th {
-      text-align: left; padding: 0.6rem 1rem;
-      background: #f8fafc;
+      text-align: left; padding: 0.6rem 1rem; background: #f8fafc;
       border-bottom: 2px solid #e2e8f0;
       font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; white-space: nowrap;
     }
     .aging-table td { padding: 0.7rem 1rem; border-bottom: 1px solid #f1f5f9; }
     .aging-table tr:last-child td { border-bottom: none; }
     .aging-table tr:hover td { background: #fafafa; }
-    .age-chip { display: inline-block; padding: 0.2rem 0.65rem; border-radius: 20px; font-weight: 700; font-size: 0.78rem; }
-    .age-green  { background: #dcfce7; color: #16a34a; }
-    .age-amber  { background: #fef9c3; color: #a16207; }
-    .age-orange { background: #ffedd5; color: #ea580c; }
-    .age-red    { background: #fee2e2; color: #dc2626; }
 
     .empty-state { text-align: center; padding: 3rem; color: #94a3b8; font-size: 0.875rem; line-height: 1.6; }
     .error-msg { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; border-radius: 8px; padding: 0.75rem 1rem; margin-top: 1rem; font-size: 0.875rem; }
 
+    /* ── Insights tab ── */
+    .insights-top { display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+    .insights-left { display: flex; flex-direction: column; gap: 1rem; }
+    .insights-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.25rem 1.5rem; }
+    .ic-title { font-size: 0.95rem; font-weight: 700; display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+    .ic-title .ic-q { font-size: 0.8rem; font-weight: 400; color: #94a3b8; }
+    .ic-stats { display: flex; flex-wrap: wrap; gap: 1.25rem; }
+    .ic-stat { display: flex; align-items: center; gap: 0.45rem; font-size: 0.85rem; color: #374151; }
+    .ic-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .wip-panel { text-align: center; padding: 1.5rem 1rem 2rem; }
+    .wip-panel .wip-head { font-size: 0.95rem; font-weight: 700; margin-bottom: 0.2rem; }
+    .wip-panel .wip-sub { font-size: 0.78rem; color: #94a3b8; margin-bottom: 1.25rem; }
+    .wip-panel .wip-num { font-size: 4.5rem; font-weight: 700; color: #0f172a; line-height: 1; }
+    .insights-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .insights-charts .chart-wrap { height: 300px; }
+
+    #data-footer {
+      display: none; margin-top: 0.75rem;
+      background: white; border: 1px solid #e2e8f0; border-radius: 8px;
+      padding: 0.55rem 1.1rem;
+      align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+      font-size: 0.78rem; color: #64748b;
+    }
+    #data-footer .copy-btn {
+      padding: 0.3rem 0.85rem; border: 1px solid #d1d5db; border-radius: 6px;
+      font-size: 0.78rem; cursor: pointer; background: white; color: #475569; white-space: nowrap;
+    }
+    #data-footer .copy-btn:hover { border-color: #38bdf8; color: #0ea5e9; }
+
+    @media (max-width: 900px) { .insights-top { grid-template-columns: 1fr; } .insights-charts { grid-template-columns: 1fr; } }
     @media (max-width: 640px) {
       main { padding: 1rem; }
       .config-grid { grid-template-columns: 1fr 1fr; }
@@ -171,7 +200,6 @@
 </header>
 
 <main>
-  <!-- Upload -->
   <div class="upload-zone" id="upload-zone">
     <input type="file" id="file-input" accept=".csv" style="display:none">
     <svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -184,7 +212,6 @@
 
   <div id="error-area"></div>
 
-  <!-- Column config -->
   <div id="config-panel">
     <div class="config-header">
       <h3>Column mapping</h3>
@@ -216,7 +243,21 @@
         <div class="hint">Work type for filtering</div>
         <select id="col-type"><option value="">— none —</option></select>
       </div>
+      <div class="config-field">
+        <label>Blocked Days</label>
+        <div class="hint">Number of days the item was blocked — used in flow efficiency</div>
+        <select id="col-blocked"><option value="">— none —</option></select>
+      </div>
     </div>
+
+    <div class="workflow-section" id="workflow-section" style="display:none">
+      <div class="workflow-section-header">
+        <span>Workflow Stages</span>
+        <small>Drag to reorder &mdash; order drives the CFD</small>
+      </div>
+      <div class="stage-list" id="stage-list"></div>
+    </div>
+
     <div class="filters">
       <div class="filter-field">
         <label>Filter by type</label>
@@ -234,25 +275,61 @@
     </div>
   </div>
 
-  <!-- Stats -->
   <div id="stats-bar">
     <div class="stat"><div class="value" id="stat-count">—</div><div class="label">Items completed</div></div>
     <div class="stat"><div class="value" id="stat-median">—</div><div class="label">Median cycle time</div></div>
     <div class="stat"><div class="value" id="stat-p85">—</div><div class="label">85th percentile</div></div>
     <div class="stat"><div class="value" id="stat-throughput">—</div><div class="label">Avg / week</div></div>
     <div class="stat"><div class="value" id="stat-wip">—</div><div class="label">WIP items</div></div>
+    <div class="stat"><div class="value" id="stat-fe">—</div><div class="label">Flow efficiency</div></div>
+    <div class="stat" id="stat-blocked-wrap" style="display:none"><div class="value" id="stat-blocked">—</div><div class="label">Items blocked</div></div>
   </div>
 
-  <!-- Tabs -->
   <div id="tabs">
     <div class="tab-bar">
-      <button class="tab-btn active" data-tab="scatter">Control Chart</button>
+      <button class="tab-btn active" data-tab="insights">Flow Insights</button>
+      <button class="tab-btn" data-tab="scatter">Control Chart</button>
       <button class="tab-btn" data-tab="throughput">Throughput</button>
+      <button class="tab-btn" data-tab="wiptime">WIP Over Time</button>
+      <button class="tab-btn" data-tab="cfd">CFD</button>
       <button class="tab-btn" data-tab="histogram">Histogram</button>
       <button class="tab-btn" data-tab="aging">Aging WIP</button>
+      <button class="tab-btn" data-tab="data">Data</button>
     </div>
 
-    <div id="tab-scatter" class="tab-pane active">
+    <div id="tab-insights" class="tab-pane active">
+      <div class="insights-top">
+        <div class="insights-left">
+          <div class="insights-card">
+            <div class="ic-title">Cycle Time <span class="ic-q">How long did it take to complete past work items?</span></div>
+            <div class="ic-stats" id="ic-ct-stats"><span style="color:#94a3b8;font-size:0.85rem">No data yet</span></div>
+          </div>
+          <div class="insights-card">
+            <div class="ic-title">"How many?" Forecast <span class="ic-q">How many items are you likely to finish in the next 30 days?</span></div>
+            <div class="ic-stats" id="ic-fc-stats"><span style="color:#94a3b8;font-size:0.85rem">No data yet</span></div>
+          </div>
+        </div>
+        <div class="insights-card wip-panel">
+          <div class="wip-head">WIP</div>
+          <div class="wip-sub">How many work items are in progress?</div>
+          <div class="wip-num" id="ic-wip-num">—</div>
+        </div>
+      </div>
+      <div class="insights-charts">
+        <div class="insights-card">
+          <div class="ic-title">Pace: Start vs Finish</div>
+          <div style="font-size:0.78rem;color:#94a3b8;margin-bottom:1rem">Are you starting and completing work at a consistent rate?</div>
+          <div class="chart-wrap"><canvas id="chart-pace"></canvas></div>
+        </div>
+        <div class="insights-card">
+          <div class="ic-title">WIP &amp; WIP Age</div>
+          <div style="font-size:0.78rem;color:#94a3b8;margin-bottom:1rem">Are you managing these to improve cycle time and reduce risk?</div>
+          <div class="chart-wrap"><canvas id="chart-wipage"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-scatter" class="tab-pane">
       <div class="chart-card">
         <h2>Cycle Time Control Chart</h2>
         <div class="subtitle">Each dot is one completed item. Percentile lines show where most of your work lands — aim to keep items below the 85th.</div>
@@ -274,6 +351,35 @@
       </div>
     </div>
 
+    <div id="tab-wiptime" class="tab-pane">
+      <div class="chart-card">
+        <h2>WIP Over Time</h2>
+        <div class="subtitle">Work in progress count each week. A stable or declining WIP leads to more predictable flow — rising WIP means more is starting than finishing.</div>
+        <div class="chart-wrap"><canvas id="chart-wiptime"></canvas></div>
+      </div>
+    </div>
+
+    <div id="tab-cfd" class="tab-pane">
+      <div class="chart-card">
+        <h2>Cumulative Flow Diagram</h2>
+        <div class="subtitle">Done anchors the bottom — its slope is your throughput. To Do sits at the top — its growth is your commitment rate.</div>
+        <div style="display:flex;gap:2rem;flex-wrap:wrap;margin-bottom:1rem;font-size:0.78rem;color:#475569">
+          <span><strong style="color:#0f172a">Band height</strong> = WIP in that stage</span>
+          <span><strong style="color:#0f172a">Band widens</strong> = work piling up, possible bottleneck</span>
+          <span><strong style="color:#0f172a">Line slope</strong> = throughput rate</span>
+          <span><strong style="color:#0f172a">Horizontal distance</strong> between two lines = cycle time</span>
+          <span><strong style="color:#0f172a">Flat line</strong> = no flow through that stage</span>
+        </div>
+        <div class="cfd-zoom">
+          <span>Zoom:</span>
+          <label>From <input type="date" id="cfd-from" onchange="renderCFD()"></label>
+          <label>To <input type="date" id="cfd-to" onchange="renderCFD()"></label>
+          <button onclick="resetCFDZoom()">Reset</button>
+        </div>
+        <div class="chart-wrap"><canvas id="chart-cfd"></canvas></div>
+      </div>
+    </div>
+
     <div id="tab-histogram" class="tab-pane">
       <div class="chart-card">
         <h2>Cycle Time Distribution</h2>
@@ -285,10 +391,24 @@
     <div id="tab-aging" class="tab-pane">
       <div class="chart-card">
         <h2>Aging WIP</h2>
-        <div class="subtitle">Items that have started but not completed, ordered by age. Colour shows where each item sits against your completed cycle time percentiles.</div>
-        <div id="aging-content"></div>
+        <div class="subtitle">Items in progress by current workflow stage and age. Colour shows where each item sits against your completed cycle time percentiles.</div>
+        <div class="chart-wrap"><canvas id="chart-aging"></canvas></div>
+        <div id="aging-legend" style="margin-top:1rem;padding-top:1rem;border-top:1px solid #f1f5f9;font-size:0.76rem;color:#94a3b8;line-height:2"></div>
       </div>
     </div>
+
+    <div id="tab-data" class="tab-pane">
+      <div class="chart-card">
+        <h2>Imported Data</h2>
+        <div class="subtitle" id="data-subtitle"></div>
+        <div id="data-content" style="overflow-x:auto; margin-top:0.75rem;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="data-footer">
+    <span id="footer-range"></span>
+    <button class="copy-btn" onclick="copySnapshot()">Copy snapshot</button>
   </div>
 </main>
 
@@ -297,34 +417,22 @@
 let allRows = [];
 let columns = [];
 let charts = {};
+let workflowStages = [];
+let stageTypes = {};
+let hiddenStages = new Set();
 
 // ── Date parsing ───────────────────────────────────────────────────────────
 function parseDate(str) {
   if (!str || typeof str !== 'string') return null;
   str = str.trim();
   if (!str) return null;
-
   let m;
-  // ISO: 2024-03-15 or 2024-03-15T10:00:00
   m = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (m) return new Date(+m[1], +m[2]-1, +m[3]);
-
-  // DD/MM/YYYY or DD-MM-YYYY
   m = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
-  if (m) {
-    const d = +m[1], mo = +m[2], y = +m[3];
-    // If day > 12, must be DD/MM. Otherwise default DD/MM (UK convention).
-    return new Date(y, mo-1, d);
-  }
-
-  // DD/MM/YY
+  if (m) return new Date(+m[3], +m[2]-1, +m[1]);
   m = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})$/);
-  if (m) {
-    const y = +m[3] + (+m[3] > 50 ? 1900 : 2000);
-    return new Date(y, +m[2]-1, +m[1]);
-  }
-
-  // Fallback to JS parser
+  if (m) { const y = +m[3] + (+m[3] > 50 ? 1900 : 2000); return new Date(y, +m[2]-1, +m[1]); }
   const d = new Date(str);
   return isNaN(d.getTime()) ? null : d;
 }
@@ -343,7 +451,7 @@ function weekStart(date) {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
   const day = d.getDay();
-  d.setDate(d.getDate() - (day === 0 ? 6 : day - 1)); // Monday
+  d.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
   return d;
 }
 
@@ -369,8 +477,7 @@ uploadZone.addEventListener('drop', e => {
 function processFile(file) {
   clearError();
   Papa.parse(file, {
-    header: true,
-    skipEmptyLines: true,
+    header: true, skipEmptyLines: true,
     complete(results) {
       if (!results.data.length) { showError('CSV appears to be empty or could not be parsed.'); return; }
       allRows = results.data;
@@ -384,12 +491,14 @@ function processFile(file) {
 }
 
 function resetTool() {
-  allRows = []; columns = [];
+  allRows = []; columns = []; workflowStages = []; stageTypes = {}; hiddenStages = new Set();
   Object.values(charts).forEach(c => c.destroy());
   charts = {};
   document.getElementById('config-panel').style.display = 'none';
+  document.getElementById('workflow-section').style.display = 'none';
   document.getElementById('stats-bar').style.display = '';
   document.getElementById('tabs').style.display = 'none';
+  document.getElementById('data-footer').style.display = 'none';
   document.getElementById('status-text').textContent = 'No data loaded';
   document.getElementById('reload-btn').style.display = 'none';
   fileInput.value = '';
@@ -401,10 +510,9 @@ function clearError()   { document.getElementById('error-area').innerHTML = ''; 
 
 // ── Column config ──────────────────────────────────────────────────────────
 function setupConfig() {
-  const panel = document.getElementById('config-panel');
-  panel.style.display = 'block';
+  document.getElementById('config-panel').style.display = 'block';
 
-  ['col-start','col-end','col-id','col-title','col-type'].forEach(id => {
+  ['col-start','col-end','col-id','col-title','col-type','col-blocked'].forEach(id => {
     const sel = document.getElementById(id);
     const hasNone = id !== 'col-start' && id !== 'col-end';
     sel.innerHTML = hasNone ? '<option value="">— none —</option>' : '<option value="">Select column…</option>';
@@ -415,20 +523,23 @@ function setupConfig() {
     });
   });
 
-  autoDetect();
+  // Auto-select blocked days column
+  const detectedBlocked = columns.find(c => /blocked.?days/i.test(c)) || '';
+  if (detectedBlocked) document.getElementById('col-blocked').value = detectedBlocked;
 
-  ['col-start','col-end','col-id','col-title','col-type','filter-type','filter-range'].forEach(id => {
+  autoDetect();
+  workflowStages = detectWorkflowCols();
+  workflowStages.forEach(col => { if (!(col in stageTypes)) stageTypes[col] = autoDetectStageType(col); });
+  buildWorkflowUI();
+
+  ['col-start','col-end','col-id','col-title','col-type','col-blocked','filter-type','filter-range'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.addEventListener('change', () => {
-      if (id === 'col-type') populateTypeFilter();
-      renderAll();
-    });
+    if (el) el.addEventListener('change', () => { if (id === 'col-type') populateTypeFilter(); renderAll(); });
   });
 }
 
 function autoDetect() {
   const lower = columns.map(c => c.toLowerCase());
-
   const find = (candidates) => {
     for (const c of candidates) {
       const exact = lower.findIndex(l => l === c.toLowerCase());
@@ -439,11 +550,11 @@ function autoDetect() {
     return '';
   };
 
-  const start = find(['commitment date','committed date','start date','in progress date','activated','started','begin date','dev start']);
-  const end   = find(['completion date','completed date','done date','closed date','resolved date','end date','finish date']);
+  const start = find(['commitment date','committed date','start date','in progress date','activated','started','begin date','dev start','doing']);
+  const end   = find(['completion date','completed date','done date','closed date','resolved date','end date','finish date','done']);
   const id    = find(['id','issue id','key','ticket','number','ref','sys_id']);
   const title = find(['title','summary','name','short description','description']);
-  const type  = find(['type','issue type','work type','category','sys_class_name']);
+  const type  = find(['type','issue type','work type','category','sys_class_name','task type','demand type']);
 
   if (start) document.getElementById('col-start').value = start;
   if (end)   document.getElementById('col-end').value   = end;
@@ -459,8 +570,7 @@ function populateTypeFilter() {
   const sel = document.getElementById('filter-type');
   sel.innerHTML = '<option value="">All types</option>';
   if (col) {
-    const types = [...new Set(allRows.map(r => r[col]).filter(Boolean))].sort();
-    types.forEach(t => {
+    [...new Set(allRows.map(r => r[col]).filter(Boolean))].sort().forEach(t => {
       const opt = document.createElement('option');
       opt.value = t; opt.textContent = t;
       sel.appendChild(opt);
@@ -468,16 +578,134 @@ function populateTypeFilter() {
   }
 }
 
+// ── Workflow stages ────────────────────────────────────────────────────────
+function autoDetectStageType(col) {
+  const lower = col.toLowerCase();
+  const processWords = ['doing','active','progress','dev','review','analysis','building','working','in flight','in-flight'];
+  return processWords.some(k => lower.includes(k)) ? 'process' : 'queue';
+}
+
+function isStrictDate(str) {
+  str = String(str).trim();
+  return /^\d{4}-\d{2}-\d{2}/.test(str) ||
+         /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}/.test(str) ||
+         /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2}$/.test(str);
+}
+
+function detectWorkflowCols() {
+  const skipNames = /^(id|title|summary|name|description|link|url|href|type|category|label|tag|team|group|assignee|reporter|priority|status|blocked|reason|ref|key|number|demand|detail|sys_id)/i;
+  return columns.filter(col => {
+    if (skipNames.test(col.trim())) return false;
+    const nonEmpty = allRows.map(r => r[col]).filter(v => v && String(v).trim());
+    if (!nonEmpty.length) return false;
+    const dateCount = nonEmpty.filter(v => isStrictDate(v)).length;
+    return dateCount / nonEmpty.length >= 0.8;
+  });
+}
+
+function buildWorkflowUI() {
+  const section = document.getElementById('workflow-section');
+  const list    = document.getElementById('stage-list');
+  if (!workflowStages.length) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+
+  list.innerHTML = workflowStages.map((col, i) => {
+    const type   = stageTypes[col] || 'queue';
+    const hidden = hiddenStages.has(col);
+    return `
+    <div class="stage-item${hidden ? ' stage-hidden' : ''}" draggable="true" data-col="${col}">
+      <span class="stage-num">${i + 1}</span>
+      <span class="stage-handle">⠿</span>
+      <span>${col}</span>
+      <button class="stage-type-btn ${type}" onclick="toggleStageType('${col}', this)" title="Queue (waiting) or Process (active work)">${type === 'process' ? 'P' : 'Q'}</button>
+      <button class="stage-vis-btn" onclick="toggleStageVis('${col}')" title="${hidden ? 'Show in CFD' : 'Hide from CFD'}">${hidden ? '⊕' : '×'}</button>
+    </div>`;
+  }).join('');
+
+  initDragSort(list);
+}
+
+function initDragSort(list) {
+  let dragSrc = null;
+  list.querySelectorAll('.stage-item').forEach(item => {
+    item.addEventListener('dragstart', e => {
+      dragSrc = item; e.dataTransfer.effectAllowed = 'move';
+      setTimeout(() => item.classList.add('dragging'), 0);
+    });
+    item.addEventListener('dragend', () => {
+      workflowStages = [...list.querySelectorAll('.stage-item')].map(i => i.dataset.col);
+      buildWorkflowUI(); renderAll();
+    });
+    item.addEventListener('dragover', e => {
+      e.preventDefault();
+      if (item !== dragSrc) {
+        list.querySelectorAll('.stage-item').forEach(i => i.classList.remove('drag-over'));
+        item.classList.add('drag-over');
+      }
+    });
+    item.addEventListener('dragleave', () => item.classList.remove('drag-over'));
+    item.addEventListener('drop', e => {
+      e.preventDefault();
+      if (dragSrc && dragSrc !== item) {
+        const items = [...list.querySelectorAll('.stage-item')];
+        list.insertBefore(dragSrc, items.indexOf(dragSrc) < items.indexOf(item) ? item.nextSibling : item);
+      }
+    });
+  });
+}
+
+function toggleStageVis(col) {
+  event.stopPropagation();
+  if (hiddenStages.has(col)) hiddenStages.delete(col); else hiddenStages.add(col);
+  buildWorkflowUI(); renderAll();
+}
+
+function toggleStageType(col, btn) {
+  event.stopPropagation();
+  stageTypes[col] = stageTypes[col] === 'process' ? 'queue' : 'process';
+  btn.textContent = stageTypes[col] === 'process' ? 'P' : 'Q';
+  btn.className = `stage-type-btn ${stageTypes[col]}`;
+  renderAll();
+}
+
+function calculateFlowEfficiency(completedItems) {
+  if (workflowStages.length < 2) return null;
+  const cfg = getConfig();
+  const rows = allRows.filter(row => !cfg.filterType || row[cfg.typeCol] === cfg.filterType);
+  const efficiencies = [];
+
+  rows.forEach(row => {
+    const dates = workflowStages.map(col => parseDate(row[col]));
+    let processTime = 0, queueTime = 0;
+    dates.forEach((d, i) => {
+      if (!d) return;
+      let nextDate = null;
+      for (let j = i + 1; j < dates.length; j++) { if (dates[j]) { nextDate = dates[j]; break; } }
+      if (!nextDate) return;
+      const dur = daysBetween(d, nextDate);
+      if (dur <= 0) return;
+      if (stageTypes[workflowStages[i]] === 'process') processTime += dur; else queueTime += dur;
+    });
+    const blocked = cfg.blockedDaysCol ? (parseFloat(row[cfg.blockedDaysCol]) || 0) : 0;
+    const total = processTime + queueTime + blocked;
+    if (total > 0) efficiencies.push(processTime / total * 100);
+  });
+
+  if (!efficiencies.length) return null;
+  return efficiencies.reduce((a, b) => a + b, 0) / efficiencies.length;
+}
+
 // ── Data processing ────────────────────────────────────────────────────────
 function getConfig() {
   return {
-    startCol:   document.getElementById('col-start').value,
-    endCol:     document.getElementById('col-end').value,
-    idCol:      document.getElementById('col-id').value,
-    titleCol:   document.getElementById('col-title').value,
-    typeCol:    document.getElementById('col-type').value,
-    filterType: document.getElementById('filter-type').value,
-    filterDays: +document.getElementById('filter-range').value || 0,
+    startCol:      document.getElementById('col-start').value,
+    endCol:        document.getElementById('col-end').value,
+    idCol:         document.getElementById('col-id').value,
+    titleCol:      document.getElementById('col-title').value,
+    typeCol:       document.getElementById('col-type').value,
+    blockedDaysCol:document.getElementById('col-blocked').value,
+    filterType:    document.getElementById('filter-type').value,
+    filterDays:    +document.getElementById('filter-range').value || 0,
   };
 }
 
@@ -490,18 +718,25 @@ function processData(cfg) {
     if (cfg.filterType && row[cfg.typeCol] !== cfg.filterType) return;
     const startDate = parseDate(row[cfg.startCol]);
     const endDate   = parseDate(row[cfg.endCol]);
-    const id    = cfg.idCol    ? (row[cfg.idCol]    || '') : '';
-    const title = cfg.titleCol ? (row[cfg.titleCol] || '') : '';
-    const type  = cfg.typeCol  ? (row[cfg.typeCol]  || '') : '';
+    const id          = cfg.idCol    ? (row[cfg.idCol]    || '') : '';
+    const title       = cfg.titleCol ? (row[cfg.titleCol] || '') : '';
+    const type        = cfg.typeCol  ? (row[cfg.typeCol]  || '') : '';
+    const blockedDays = cfg.blockedDaysCol ? (parseFloat(row[cfg.blockedDaysCol]) || 0) : 0;
 
     if (startDate && endDate && endDate >= startDate) {
       const ct = daysBetween(startDate, endDate);
       if (ct < 0) return;
       if (cutoff && endDate < cutoff) return;
-      completed.push({ id, title, type, startDate, endDate, cycleTime: ct });
+      completed.push({ id, title, type, startDate, endDate, cycleTime: ct, blockedDays });
     } else if (startDate && !endDate) {
       const age = daysBetween(startDate, new Date());
-      if (age >= 0) wip.push({ id, title, type, startDate, age });
+      if (age >= 0) {
+        let currentStage = '';
+        for (let i = workflowStages.length - 1; i >= 0; i--) {
+          if (parseDate(row[workflowStages[i]])) { currentStage = workflowStages[i]; break; }
+        }
+        wip.push({ id, title, type, startDate, age, currentStage, blockedDays });
+      }
     }
   });
 
@@ -529,13 +764,23 @@ function renderAll() {
   const p85 = percentile(sortedCT, 85);
   const p95 = percentile(sortedCT, 95);
 
-  // Stats bar
-  const statsBar = document.getElementById('stats-bar');
-  statsBar.style.display = 'grid';
-  document.getElementById('stat-count').textContent      = completed.length.toLocaleString();
-  document.getElementById('stat-median').textContent     = completed.length ? p50.toFixed(1) + 'd' : '—';
-  document.getElementById('stat-p85').textContent        = completed.length ? p85.toFixed(1) + 'd' : '—';
-  document.getElementById('stat-wip').textContent        = wip.length;
+  document.getElementById('stats-bar').style.display = 'grid';
+  document.getElementById('stat-count').textContent    = completed.length.toLocaleString();
+  document.getElementById('stat-median').textContent   = completed.length ? p50.toFixed(1) + 'd' : '—';
+  document.getElementById('stat-p85').textContent      = completed.length ? p85.toFixed(1) + 'd' : '—';
+  document.getElementById('stat-wip').textContent      = wip.length;
+  const fe = calculateFlowEfficiency(completed);
+  document.getElementById('stat-fe').textContent = fe !== null ? fe.toFixed(0) + '%' : '—';
+
+  const blockedItems = completed.filter(d => d.blockedDays > 0);
+  const blockedWrap  = document.getElementById('stat-blocked-wrap');
+  if (cfg.blockedDaysCol && completed.length) {
+    blockedWrap.style.display = '';
+    const pct = (blockedItems.length / completed.length * 100).toFixed(0);
+    document.getElementById('stat-blocked').textContent = `${blockedItems.length} (${pct}%)`;
+  } else {
+    blockedWrap.style.display = 'none';
+  }
 
   if (completed.length > 1) {
     const spanWeeks = daysBetween(completed[0].endDate, completed[completed.length-1].endDate) / 7;
@@ -544,7 +789,6 @@ function renderAll() {
     document.getElementById('stat-throughput').textContent = '—';
   }
 
-  // Percentile legend labels
   document.getElementById('legend-p50').textContent = `50th — ${p50.toFixed(1)}d`;
   document.getElementById('legend-p70').textContent = `70th — ${p70.toFixed(1)}d`;
   document.getElementById('legend-p85').textContent = `85th — ${p85.toFixed(1)}d`;
@@ -552,22 +796,25 @@ function renderAll() {
 
   document.getElementById('tabs').style.display = 'block';
 
+  updateFooter();
+  renderInsights(completed, wip, p50, p70, p85, p95);
   renderScatter(completed, p50, p70, p85, p95);
   renderThroughput(completed);
+  renderWIPOverTime();
+  renderCFD();
   renderHistogram(completed, p50, p70, p85, p95);
   renderAging(wip, p50, p70, p85, p95);
+  renderData();
 }
 
-// ── Scatter / control chart ────────────────────────────────────────────────
+// ── Scatter ────────────────────────────────────────────────────────────────
 function renderScatter(data, p50, p70, p85, p95) {
   const ctx = document.getElementById('chart-scatter').getContext('2d');
-  if (charts.scatter) { charts.scatter.destroy(); }
-
-  if (!data.length) { return; }
+  if (charts.scatter) charts.scatter.destroy();
+  if (!data.length) return;
 
   const minD = new Date(data[0].endDate.getTime() - 7 * 86400000);
   const maxD = new Date(data[data.length-1].endDate.getTime() + 7 * 86400000);
-
   const pctLines = [
     { v: p50, color: '#22c55e', label: '50th' },
     { v: p70, color: '#eab308', label: '70th' },
@@ -575,68 +822,59 @@ function renderScatter(data, p50, p70, p85, p95) {
     { v: p95, color: '#ef4444', label: '95th' },
   ];
 
+  const notBlocked = data.filter(d => !d.blockedDays);
+  const blocked    = data.filter(d =>  d.blockedDays > 0);
+  const hasBlocked = blocked.length > 0;
+
+  function ptData(arr) {
+    return arr.map(d => ({ x: d.endDate, y: d.cycleTime, _id: d.id, _title: d.title, _blocked: d.blockedDays }));
+  }
+
   charts.scatter = new Chart(ctx, {
     type: 'scatter',
     data: {
       datasets: [
         {
-          type: 'scatter',
-          label: 'Items',
-          data: data.map(d => ({ x: d.endDate, y: d.cycleTime, _id: d.id, _title: d.title, _type: d.type })),
-          backgroundColor: 'rgba(56,189,248,0.5)',
-          pointRadius: 5,
-          pointHoverRadius: 7,
-          order: 10,
+          type: 'scatter', label: 'Completed',
+          data: ptData(notBlocked),
+          backgroundColor: 'rgba(56,189,248,0.55)', pointRadius: 5, pointHoverRadius: 7, order: 10,
         },
+        ...(hasBlocked ? [{
+          type: 'scatter', label: 'Blocked at some point',
+          data: ptData(blocked),
+          backgroundColor: 'rgba(234,179,8,0.75)', pointRadius: 5, pointHoverRadius: 7, order: 9,
+        }] : []),
         ...pctLines.map((pl, i) => ({
-          type: 'line',
-          label: pl.label,
+          type: 'line', label: pl.label,
           data: [{ x: minD, y: pl.v }, { x: maxD, y: pl.v }],
-          borderColor: pl.color,
-          borderWidth: 1.5,
-          borderDash: [6, 4],
-          pointRadius: 0,
-          fill: false,
-          order: i,
-          tension: 0,
+          borderColor: pl.color, borderWidth: 1.5, borderDash: [6, 4],
+          pointRadius: 0, fill: false, order: i, tension: 0,
         }))
       ]
     },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
+      responsive: true, maintainAspectRatio: false,
       plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label(ctx) {
-              if (ctx.datasetIndex === 0) {
-                const d = ctx.raw;
-                const parts = [];
-                if (d._id) parts.push(d._id);
-                if (d._title) parts.push(d._title.slice(0, 45) + (d._title.length > 45 ? '…' : ''));
-                parts.push(`${d.y.toFixed(1)} days`);
-                return parts.join('  ·  ');
-              }
-              return `${ctx.dataset.label}: ${ctx.raw.y.toFixed(1)}d`;
-            }
+        legend: { display: hasBlocked, labels: { color: '#475569', font: { size: 11 }, boxWidth: 10, filter: i => i.datasetIndex < (hasBlocked ? 2 : 1) } },
+        tooltip: { callbacks: { label(ctx) {
+          const d = ctx.raw;
+          if (d && d.x instanceof Date) {
+            const parts = [];
+            if (d._id)      parts.push(d._id);
+            if (d._title)   parts.push(d._title.slice(0, 45) + (d._title.length > 45 ? '…' : ''));
+            parts.push(`${d.y.toFixed(1)} days`);
+            if (d._blocked) parts.push(`⚠ blocked ${d._blocked}d`);
+            return parts.join('  ·  ');
           }
-        }
+          return `${ctx.dataset.label}: ${ctx.raw.y.toFixed(1)}d`;
+        }}}
       },
       scales: {
-        x: {
-          type: 'time',
-          time: { unit: 'month', displayFormats: { month: 'MMM yy' } },
-          title: { display: true, text: 'Completion date', color: '#94a3b8', font: { size: 11 } },
-          grid: { color: '#f1f5f9' },
-          ticks: { color: '#94a3b8', font: { size: 11 } }
-        },
-        y: {
-          title: { display: true, text: 'Cycle time (days)', color: '#94a3b8', font: { size: 11 } },
-          grid: { color: '#f1f5f9' },
-          ticks: { color: '#94a3b8', font: { size: 11 } },
-          min: 0
-        }
+        x: { type: 'time', time: { unit: 'month', displayFormats: { month: 'MMM yy' } },
+             title: { display: true, text: 'Completion date', color: '#94a3b8', font: { size: 11 } },
+             grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 11 } } },
+        y: { title: { display: true, text: 'Cycle time (days)', color: '#94a3b8', font: { size: 11 } },
+             grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 11 } }, min: 0 }
       }
     }
   });
@@ -653,12 +891,9 @@ function renderThroughput(data) {
     const k = weekStart(d.endDate).toISOString().slice(0,10);
     byWeek[k] = (byWeek[k] || 0) + 1;
   });
-
   const keys   = Object.keys(byWeek).sort();
   const values = keys.map(k => byWeek[k]);
   const labels = keys.map(k => new Date(k + 'T00:00:00'));
-
-  // 4-week rolling average
   const rolling = values.map((_, i) => {
     const slice = values.slice(Math.max(0, i-3), i+1);
     return +(slice.reduce((a,b) => a+b, 0) / slice.length).toFixed(2);
@@ -668,77 +903,213 @@ function renderThroughput(data) {
     data: {
       labels,
       datasets: [
-        {
-          type: 'bar',
-          label: 'Items / week',
-          data: values,
-          backgroundColor: 'rgba(56,189,248,0.55)',
-          borderColor: 'rgba(56,189,248,0.85)',
-          borderWidth: 1,
-          order: 2,
-        },
-        {
-          type: 'line',
-          label: '4-week avg',
-          data: rolling,
-          borderColor: '#f97316',
-          borderWidth: 2,
-          pointRadius: 0,
-          fill: false,
-          order: 1,
-          tension: 0.35,
-        }
+        { type: 'bar', label: 'Items / week', data: values,
+          backgroundColor: 'rgba(56,189,248,0.55)', borderColor: 'rgba(56,189,248,0.85)', borderWidth: 1, order: 2 },
+        { type: 'line', label: '4-week avg', data: rolling,
+          borderColor: '#f97316', borderWidth: 2, pointRadius: 0, fill: false, order: 1, tension: 0.35 }
       ]
     },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { labels: { color: '#475569', font: { size: 11 }, boxWidth: 16 } },
-        tooltip: { mode: 'index', intersect: false }
-      },
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#475569', font: { size: 11 }, boxWidth: 16 } }, tooltip: { mode: 'index', intersect: false } },
       scales: {
-        x: {
-          type: 'time',
-          time: { unit: 'week', displayFormats: { week: 'd MMM' } },
-          grid: { color: '#f1f5f9' },
-          ticks: { color: '#94a3b8', font: { size: 11 } }
-        },
-        y: {
-          title: { display: true, text: 'Items completed', color: '#94a3b8', font: { size: 11 } },
-          grid: { color: '#f1f5f9' },
-          ticks: { color: '#94a3b8', font: { size: 11 }, stepSize: 1 },
-          min: 0
-        }
+        x: { type: 'time', time: { unit: 'week', displayFormats: { week: 'd MMM' } },
+             grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 11 } } },
+        y: { title: { display: true, text: 'Items completed', color: '#94a3b8', font: { size: 11 } },
+             grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 11 }, stepSize: 1 }, min: 0 }
       }
     }
   });
 }
 
+// ── WIP Over Time ──────────────────────────────────────────────────────────
+function renderWIPOverTime() {
+  const ctx = document.getElementById('chart-wiptime').getContext('2d');
+  if (charts.wiptime) charts.wiptime.destroy();
+
+  const cfg = getConfig();
+  if (!cfg.startCol) return;
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const rows = allRows
+    .filter(row => !cfg.filterType || row[cfg.typeCol] === cfg.filterType)
+    .map(row => ({ startDate: parseDate(row[cfg.startCol]), endDate: parseDate(row[cfg.endCol]) }))
+    .filter(r => r.startDate);
+
+  if (!rows.length) return;
+
+  const minDate = rows.reduce((m, r) => r.startDate < m ? r.startDate : m, rows[0].startDate);
+  const weeks = [];
+  const cur = new Date(weekStart(minDate));
+  while (cur <= today) { weeks.push(new Date(cur)); cur.setDate(cur.getDate() + 7); }
+
+  const wips = weeks.map(wk => rows.filter(r => r.startDate <= wk && (!r.endDate || r.endDate > wk)).length);
+  const rolling = wips.map((_, i) => {
+    const slice = wips.slice(Math.max(0, i-3), i+1);
+    return +(slice.reduce((a, b) => a + b, 0) / slice.length).toFixed(1);
+  });
+
+  charts.wiptime = new Chart(ctx, {
+    data: {
+      labels: weeks,
+      datasets: [
+        { type: 'line', label: 'WIP', data: wips,
+          borderColor: 'rgba(34,197,94,0.9)', backgroundColor: 'rgba(34,197,94,0.1)',
+          borderWidth: 2, fill: true, pointRadius: 2, pointHoverRadius: 5, tension: 0.3, order: 2 },
+        { type: 'line', label: '4-week avg', data: rolling,
+          borderColor: '#f97316', borderWidth: 2, pointRadius: 0, fill: false, order: 1, tension: 0.35 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#475569', font: { size: 11 }, boxWidth: 16 } }, tooltip: { mode: 'index', intersect: false } },
+      scales: {
+        x: { type: 'time', time: { unit: 'week', displayFormats: { week: 'd MMM yy' } },
+             grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 11 } } },
+        y: { title: { display: true, text: 'WIP count', color: '#94a3b8', font: { size: 11 } },
+             grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 11 } }, min: 0 }
+      }
+    }
+  });
+}
+
+// ── CFD ────────────────────────────────────────────────────────────────────
+const CFD_COLORS = [
+  'rgba(14,165,233,0.92)',  'rgba(34,197,94,0.92)',   'rgba(249,115,22,0.92)',
+  'rgba(168,85,247,0.92)',  'rgba(99,102,241,0.92)',   'rgba(236,72,153,0.92)',
+  'rgba(234,179,8,0.92)',   'rgba(148,163,184,0.92)',
+];
+
+function buildCFDData() {
+  const visibleStages = workflowStages.filter(col => !hiddenStages.has(col));
+  if (visibleStages.length < 2) return null;
+
+  const cfg = getConfig();
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const rows = allRows.filter(row => !cfg.filterType || row[cfg.typeCol] === cfg.filterType);
+  if (!rows.length) return null;
+
+  const allStagesParsed = rows.map(row => workflowStages.map(col => parseDate(row[col])));
+
+  let minDate = null;
+  allStagesParsed.forEach(dates => dates.forEach(d => { if (d && (!minDate || d < minDate)) minDate = d; }));
+  if (!minDate) return null;
+
+  const weeks = [];
+  const cur = new Date(weekStart(minDate));
+  while (cur <= today) { weeks.push(new Date(cur)); cur.setDate(cur.getDate() + 7); }
+
+  // Each line = items that reached this stage OR any later stage by that week.
+  // Guarantees every line >= the line below, even when items skip stages.
+  const stageCounts = visibleStages.map(col => {
+    const stageIdx = workflowStages.indexOf(col);
+    const laterIndices = workflowStages.slice(stageIdx).map((_, offset) => stageIdx + offset);
+    return weeks.map(wk =>
+      allStagesParsed.filter(dates => laterIndices.some(si => dates[si] && dates[si] <= wk)).length
+    );
+  });
+
+  return { weeks, stageCounts, visibleStages };
+}
+
+function renderCFD() {
+  const ctx = document.getElementById('chart-cfd').getContext('2d');
+  if (charts.cfd) charts.cfd.destroy();
+
+  const data = buildCFDData();
+  if (!data) return;
+
+  const { weeks, stageCounts, visibleStages } = data;
+
+  const fromVal = document.getElementById('cfd-from').value;
+  const toVal   = document.getElementById('cfd-to').value;
+  const xMin = fromVal ? new Date(fromVal + 'T00:00:00') : undefined;
+  const xMax = toVal   ? new Date(toVal   + 'T00:00:00') : undefined;
+
+  // Reversed so last stage (Done) = dataset[0] at bottom, first stage (To do) = top
+  const reversedStages = [...visibleStages].reverse();
+
+  charts.cfd = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: weeks,
+      datasets: reversedStages.map((stage, i) => {
+        const colorIdx = visibleStages.indexOf(stage) % CFD_COLORS.length;
+        return {
+          label: stage,
+          data: stageCounts[visibleStages.indexOf(stage)],
+          backgroundColor: CFD_COLORS[colorIdx],
+          borderColor: CFD_COLORS[colorIdx],
+          borderWidth: 1.5,
+          fill: i === 0 ? 'origin' : '-1',
+          tension: 0.3, pointRadius: 0, pointHoverRadius: 4,
+        };
+      })
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', reverse: true, labels: { color: '#475569', font: { size: 11 }, boxWidth: 14, padding: 14 } },
+        tooltip: {
+          mode: 'index', intersect: false,
+          callbacks: {
+            label(ctx) {
+              const wip = ctx.datasetIndex === 0
+                ? ctx.parsed.y
+                : ctx.parsed.y - ctx.chart.data.datasets[ctx.datasetIndex - 1].data[ctx.dataIndex];
+              return `${ctx.dataset.label}: ${wip}`;
+            }
+          }
+        }
+      },
+      interaction: { mode: 'index' },
+      scales: {
+        x: { type: 'time', time: { unit: 'week', displayFormats: { week: 'd MMM yy' } },
+             grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 11 } },
+             min: xMin, max: xMax },
+        y: { title: { display: true, text: 'Items', color: '#94a3b8', font: { size: 11 } },
+             grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 11 } }, min: 0 }
+      }
+    }
+  });
+}
+
+function resetCFDZoom() {
+  document.getElementById('cfd-from').value = '';
+  document.getElementById('cfd-to').value   = '';
+  renderCFD();
+}
+
 // ── Histogram ──────────────────────────────────────────────────────────────
 function renderHistogram(data, p50, p70, p85, p95) {
-  const ctx = document.getElementById('chart-histogram').getContext('2d');
-  if (charts.histogram) charts.histogram.destroy();
+  if (charts.histogram) { charts.histogram.destroy(); charts.histogram = null; }
+
+  // Canvas may have been replaced by empty state — restore it
+  const wrap = document.querySelector('#tab-histogram .chart-wrap');
+  if (!document.getElementById('chart-histogram')) {
+    wrap.innerHTML = '<canvas id="chart-histogram"></canvas>';
+  }
+
   if (!data.length) return;
-
   const cycleTimes = data.map(d => d.cycleTime);
-  const maxCT    = Math.ceil(Math.max(...cycleTimes));
-  const binCount = Math.min(25, Math.max(5, Math.ceil(Math.sqrt(cycleTimes.length))));
-  const binSize  = Math.max(1, Math.ceil(maxCT / binCount));
+  const maxCT = Math.ceil(Math.max(...cycleTimes));
 
+  if (maxCT === 0) {
+    wrap.innerHTML = `<div class="empty-state">All ${data.length} completed items have a 0-day cycle time.<br>This usually means the start and end columns are the same date in your data.</div>`;
+    return;
+  }
+
+  const ctx = document.getElementById('chart-histogram').getContext('2d');
+  const binCount  = Math.min(25, Math.max(5, Math.ceil(Math.sqrt(cycleTimes.length))));
+  const binSize   = Math.max(1, Math.ceil(maxCT / binCount));
   const actualBins = Math.ceil(maxCT / binSize);
   const bins = Array(actualBins).fill(0);
-  cycleTimes.forEach(ct => {
-    const i = Math.min(Math.floor(ct / binSize), actualBins - 1);
-    bins[i]++;
-  });
+  cycleTimes.forEach(ct => { bins[Math.min(Math.floor(ct / binSize), actualBins - 1)]++; });
 
   const labels = bins.map((_, i) => {
-    const lo = i * binSize + 1;
-    const hi = (i+1) * binSize;
+    const lo = i * binSize + 1, hi = (i+1) * binSize;
     return lo === hi ? `${lo}d` : `${lo}–${hi}d`;
   });
-
   const barColors = bins.map((_, i) => {
     const mid = (i + 0.5) * binSize;
     if (mid <= p50) return 'rgba(34,197,94,0.7)';
@@ -751,21 +1122,13 @@ function renderHistogram(data, p50, p70, p85, p95) {
     type: 'bar',
     data: { labels, datasets: [{ label: 'Frequency', data: bins, backgroundColor: barColors, borderWidth: 0 }] },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
+      responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false } },
       scales: {
-        x: {
-          title: { display: true, text: 'Cycle time', color: '#94a3b8', font: { size: 11 } },
-          grid: { display: false },
-          ticks: { color: '#94a3b8', font: { size: 10 }, maxRotation: 45 }
-        },
-        y: {
-          title: { display: true, text: 'Number of items', color: '#94a3b8', font: { size: 11 } },
-          grid: { color: '#f1f5f9' },
-          ticks: { color: '#94a3b8', font: { size: 11 }, stepSize: 1 },
-          min: 0
-        }
+        x: { title: { display: true, text: 'Cycle time', color: '#94a3b8', font: { size: 11 } },
+             grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10 }, maxRotation: 45 } },
+        y: { title: { display: true, text: 'Number of items', color: '#94a3b8', font: { size: 11 } },
+             grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 11 }, stepSize: 1 }, min: 0 }
       }
     }
   });
@@ -773,50 +1136,452 @@ function renderHistogram(data, p50, p70, p85, p95) {
 
 // ── Aging WIP ──────────────────────────────────────────────────────────────
 function renderAging(wip, p50, p70, p85, p95) {
-  const container = document.getElementById('aging-content');
+  const canvas   = document.getElementById('chart-aging');
+  const legendEl = document.getElementById('aging-legend');
+
+  if (charts.aging) { charts.aging.destroy(); charts.aging = null; }
 
   if (!wip.length) {
-    container.innerHTML = `<div class="empty-state">No in-progress items found.<br>Items appear here when they have a start date but no end date.</div>`;
+    canvas.style.display = 'none';
+    legendEl.innerHTML = '<div class="empty-state">No in-progress items found.<br>Items appear here when they have a start date but no end date.</div>';
     return;
   }
+  canvas.style.display = '';
 
-  function chipClass(age) {
-    if (age <= p50) return 'age-green';
-    if (age <= p70) return 'age-amber';
-    if (age <= p85) return 'age-orange';
-    return 'age-red';
+  // Stages that have WIP items (preserving workflow order, visible only)
+  const visibleStages  = workflowStages.filter(col => !hiddenStages.has(col));
+  const stagesWithWIP  = visibleStages.filter(stage => wip.some(item => item.currentStage === stage));
+  const displayStages  = stagesWithWIP.length > 0 ? stagesWithWIP : ['In Progress'];
+  const useStages      = stagesWithWIP.length > 0;
+
+  // Group items by stage
+  const itemsByStage = {};
+  displayStages.forEach(s => itemsByStage[s] = []);
+  wip.forEach(item => {
+    const stage = useStages ? item.currentStage : 'In Progress';
+    if (itemsByStage[stage]) itemsByStage[stage].push(item);
+  });
+
+  const stageCounts = {};
+  displayStages.forEach(s => stageCounts[s] = itemsByStage[s].length);
+
+  const maxAge = Math.max(...wip.map(i => i.age), p95 > 0 ? p95 * 1.15 : 30);
+
+  const zones = [
+    { label: `≤50th (≤${p50.toFixed(0)}d)`, color: 'rgba(34,197,94,0.85)',  maxAge: p50 },
+    { label: `≤70th (≤${p70.toFixed(0)}d)`, color: 'rgba(234,179,8,0.85)',  maxAge: p70 },
+    { label: `≤85th (≤${p85.toFixed(0)}d)`, color: 'rgba(249,115,22,0.85)', maxAge: p85 },
+    { label: '>85th — investigate',          color: 'rgba(239,68,68,0.85)',  maxAge: Infinity },
+  ];
+
+  const datasets = zones.map((zone, zi) => {
+    const prevMax = zi === 0 ? -Infinity : zones[zi - 1].maxAge;
+    const points = [];
+    displayStages.forEach((stage, si) => {
+      const stageItems = itemsByStage[stage].filter(item => item.age > prevMax && item.age <= zone.maxAge);
+      stageItems.forEach((item, ii) => {
+        const jitter = stageItems.length > 1 ? (ii / (stageItems.length - 1) - 0.5) * 0.5 : 0;
+        points.push({ x: si + jitter, y: item.age, _id: item.id, _title: item.title });
+      });
+    });
+    return { label: zone.label, data: points, backgroundColor: zone.color, pointRadius: 7, pointHoverRadius: 9 };
+  });
+
+  const xLabels = displayStages.map(s => `${s} (${stageCounts[s]})`);
+
+  // Inline plugin draws percentile band backgrounds
+  const agingBandPlugin = {
+    id: 'agingBands',
+    beforeDraw(chart) {
+      const { ctx, chartArea, scales } = chart;
+      if (!chartArea) return;
+      const y = scales.y;
+      ctx.save();
+      [
+        { min: 0,   max: p50,  color: 'rgba(34,197,94,0.07)' },
+        { min: p50, max: p70,  color: 'rgba(234,179,8,0.07)' },
+        { min: p70, max: p85,  color: 'rgba(249,115,22,0.07)' },
+        { min: p85, max: y.max, color: 'rgba(239,68,68,0.07)' },
+      ].forEach(band => {
+        const yTop = y.getPixelForValue(Math.min(band.max, y.max));
+        const yBot = y.getPixelForValue(Math.max(band.min, 0));
+        if (yBot > yTop) {
+          ctx.fillStyle = band.color;
+          ctx.fillRect(chartArea.left, yTop, chartArea.width, yBot - yTop);
+        }
+      });
+      ctx.restore();
+    }
+  };
+
+  charts.aging = new Chart(canvas.getContext('2d'), {
+    type: 'scatter',
+    plugins: [agingBandPlugin],
+    data: { datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#475569', font: { size: 11 }, boxWidth: 14, padding: 14 } },
+        tooltip: { callbacks: { label(ctx) {
+          const d = ctx.raw;
+          const parts = [];
+          if (d._id)    parts.push(d._id);
+          if (d._title) parts.push(d._title.slice(0, 40) + (d._title.length > 40 ? '…' : ''));
+          parts.push(`${d.y.toFixed(0)} days`);
+          return parts.join('  ·  ');
+        }}}
+      },
+      scales: {
+        x: {
+          min: -0.5, max: displayStages.length - 0.5,
+          grid: { color: '#f1f5f9' },
+          ticks: { stepSize: 1, color: '#475569', font: { size: 11 }, callback(val) { return xLabels[Math.round(val)] || ''; } }
+        },
+        y: {
+          title: { display: true, text: 'Age (days)', color: '#94a3b8', font: { size: 11 } },
+          grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 11 } },
+          min: 0, suggestedMax: maxAge,
+        }
+      }
+    }
+  });
+
+  const overP85 = wip.filter(i => i.age > p85).length;
+  legendEl.innerHTML = `
+    ${wip.length} items in progress &nbsp;·&nbsp; ${overP85} over 85th percentile &nbsp;·&nbsp;
+    Age vs completed cycle time:
+    <span style="color:#16a34a">≤50th</span> ·
+    <span style="color:#a16207">≤70th</span> ·
+    <span style="color:#ea580c">≤85th</span> ·
+    <span style="color:#dc2626">&gt;85th</span>
+  `;
+}
+
+// ── Data preview ───────────────────────────────────────────────────────────
+function renderData() {
+  const cfg = getConfig();
+  const container = document.getElementById('data-content');
+  const subtitle  = document.getElementById('data-subtitle');
+
+  const filtered = allRows.filter(row => !cfg.filterType || row[cfg.typeCol] === cfg.filterType);
+  const maxRows = 200;
+  const shown   = filtered.slice(0, maxRows);
+
+  subtitle.textContent = `${filtered.length.toLocaleString()} rows${filtered.length > maxRows ? ` — showing first ${maxRows}` : ''}`;
+
+  const priority = [cfg.idCol, cfg.titleCol, cfg.typeCol, ...workflowStages, 'Blocked Days'].filter(Boolean);
+  const extra    = columns.filter(c => !priority.includes(c) && c !== cfg.startCol && c !== cfg.endCol);
+  const cols     = [...new Set([...priority, ...extra])].filter(c => columns.includes(c));
+
+  const th  = cols.map(c => `<th>${c}</th>`).join('');
+  const trs = shown.map(row => {
+    const tds = cols.map(c => {
+      const v = row[c] || '';
+      const isDate = workflowStages.includes(c) && v;
+      return `<td style="${isDate ? 'color:#0ea5e9;white-space:nowrap' : 'max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'}" title="${v}">${v}</td>`;
+    }).join('');
+    return `<tr>${tds}</tr>`;
+  }).join('');
+
+  container.innerHTML = `<table class="aging-table" style="font-size:0.78rem;min-width:100%"><thead><tr>${th}</tr></thead><tbody>${trs}</tbody></table>`;
+}
+
+// ── Flow Insights ──────────────────────────────────────────────────────────
+function runMonteCarlo(completed, days) {
+  days = days || 30;
+  if (completed.length < 4) return null;
+
+  const byWeek = {};
+  completed.forEach(d => {
+    const k = weekStart(d.endDate).toISOString().slice(0, 10);
+    byWeek[k] = (byWeek[k] || 0) + 1;
+  });
+  const rates = Object.values(byWeek);
+  if (rates.length < 2) return null;
+
+  const weeks = days / 7;
+  const SIM = 2000;
+  const results = new Array(SIM);
+  const fullWeeks = Math.floor(weeks);
+  const frac = weeks - fullWeeks;
+
+  for (let s = 0; s < SIM; s++) {
+    let total = 0;
+    for (let w = 0; w < fullWeeks; w++) total += rates[Math.floor(Math.random() * rates.length)];
+    if (frac > 0) total += rates[Math.floor(Math.random() * rates.length)] * frac;
+    results[s] = Math.floor(total);
+  }
+  results.sort((a, b) => a - b);
+
+  // "X% chance of N or more" means X% of simulations ≥ N → N = results at the (100-X)th pct
+  return {
+    p95: results[Math.floor(0.05 * SIM)],
+    p85: results[Math.floor(0.15 * SIM)],
+    p70: results[Math.floor(0.30 * SIM)],
+    p50: results[Math.floor(0.50 * SIM)],
+  };
+}
+
+function renderInsights(completed, wip, p50, p70, p85, p95) {
+  // Cycle time panel
+  const ctEl = document.getElementById('ic-ct-stats');
+  if (completed.length) {
+    ctEl.innerHTML = [
+      { pct: 95, val: p95, color: '#22c55e' },
+      { pct: 85, val: p85, color: '#86efac' },
+      { pct: 70, val: p70, color: '#eab308' },
+      { pct: 50, val: p50, color: '#f97316' },
+    ].map(s => `<div class="ic-stat"><span class="ic-dot" style="background:${s.color}"></span><strong>${s.pct}%</strong>&nbsp;took&nbsp;<strong>${Math.ceil(s.val)}</strong>&nbsp;days or less</div>`).join('');
+    // Blocked note
+    const blockedItems = completed.filter(d => d.blockedDays > 0);
+    if (getConfig().blockedDaysCol && blockedItems.length) {
+      const avgBlocked = (blockedItems.reduce((s, d) => s + d.blockedDays, 0) / blockedItems.length).toFixed(1);
+      ctEl.insertAdjacentHTML('beforeend',
+        `<div style="width:100%;margin-top:0.6rem;padding-top:0.6rem;border-top:1px solid #f1f5f9;font-size:0.78rem;color:#94a3b8">
+          <span style="color:#eab308">⚠</span>&nbsp;
+          ${blockedItems.length} of ${completed.length} items were blocked at some point
+          (avg ${avgBlocked}d blocked per item)
+        </div>`
+      );
+    }
+  } else {
+    ctEl.innerHTML = '<span style="color:#94a3b8;font-size:0.85rem">No completed items yet</span>';
   }
 
-  const hasType = wip.some(i => i.type);
-  const rows = wip.map(item => `
-    <tr>
-      <td style="color:#64748b;white-space:nowrap">${item.id || '—'}</td>
-      <td style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${item.title}">${item.title || '—'}</td>
-      ${hasType ? `<td style="color:#64748b">${item.type || ''}</td>` : ''}
-      <td style="white-space:nowrap;color:#64748b">${fmtDate(item.startDate)}</td>
-      <td><span class="age-chip ${chipClass(item.age)}">${item.age.toFixed(0)}d</span></td>
-    </tr>
-  `).join('');
+  // WIP count
+  document.getElementById('ic-wip-num').textContent = wip.length;
 
-  container.innerHTML = `
-    <table class="aging-table">
-      <thead>
-        <tr>
-          <th>ID</th><th>Title</th>
-          ${hasType ? '<th>Type</th>' : ''}
-          <th>Started</th><th>Age</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>
-    <p style="margin-top:1rem;font-size:0.76rem;color:#94a3b8">
-      Age colour = where this item sits against completed cycle time percentiles &nbsp;
-      <span style="color:#16a34a">≤50th</span> ·
-      <span style="color:#a16207">≤70th</span> ·
-      <span style="color:#ea580c">≤85th</span> ·
-      <span style="color:#dc2626">&gt;85th — investigate</span>
-    </p>
-  `;
+  // Forecast panel
+  const fcEl = document.getElementById('ic-fc-stats');
+  const fc = runMonteCarlo(completed);
+  if (fc) {
+    fcEl.innerHTML = [
+      { pct: 95, val: fc.p95, color: '#22c55e' },
+      { pct: 85, val: fc.p85, color: '#86efac' },
+      { pct: 70, val: fc.p70, color: '#eab308' },
+      { pct: 50, val: fc.p50, color: '#f97316' },
+    ].map(s => `<div class="ic-stat"><span class="ic-dot" style="background:${s.color}"></span><strong>${s.pct}%</strong>&nbsp;chance of&nbsp;<strong>${s.val}</strong>&nbsp;or more</div>`).join('');
+  } else {
+    fcEl.innerHTML = '<span style="color:#94a3b8;font-size:0.85rem">Not enough history — need at least 4 completed items across 2+ weeks</span>';
+  }
+
+  renderPaceChart(completed);
+  renderWIPAgeChart();
+}
+
+function renderPaceChart(completed) {
+  const ctx = document.getElementById('chart-pace').getContext('2d');
+  if (charts.pace) charts.pace.destroy();
+
+  const cfg = getConfig();
+
+  const startedByWeek = {};
+  allRows.forEach(row => {
+    if (cfg.filterType && row[cfg.typeCol] !== cfg.filterType) return;
+    const d = parseDate(row[cfg.startCol]);
+    if (!d) return;
+    const k = weekStart(d).toISOString().slice(0, 10);
+    startedByWeek[k] = (startedByWeek[k] || 0) + 1;
+  });
+
+  const completedByWeek = {};
+  completed.forEach(d => {
+    const k = weekStart(d.endDate).toISOString().slice(0, 10);
+    completedByWeek[k] = (completedByWeek[k] || 0) + 1;
+  });
+
+  const allKeys = [...new Set([...Object.keys(startedByWeek), ...Object.keys(completedByWeek)])].sort();
+  if (!allKeys.length) return;
+
+  const labels        = allKeys.map(k => new Date(k + 'T00:00:00'));
+  const startedData   = allKeys.map(k => startedByWeek[k]   || 0);
+  const completedData = allKeys.map(k => completedByWeek[k] || 0);
+
+  charts.pace = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Started',   data: startedData,   borderColor: '#38bdf8', backgroundColor: 'rgba(56,189,248,0.08)',
+          borderWidth: 2, pointRadius: 3, pointHoverRadius: 5, fill: false, tension: 0.25 },
+        { label: 'Completed', data: completedData, borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,0.08)',
+          borderWidth: 2, pointRadius: 3, pointHoverRadius: 5, fill: false, tension: 0.25 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#475569', font: { size: 11 }, boxWidth: 12 } },
+        tooltip: { mode: 'index', intersect: false }
+      },
+      scales: {
+        x: { type: 'time', time: { unit: 'month', displayFormats: { month: 'MM/yyyy' } },
+             grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+        y: { title: { display: true, text: 'Number of items', color: '#94a3b8', font: { size: 10 } },
+             grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 10 } }, min: 0 }
+      }
+    }
+  });
+}
+
+function renderWIPAgeChart() {
+  const ctx = document.getElementById('chart-wipage').getContext('2d');
+  if (charts.wipage) charts.wipage.destroy();
+
+  const cfg = getConfig();
+  if (!cfg.startCol) return;
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const rows = allRows
+    .filter(row => !cfg.filterType || row[cfg.typeCol] === cfg.filterType)
+    .map(row => ({ startDate: parseDate(row[cfg.startCol]), endDate: parseDate(row[cfg.endCol]) }))
+    .filter(r => r.startDate);
+
+  if (!rows.length) return;
+
+  const minDate = rows.reduce((m, r) => r.startDate < m ? r.startDate : m, rows[0].startDate);
+  const weeks = [];
+  const cur = new Date(weekStart(minDate));
+  while (cur <= today) { weeks.push(new Date(cur)); cur.setDate(cur.getDate() + 7); }
+
+  const wipCounts = [], totalAges = [], avgAges = [];
+  weeks.forEach(wk => {
+    const items = rows.filter(r => r.startDate <= wk && (!r.endDate || r.endDate > wk));
+    const count = items.length;
+    const total = items.reduce((sum, r) => sum + daysBetween(r.startDate, wk), 0);
+    wipCounts.push(count);
+    totalAges.push(Math.round(total));
+    avgAges.push(count > 0 ? +(total / count).toFixed(1) : 0);
+  });
+
+  charts.wipage = new Chart(ctx, {
+    data: {
+      labels: weeks,
+      datasets: [
+        { type: 'line', label: 'Total Age',       data: totalAges,  borderColor: '#38bdf8', borderWidth: 1.5, pointRadius: 0, fill: false, tension: 0.2 },
+        { type: 'line', label: 'Average age',     data: avgAges,    borderColor: '#a78bfa', borderWidth: 1.5, pointRadius: 0, fill: false, tension: 0.2 },
+        { type: 'line', label: 'Work in Progress',data: wipCounts,  borderColor: '#22c55e', borderWidth: 2,   pointRadius: 0, fill: false, tension: 0.2 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#475569', font: { size: 11 }, boxWidth: 12 } },
+        tooltip: { mode: 'index', intersect: false }
+      },
+      scales: {
+        x: { type: 'time', time: { unit: 'month', displayFormats: { month: 'MM/yy' } },
+             grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+        y: { title: { display: true, text: 'Number of items', color: '#94a3b8', font: { size: 10 } },
+             grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 10 } }, min: 0 }
+      }
+    }
+  });
+}
+
+// ── Footer (data range + copy) ─────────────────────────────────────────────
+function updateFooter() {
+  const footer  = document.getElementById('data-footer');
+  const rangeEl = document.getElementById('footer-range');
+
+  // Min of first workflow column → max of last workflow column
+  let minDate = null, maxDate = null;
+
+  const firstCol = workflowStages[0];
+  const lastCol  = workflowStages[workflowStages.length - 1];
+
+  if (firstCol) {
+    allRows.forEach(row => { const d = parseDate(row[firstCol]); if (d && (!minDate || d < minDate)) minDate = d; });
+  }
+  if (lastCol) {
+    allRows.forEach(row => { const d = parseDate(row[lastCol]);  if (d && (!maxDate || d > maxDate)) maxDate = d; });
+  }
+
+  // Fallback: use configured start/end cols
+  if (!minDate || !maxDate) {
+    const cfg = getConfig();
+    allRows.forEach(row => {
+      const s = parseDate(row[cfg.startCol]);
+      const e = parseDate(row[cfg.endCol]);
+      if (s && (!minDate || s < minDate)) minDate = s;
+      if (e && (!maxDate || e > maxDate)) maxDate = e;
+    });
+  }
+
+  if (minDate && maxDate) {
+    rangeEl.textContent = `Dataset: ${fmtDate(minDate)} — ${fmtDate(maxDate)}`;
+    footer.style.display = 'flex';
+  }
+}
+
+async function copySnapshot() {
+  const btn        = document.querySelector('#data-footer .copy-btn');
+  const activePane = document.querySelector('.tab-pane.active');
+  if (!activePane) return;
+
+  btn.textContent = 'Capturing…';
+  btn.disabled = true;
+
+  // Capture and composite asynchronously, returning a Blob promise.
+  // Defined before the clipboard.write call so Safari's user-activation
+  // window is not consumed by an await before the write.
+  function buildBlob() {
+    const scale = 2;
+    return html2canvas(activePane, {
+      backgroundColor: '#f8fafc',
+      scale,
+      useCORS: true,
+      logging: false,
+    }).then(captured => {
+      const footerH = 44 * scale;
+      const out = document.createElement('canvas');
+      out.width  = captured.width;
+      out.height = captured.height + footerH;
+
+      const ctx = out.getContext('2d');
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(0, 0, out.width, out.height);
+      ctx.drawImage(captured, 0, 0);
+
+      const fy = captured.height;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, fy, out.width, footerH);
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = scale;
+      ctx.beginPath(); ctx.moveTo(0, fy); ctx.lineTo(out.width, fy); ctx.stroke();
+
+      const range = document.getElementById('footer-range').textContent;
+      const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#475569';
+      ctx.font = `${13 * scale}px system-ui,-apple-system,sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.fillText(range, 20 * scale, fy + footerH / 2);
+      ctx.fillStyle = '#94a3b8';
+      ctx.textAlign = 'right';
+      ctx.fillText('Flow Lens · ' + today, out.width - 20 * scale, fy + footerH / 2);
+
+      return new Promise(res => out.toBlob(res, 'image/png'));
+    });
+  }
+
+  try {
+    // Pass the Promise directly into ClipboardItem — Safari requires
+    // clipboard.write() to be called synchronously within the user gesture,
+    // but accepts a Promise as the image value so the capture can still be async.
+    await navigator.clipboard.write([
+      new ClipboardItem({ 'image/png': buildBlob() })
+    ]);
+
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy snapshot'; btn.disabled = false; }, 2500);
+
+  } catch (err) {
+    console.error('Snapshot failed:', err);
+    btn.textContent = 'Copy failed';
+    setTimeout(() => { btn.textContent = 'Copy snapshot'; btn.disabled = false; }, 3000);
+  }
 }
 
 // ── Tab switching ──────────────────────────────────────────────────────────
