@@ -90,10 +90,17 @@
     .stage-item.stage-hidden .stage-vis-btn { color: #94a3b8; }
     .stage-item.stage-hidden .stage-vis-btn:hover { color: #22c55e; }
 
-    .filters { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #f1f5f9; display: flex; gap: 1rem; flex-wrap: wrap; }
-    .filter-field label { display: block; font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 0.2rem; }
-    .filter-field select { padding: 0.45rem 0.7rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.83rem; background: white; color: #1e293b; }
-    .filter-field select:focus { outline: none; border-color: #38bdf8; }
+    .filter-section { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #f1f5f9; }
+    .filter-rows { display: flex; flex-direction: column; gap: 0.45rem; margin-bottom: 0.75rem; }
+    .filter-row  { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+    .filter-row-num { font-size: 0.7rem; color: #cbd5e1; width: 1.1rem; text-align: right; flex-shrink: 0; font-weight: 600; }
+    .filter-row select { padding: 0.35rem 0.6rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.82rem; background: white; color: #1e293b; flex: 1; min-width: 130px; }
+    .filter-row select:focus { outline: none; border-color: #38bdf8; }
+    .filter-date label { display: block; font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 0.2rem; }
+    .filter-date select { padding: 0.45rem 0.7rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.83rem; background: white; color: #1e293b; }
+    .filter-date select:focus { outline: none; border-color: #38bdf8; }
+    .config-action-btn { font-size: 0.75rem; color: #38bdf8; background: none; border: 1px solid #334155; border-radius: 4px; padding: 0.2rem 0.55rem; cursor: pointer; white-space: nowrap; }
+    .config-action-btn:hover { border-color: #38bdf8; }
 
     #stats-bar {
       background: #0f172a; border-radius: 10px; padding: 1rem 1.5rem;
@@ -219,13 +226,13 @@
 
 <main>
   <div class="upload-zone" id="upload-zone">
-    <input type="file" id="file-input" accept=".csv" style="display:none">
+    <input type="file" id="file-input" accept=".csv,.json" style="display:none">
     <svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
       <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
     </svg>
     <h2>Drop your CSV here or click to browse</h2>
-    <p>Works with Actionable Agile format and any CSV with date columns &nbsp;·&nbsp; Data stays on your machine</p>
+    <p>Actionable Agile CSV or any CSV with date columns &nbsp;·&nbsp; Drop a saved config (.json) to restore settings &nbsp;·&nbsp; Data stays on your machine</p>
   </div>
 
   <div id="error-area"></div>
@@ -233,7 +240,14 @@
   <div id="config-panel">
     <div class="config-header">
       <h3>Column mapping</h3>
-      <small>Change these anytime — charts update instantly</small>
+      <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
+        <small>Change these anytime — charts update instantly</small>
+        <button class="config-action-btn" id="btn-save-config" onclick="saveConfig()" style="display:none">Save config</button>
+        <label class="config-action-btn" id="btn-load-config" title="Load a previously saved config file">
+          Load config
+          <input type="file" accept=".json" style="display:none" onchange="loadConfigFile(this)">
+        </label>
+      </div>
     </div>
     <div class="config-grid">
       <div class="config-field">
@@ -257,13 +271,8 @@
         <select id="col-title"><option value="">— none —</option></select>
       </div>
       <div class="config-field">
-        <label>Type</label>
-        <div class="hint">Work type for filtering</div>
-        <select id="col-type"><option value="">— none —</option></select>
-      </div>
-      <div class="config-field">
         <label>Blocked Days</label>
-        <div class="hint">Number of days the item was blocked — used in flow efficiency</div>
+        <div class="hint">Days the item was blocked — used in flow efficiency</div>
         <select id="col-blocked"><option value="">— none —</option></select>
       </div>
     </div>
@@ -276,12 +285,29 @@
       <div class="stage-list" id="stage-list"></div>
     </div>
 
-    <div class="filters">
-      <div class="filter-field">
-        <label>Filter by type</label>
-        <select id="filter-type"><option value="">All types</option></select>
+    <div class="filter-section">
+      <div class="workflow-section-header" style="margin-bottom:0.55rem">
+        <span>Filters</span>
+        <small>Any column &mdash; all active filters combine (AND)</small>
       </div>
-      <div class="filter-field">
+      <div class="filter-rows">
+        <div class="filter-row">
+          <span class="filter-row-num">1</span>
+          <select id="col-filter-1"><option value="">— field —</option></select>
+          <select id="val-filter-1"><option value="">All</option></select>
+        </div>
+        <div class="filter-row">
+          <span class="filter-row-num">2</span>
+          <select id="col-filter-2"><option value="">— field —</option></select>
+          <select id="val-filter-2"><option value="">All</option></select>
+        </div>
+        <div class="filter-row">
+          <span class="filter-row-num">3</span>
+          <select id="col-filter-3"><option value="">— field —</option></select>
+          <select id="val-filter-3"><option value="">All</option></select>
+        </div>
+      </div>
+      <div class="filter-date">
         <label>Date range</label>
         <select id="filter-range">
           <option value="">All time</option>
@@ -512,6 +538,15 @@ uploadZone.addEventListener('drop', e => {
 
 function processFile(file) {
   clearError();
+  if (file.name.endsWith('.json')) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try { applyConfig(JSON.parse(e.target.result)); }
+      catch { showError('Could not read config file — make sure it was saved by Flow Lens.'); }
+    };
+    reader.readAsText(file);
+    return;
+  }
   Papa.parse(file, {
     header: true, skipEmptyLines: true,
     complete(results) {
@@ -548,7 +583,8 @@ function clearError()   { document.getElementById('error-area').innerHTML = ''; 
 function setupConfig() {
   document.getElementById('config-panel').style.display = 'block';
 
-  ['col-start','col-end','col-id','col-title','col-type','col-blocked'].forEach(id => {
+  ['col-start','col-end','col-id','col-title','col-blocked',
+   'col-filter-1','col-filter-2','col-filter-3'].forEach(id => {
     const sel = document.getElementById(id);
     const hasNone = id !== 'col-start' && id !== 'col-end';
     sel.innerHTML = hasNone ? '<option value="">— none —</option>' : '<option value="">Select column…</option>';
@@ -568,9 +604,12 @@ function setupConfig() {
   workflowStages.forEach(col => { if (!(col in stageTypes)) stageTypes[col] = autoDetectStageType(col); });
   buildWorkflowUI();
 
-  ['col-start','col-end','col-id','col-title','col-type','col-blocked','filter-type','filter-range'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener('change', () => { if (id === 'col-type') populateTypeFilter(); renderAll(); });
+  ['col-start','col-end','col-id','col-title','col-blocked','filter-range'].forEach(id => {
+    document.getElementById(id).addEventListener('change', renderAll);
+  });
+  [1,2,3].forEach(n => {
+    document.getElementById(`col-filter-${n}`).addEventListener('change', () => { populateFilterValues(n); renderAll(); });
+    document.getElementById(`val-filter-${n}`).addEventListener('change', renderAll);
   });
 }
 
@@ -590,25 +629,22 @@ function autoDetect() {
   const end   = find(['completion date','completed date','done date','closed date','resolved date','end date','finish date','done']);
   const id    = find(['id','issue id','key','ticket','number','ref','sys_id']);
   const title = find(['title','summary','name','short description','description']);
-  const type  = find(['type','issue type','work type','category','sys_class_name','task type','demand type']);
-
   if (start) document.getElementById('col-start').value = start;
   if (end)   document.getElementById('col-end').value   = end;
   if (id)    document.getElementById('col-id').value    = id;
   if (title) document.getElementById('col-title').value = title;
-  if (type)  { document.getElementById('col-type').value = type; populateTypeFilter(); }
 
   renderAll();
 }
 
-function populateTypeFilter() {
-  const col = document.getElementById('col-type').value;
-  const sel = document.getElementById('filter-type');
-  sel.innerHTML = '<option value="">All types</option>';
+function populateFilterValues(n) {
+  const col = document.getElementById(`col-filter-${n}`).value;
+  const sel = document.getElementById(`val-filter-${n}`);
+  sel.innerHTML = '<option value="">All</option>';
   if (col) {
-    [...new Set(allRows.map(r => r[col]).filter(Boolean))].sort().forEach(t => {
+    [...new Set(allRows.map(r => r[col]).filter(Boolean))].sort().forEach(v => {
       const opt = document.createElement('option');
-      opt.value = t; opt.textContent = t;
+      opt.value = v; opt.textContent = v;
       sel.appendChild(opt);
     });
   }
@@ -707,7 +743,7 @@ function toggleStageType(col, btn) {
 function calculateFlowEfficiency(completedItems) {
   if (workflowStages.length < 2) return null;
   const cfg = getConfig();
-  const rows = allRows.filter(row => !cfg.filterType || row[cfg.typeCol] === cfg.filterType);
+  const rows = allRows.filter(row => rowMatchesFilters(row, cfg));
   const efficiencies = [];
 
   rows.forEach(row => {
@@ -734,15 +770,21 @@ function calculateFlowEfficiency(completedItems) {
 // ── Data processing ────────────────────────────────────────────────────────
 function getConfig() {
   return {
-    startCol:      document.getElementById('col-start').value,
-    endCol:        document.getElementById('col-end').value,
-    idCol:         document.getElementById('col-id').value,
-    titleCol:      document.getElementById('col-title').value,
-    typeCol:       document.getElementById('col-type').value,
-    blockedDaysCol:document.getElementById('col-blocked').value,
-    filterType:    document.getElementById('filter-type').value,
-    filterDays:    +document.getElementById('filter-range').value || 0,
+    startCol:       document.getElementById('col-start').value,
+    endCol:         document.getElementById('col-end').value,
+    idCol:          document.getElementById('col-id').value,
+    titleCol:       document.getElementById('col-title').value,
+    blockedDaysCol: document.getElementById('col-blocked').value,
+    filters: [1,2,3].map(n => ({
+      col: document.getElementById(`col-filter-${n}`).value,
+      val: document.getElementById(`val-filter-${n}`).value,
+    })),
+    filterDays: +document.getElementById('filter-range').value || 0,
   };
+}
+
+function rowMatchesFilters(row, cfg) {
+  return cfg.filters.every(f => !f.col || !f.val || row[f.col] === f.val);
 }
 
 function processData(cfg) {
@@ -751,12 +793,12 @@ function processData(cfg) {
   const completed = [], wip = [];
 
   allRows.forEach(row => {
-    if (cfg.filterType && row[cfg.typeCol] !== cfg.filterType) return;
+    if (!rowMatchesFilters(row, cfg)) return;
     const startDate = parseDate(row[cfg.startCol]);
     const endDate   = parseDate(row[cfg.endCol]);
     const id          = cfg.idCol    ? (row[cfg.idCol]    || '') : '';
     const title       = cfg.titleCol ? (row[cfg.titleCol] || '') : '';
-    const type        = cfg.typeCol  ? (row[cfg.typeCol]  || '') : '';
+    const type        = '';
     const blockedDays = cfg.blockedDaysCol ? (parseFloat(row[cfg.blockedDaysCol]) || 0) : 0;
 
     if (startDate && endDate && endDate >= startDate) {
@@ -831,6 +873,7 @@ function renderAll() {
   document.getElementById('legend-p95').textContent = `95th — ${p95.toFixed(1)}d`;
 
   document.getElementById('tabs').style.display = 'block';
+  document.getElementById('btn-save-config').style.display = 'inline-block';
 
   updateFooter();
   renderInsights(completed, wip, p50, p70, p85, p95);
@@ -968,7 +1011,7 @@ function renderWIPOverTime() {
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const rows = allRows
-    .filter(row => !cfg.filterType || row[cfg.typeCol] === cfg.filterType)
+    .filter(row => rowMatchesFilters(row, cfg))
     .map(row => ({ startDate: parseDate(row[cfg.startCol]), endDate: parseDate(row[cfg.endCol]) }))
     .filter(r => r.startDate);
 
@@ -1022,7 +1065,7 @@ function buildCFDData() {
 
   const cfg = getConfig();
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  const rows = allRows.filter(row => !cfg.filterType || row[cfg.typeCol] === cfg.filterType);
+  const rows = allRows.filter(row => rowMatchesFilters(row, cfg));
   if (!rows.length) return null;
 
   const allStagesParsed = rows.map(row => workflowStages.map(col => parseDate(row[col])));
@@ -1299,13 +1342,13 @@ function renderData() {
   const container = document.getElementById('data-content');
   const subtitle  = document.getElementById('data-subtitle');
 
-  const filtered = allRows.filter(row => !cfg.filterType || row[cfg.typeCol] === cfg.filterType);
+  const filtered = allRows.filter(row => rowMatchesFilters(row, cfg));
   const maxRows = 200;
   const shown   = filtered.slice(0, maxRows);
 
   subtitle.textContent = `${filtered.length.toLocaleString()} rows${filtered.length > maxRows ? ` — showing first ${maxRows}` : ''}`;
 
-  const priority = [cfg.idCol, cfg.titleCol, cfg.typeCol, ...workflowStages, 'Blocked Days'].filter(Boolean);
+  const priority = [cfg.idCol, cfg.titleCol, ...workflowStages].filter(Boolean);
   const extra    = columns.filter(c => !priority.includes(c) && c !== cfg.startCol && c !== cfg.endCol);
   const cols     = [...new Set([...priority, ...extra])].filter(c => columns.includes(c));
 
@@ -1325,7 +1368,7 @@ function renderData() {
 // ── Flow Insights ──────────────────────────────────────────────────────────
 function calculateMultitaskingIndex(cfg) {
   const items = allRows
-    .filter(row => !cfg.filterType || row[cfg.typeCol] === cfg.filterType)
+    .filter(row => rowMatchesFilters(row, cfg))
     .map(row => ({ start: parseDate(row[cfg.startCol]), end: parseDate(row[cfg.endCol]) }))
     .filter(r => r.start);
   if (items.length < 2) return null;
@@ -1477,7 +1520,7 @@ function renderPaceChart(completed) {
 
   const startedByWeek = {};
   allRows.forEach(row => {
-    if (cfg.filterType && row[cfg.typeCol] !== cfg.filterType) return;
+    if (!rowMatchesFilters(row, cfg)) return;
     const d = parseDate(row[cfg.startCol]);
     if (!d) return;
     const k = weekStart(d).toISOString().slice(0, 10);
@@ -1533,7 +1576,7 @@ function renderWIPAgeChart() {
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const rows = allRows
-    .filter(row => !cfg.filterType || row[cfg.typeCol] === cfg.filterType)
+    .filter(row => rowMatchesFilters(row, cfg))
     .map(row => ({ startDate: parseDate(row[cfg.startCol]), endDate: parseDate(row[cfg.endCol]) }))
     .filter(r => r.startDate);
 
@@ -1577,6 +1620,86 @@ function renderWIPAgeChart() {
       }
     }
   });
+}
+
+// ── Config save / load ─────────────────────────────────────────────────────
+function saveConfig() {
+  const cfg = getConfig();
+  const data = {
+    version: 1,
+    fields: {
+      startCol:       cfg.startCol,
+      endCol:         cfg.endCol,
+      idCol:          cfg.idCol,
+      titleCol:       cfg.titleCol,
+      blockedDaysCol: cfg.blockedDaysCol,
+    },
+    workflow: {
+      stages: workflowStages,
+      types:  stageTypes,
+      hidden: [...hiddenStages],
+    },
+    filters:    cfg.filters,
+    dateRange:  document.getElementById('filter-range').value,
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = 'flow-lens-config.json'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function loadConfigFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  input.value = '';
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      applyConfig(JSON.parse(e.target.result));
+    } catch {
+      showError('Could not read config file — make sure it was saved by Flow Lens.');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function applyConfig(cfg) {
+  if (!allRows.length) { showError('Load your CSV data first, then apply a config.'); return; }
+
+  const fieldMap = {
+    startCol: 'col-start', endCol: 'col-end', idCol: 'col-id',
+    titleCol: 'col-title', blockedDaysCol: 'col-blocked',
+  };
+  if (cfg.fields) {
+    Object.entries(fieldMap).forEach(([key, elId]) => {
+      const el = document.getElementById(elId);
+      if (el && cfg.fields[key] !== undefined) el.value = cfg.fields[key] || '';
+    });
+  }
+
+  if (cfg.workflow) {
+    if (cfg.workflow.stages) workflowStages = cfg.workflow.stages.filter(s => columns.includes(s));
+    if (cfg.workflow.types)  stageTypes     = cfg.workflow.types;
+    if (cfg.workflow.hidden) hiddenStages   = new Set(cfg.workflow.hidden);
+  }
+
+  if (cfg.filters) {
+    cfg.filters.forEach((f, i) => {
+      const n = i + 1;
+      const colEl = document.getElementById(`col-filter-${n}`);
+      if (!colEl) return;
+      colEl.value = f.col || '';
+      populateFilterValues(n);
+      const valEl = document.getElementById(`val-filter-${n}`);
+      if (valEl) valEl.value = f.val || '';
+    });
+  }
+
+  if (cfg.dateRange !== undefined) document.getElementById('filter-range').value = cfg.dateRange;
+
+  buildWorkflowUI();
+  renderAll();
 }
 
 // ── Footer (data range + copy) ─────────────────────────────────────────────
