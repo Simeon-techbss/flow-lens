@@ -268,6 +268,11 @@
         <select id="col-title"><option value="">— none —</option></select>
       </div>
       <div class="config-field">
+        <label>Link</label>
+        <div class="hint">Ticket URL — click dots on charts to open in a new tab</div>
+        <select id="col-link"><option value="">— none —</option></select>
+      </div>
+      <div class="config-field">
         <label>Blocked Days</label>
         <div class="hint">Days the item was blocked — used in flow efficiency</div>
         <select id="col-blocked"><option value="">— none —</option></select>
@@ -571,7 +576,7 @@ function clearError()   { document.getElementById('error-area').innerHTML = ''; 
 function setupConfig() {
   document.getElementById('config-panel').style.display = 'block';
 
-  ['col-start','col-end','col-id','col-title','col-blocked',
+  ['col-start','col-end','col-id','col-title','col-link','col-blocked',
    'col-filter-1','col-filter-2','col-filter-3'].forEach(id => {
     const sel = document.getElementById(id);
     const hasNone = id !== 'col-start' && id !== 'col-end';
@@ -583,8 +588,10 @@ function setupConfig() {
     });
   });
 
-  // Auto-select blocked days column
+  // Auto-select known columns
+  const detectedLink    = columns.find(c => /^link$/i.test(c.trim()) || /^url$/i.test(c.trim()) || /ticket.?url/i.test(c)) || '';
   const detectedBlocked = columns.find(c => /blocked.?days/i.test(c)) || '';
+  if (detectedLink)    document.getElementById('col-link').value    = detectedLink;
   if (detectedBlocked) document.getElementById('col-blocked').value = detectedBlocked;
 
   autoDetect();
@@ -592,7 +599,7 @@ function setupConfig() {
   workflowStages.forEach(col => { if (!(col in stageTypes)) stageTypes[col] = autoDetectStageType(col); });
   buildWorkflowUI();
 
-  ['col-start','col-end','col-id','col-title','col-blocked','filter-range'].forEach(id => {
+  ['col-start','col-end','col-id','col-title','col-link','col-blocked','filter-range'].forEach(id => {
     document.getElementById(id).addEventListener('change', renderAll);
   });
   [1,2,3].forEach(n => {
@@ -762,6 +769,7 @@ function getConfig() {
     endCol:         document.getElementById('col-end').value,
     idCol:          document.getElementById('col-id').value,
     titleCol:       document.getElementById('col-title').value,
+    linkCol:        document.getElementById('col-link').value,
     blockedDaysCol: document.getElementById('col-blocked').value,
     filters: [1,2,3].map(n => ({
       col: document.getElementById(`col-filter-${n}`).value,
@@ -786,14 +794,14 @@ function processData(cfg) {
     const endDate   = parseDate(row[cfg.endCol]);
     const id          = cfg.idCol    ? (row[cfg.idCol]    || '') : '';
     const title       = cfg.titleCol ? (row[cfg.titleCol] || '') : '';
-    const type        = '';
+    const link        = cfg.linkCol  ? (row[cfg.linkCol]  || '') : '';
     const blockedDays = cfg.blockedDaysCol ? (parseFloat(row[cfg.blockedDaysCol]) || 0) : 0;
 
     if (startDate && endDate && endDate >= startDate) {
       const ct = daysBetween(startDate, endDate);
       if (ct < 0) return;
       if (cutoff && endDate < cutoff) return;
-      completed.push({ id, title, type, startDate, endDate, cycleTime: ct, blockedDays });
+      completed.push({ id, title, link, startDate, endDate, cycleTime: ct, blockedDays });
     } else if (startDate && !endDate) {
       const age = daysBetween(startDate, new Date());
       if (age >= 0) {
@@ -801,7 +809,7 @@ function processData(cfg) {
         for (let i = workflowStages.length - 1; i >= 0; i--) {
           if (parseDate(row[workflowStages[i]])) { currentStage = workflowStages[i]; break; }
         }
-        wip.push({ id, title, type, startDate, age, currentStage, blockedDays });
+        wip.push({ id, title, link, startDate, age, currentStage, blockedDays });
       }
     }
   });
@@ -894,7 +902,7 @@ function renderScatter(data, p50, p70, p85, p95) {
   const hasBlocked = blocked.length > 0;
 
   function ptData(arr) {
-    return arr.map(d => ({ x: d.endDate, y: d.cycleTime, _id: d.id, _title: d.title, _blocked: d.blockedDays }));
+    return arr.map(d => ({ x: d.endDate, y: d.cycleTime, _id: d.id, _title: d.title, _blocked: d.blockedDays, _link: d.link }));
   }
 
   charts.scatter = new Chart(ctx, {
@@ -921,6 +929,15 @@ function renderScatter(data, p50, p70, p85, p95) {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      onClick(event, elements) {
+        if (!elements.length) return;
+        const d = charts.scatter.data.datasets[elements[0].datasetIndex].data[elements[0].index];
+        if (d._link) window.open(d._link, '_blank', 'noopener');
+      },
+      onHover(event, elements) {
+        const d = elements.length && charts.scatter.data.datasets[elements[0].datasetIndex].data[elements[0].index];
+        event.native.target.style.cursor = (d && d._link) ? 'pointer' : 'default';
+      },
       plugins: {
         legend: { display: hasBlocked, labels: { color: '#475569', font: { size: 11 }, boxWidth: 10, filter: i => i.datasetIndex < (hasBlocked ? 2 : 1) } },
         tooltip: { callbacks: { label(ctx) {
@@ -931,6 +948,7 @@ function renderScatter(data, p50, p70, p85, p95) {
             if (d._title)   parts.push(d._title.slice(0, 45) + (d._title.length > 45 ? '…' : ''));
             parts.push(`${d.y.toFixed(1)} days`);
             if (d._blocked) parts.push(`⚠ blocked ${d._blocked}d`);
+            if (d._link)    parts.push('↗ click to open');
             return parts.join('  ·  ');
           }
           return `${ctx.dataset.label}: ${ctx.raw.y.toFixed(1)}d`;
@@ -1248,7 +1266,7 @@ function renderAging(wip, p50, p70, p85, p95) {
       const stageItems = itemsByStage[stage].filter(item => item.age > prevMax && item.age <= zone.maxAge);
       stageItems.forEach((item, ii) => {
         const jitter = stageItems.length > 1 ? (ii / (stageItems.length - 1) - 0.5) * 0.5 : 0;
-        points.push({ x: si + jitter, y: item.age, _id: item.id, _title: item.title });
+        points.push({ x: si + jitter, y: item.age, _id: item.id, _title: item.title, _link: item.link });
       });
     });
     return { label: zone.label, data: points, backgroundColor: zone.color, pointRadius: 7, pointHoverRadius: 9 };
@@ -1287,6 +1305,15 @@ function renderAging(wip, p50, p70, p85, p95) {
     data: { datasets },
     options: {
       responsive: true, maintainAspectRatio: false,
+      onClick(event, elements) {
+        if (!elements.length) return;
+        const d = charts.aging.data.datasets[elements[0].datasetIndex].data[elements[0].index];
+        if (d._link) window.open(d._link, '_blank', 'noopener');
+      },
+      onHover(event, elements) {
+        const d = elements.length && charts.aging.data.datasets[elements[0].datasetIndex].data[elements[0].index];
+        event.native.target.style.cursor = (d && d._link) ? 'pointer' : 'default';
+      },
       plugins: {
         legend: { position: 'bottom', labels: { color: '#475569', font: { size: 11 }, boxWidth: 14, padding: 14 } },
         tooltip: { callbacks: { label(ctx) {
@@ -1295,6 +1322,7 @@ function renderAging(wip, p50, p70, p85, p95) {
           if (d._id)    parts.push(d._id);
           if (d._title) parts.push(d._title.slice(0, 40) + (d._title.length > 40 ? '…' : ''));
           parts.push(`${d.y.toFixed(0)} days`);
+          if (d._link)  parts.push('↗ click to open');
           return parts.join('  ·  ');
         }}}
       },
@@ -1345,7 +1373,12 @@ function renderData() {
     const tds = cols.map(c => {
       const v = row[c] || '';
       const isDate = workflowStages.includes(c) && v;
-      return `<td style="${isDate ? 'color:#0ea5e9;white-space:nowrap' : 'max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'}" title="${v}">${v}</td>`;
+      const rowLink = cfg.linkCol ? row[cfg.linkCol] : '';
+      const isId    = c === cfg.idCol && rowLink;
+      const cell    = isId
+        ? `<a href="${rowLink}" target="_blank" rel="noopener" style="color:#0ea5e9;text-decoration:none" title="${rowLink}">${v}</a>`
+        : v;
+      return `<td style="${isDate ? 'color:#0ea5e9;white-space:nowrap' : 'max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'}" title="${v}">${cell}</td>`;
     }).join('');
     return `<tr>${tds}</tr>`;
   }).join('');
@@ -1472,11 +1505,16 @@ function renderInsights(completed, wip, p50, p70, p85, p95) {
       <div style="font-size:0.78rem;color:#92400e;margin:0.4rem 0 0.75rem">
         item${smellyItems.length > 1 ? 's' : ''} older than ${Math.ceil(p85)}d — your 85th percentile cycle time
       </div>
-      ${top5.map(i => `
-        <div class="ic2-smelly-item">
-          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${i.id ? `<strong>${i.id}</strong> ` : ''}${(i.title || 'Untitled').slice(0, 40)}${(i.title || '').length > 40 ? '…' : ''}</span>
+      ${top5.map(i => {
+        const label = `${i.id ? `<strong>${i.id}</strong> ` : ''}${(i.title || 'Untitled').slice(0, 40)}${(i.title||'').length > 40 ? '…' : ''}`;
+        const name  = i.link
+          ? `<a href="${i.link}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;border-bottom:1px dotted #d97706">${label}</a>`
+          : label;
+        return `<div class="ic2-smelly-item">
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${name}</span>
           <span class="ic2-smelly-age">${Math.round(i.age)}d</span>
-        </div>`).join('')}
+        </div>`;
+      }).join('')}
       ${smellyItems.length > 5 ? `<div style="font-size:0.75rem;color:#94a3b8;margin-top:0.35rem">+${smellyItems.length - 5} more</div>` : ''}`;
   }
 
@@ -1615,7 +1653,7 @@ function buildConfigPayload() {
   const cfg = getConfig();
   return {
     version:  1,
-    fields:   { startCol: cfg.startCol, endCol: cfg.endCol, idCol: cfg.idCol, titleCol: cfg.titleCol, blockedDaysCol: cfg.blockedDaysCol },
+    fields:   { startCol: cfg.startCol, endCol: cfg.endCol, idCol: cfg.idCol, titleCol: cfg.titleCol, linkCol: cfg.linkCol, blockedDaysCol: cfg.blockedDaysCol },
     workflow: { stages: workflowStages, types: stageTypes, hidden: [...hiddenStages] },
     filters:  cfg.filters,
     dateRange: document.getElementById('filter-range').value,
@@ -1682,7 +1720,7 @@ function applyConfig(cfg) {
 
   const fieldMap = {
     startCol: 'col-start', endCol: 'col-end', idCol: 'col-id',
-    titleCol: 'col-title', blockedDaysCol: 'col-blocked',
+    titleCol: 'col-title', linkCol: 'col-link', blockedDaysCol: 'col-blocked',
   };
   if (cfg.fields) {
     Object.entries(fieldMap).forEach(([key, elId]) => {
