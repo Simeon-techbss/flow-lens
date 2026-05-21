@@ -102,59 +102,6 @@
     .config-action-btn { font-size: 0.75rem; color: #38bdf8; background: none; border: 1px solid #334155; border-radius: 4px; padding: 0.2rem 0.55rem; cursor: pointer; white-space: nowrap; }
     .config-action-btn:hover { border-color: #38bdf8; }
 
-    /* ── Config modal ── */
-    .modal-overlay {
-      position: fixed; inset: 0; background: rgba(15,23,42,0.55);
-      display: none; align-items: center; justify-content: center; z-index: 300;
-    }
-    .modal-overlay.open { display: flex; }
-    .modal-box {
-      background: white; border-radius: 16px; width: min(500px, 92vw);
-      max-height: 85vh; display: flex; flex-direction: column; overflow: hidden;
-      box-shadow: 0 25px 80px rgba(0,0,0,0.3);
-    }
-    .modal-header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 1.1rem 1.5rem; border-bottom: 1px solid #f1f5f9; flex-shrink: 0;
-    }
-    .modal-header h2 { font-size: 1rem; font-weight: 700; color: #0f172a; }
-    .modal-close-btn { background: none; border: none; cursor: pointer; color: #94a3b8; font-size: 1.3rem; line-height: 1; padding: 0.1rem 0.3rem; border-radius: 4px; }
-    .modal-close-btn:hover { background: #f1f5f9; color: #475569; }
-    .modal-body  { padding: 1.25rem 1.5rem; overflow-y: auto; flex: 1; }
-    .modal-footer { padding: 1rem 1.5rem; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-shrink: 0; }
-    .modal-name-wrap { margin-bottom: 1.1rem; }
-    .modal-name-wrap label { display: block; font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 0.35rem; }
-    .modal-name-input {
-      width: 100%; padding: 0.55rem 0.75rem; border: 1px solid #d1d5db;
-      border-radius: 8px; font-size: 0.9rem; color: #1e293b;
-    }
-    .modal-name-input:focus { outline: none; border-color: #38bdf8; box-shadow: 0 0 0 3px rgba(56,189,248,0.12); }
-    .modal-sec-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #94a3b8; margin-bottom: 0.55rem; }
-    .modal-config-list { display: flex; flex-direction: column; gap: 0.4rem; }
-    .modal-config-item {
-      display: flex; align-items: center; gap: 0.75rem;
-      padding: 0.65rem 0.9rem; border: 1px solid #e2e8f0; border-radius: 8px;
-      transition: border-color 0.12s, background 0.12s;
-    }
-    .modal-config-item.clickable { cursor: pointer; }
-    .modal-config-item.clickable:hover { border-color: #38bdf8; background: #f0f9ff; }
-    .modal-config-item.selected { border-color: #38bdf8; background: #e0f2fe; }
-    .modal-config-name { font-size: 0.875rem; font-weight: 600; color: #1e293b; }
-    .modal-config-date { font-size: 0.75rem; color: #94a3b8; margin-top: 0.1rem; }
-    .modal-config-actions { display: flex; gap: 0.35rem; flex-shrink: 0; margin-left: auto; }
-    .mcb { padding: 0.25rem 0.65rem; border-radius: 5px; font-size: 0.78rem; font-weight: 500; cursor: pointer; border: 1px solid; transition: all 0.12s; }
-    .mcb-load { border-color: #bae6fd; color: #0284c7; background: white; }
-    .mcb-load:hover { background: #0ea5e9; border-color: #0ea5e9; color: white; }
-    .mcb-del  { border-color: #fecaca; color: #dc2626; background: white; }
-    .mcb-del:hover  { background: #ef4444; border-color: #ef4444; color: white; }
-    .modal-empty { text-align: center; padding: 2.5rem 1rem; color: #94a3b8; font-size: 0.875rem; line-height: 1.6; }
-    .modal-btn-primary { padding: 0.5rem 1.3rem; background: #0f172a; color: white; border: none; border-radius: 7px; font-size: 0.875rem; font-weight: 600; cursor: pointer; }
-    .modal-btn-primary:hover { background: #1e293b; }
-    .modal-btn-secondary { padding: 0.5rem 1.3rem; background: white; color: #475569; border: 1px solid #d1d5db; border-radius: 7px; font-size: 0.875rem; cursor: pointer; }
-    .modal-btn-secondary:hover { border-color: #94a3b8; }
-    .modal-btn-link { background: none; border: none; color: #38bdf8; font-size: 0.8rem; cursor: pointer; padding: 0; }
-    .modal-btn-link:hover { text-decoration: underline; }
-
     #stats-bar {
       background: #0f172a; border-radius: 10px; padding: 1rem 1.5rem;
       margin-top: 1.25rem; display: none;
@@ -295,8 +242,8 @@
       <h3>Column mapping</h3>
       <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
         <small>Change these anytime — charts update instantly</small>
-        <button class="config-action-btn" id="btn-save-config" onclick="openSaveModal()" style="display:none">Save config</button>
-        <button class="config-action-btn" id="btn-load-config" onclick="openLoadModal()">Saved configs</button>
+        <button class="config-action-btn" id="btn-save-config" onclick="saveConfig()" style="display:none">Save config</button>
+        <button class="config-action-btn" id="btn-load-config" onclick="loadConfig()">Load config</button>
       </div>
     </div>
     <div class="config-grid">
@@ -515,17 +462,6 @@
         <div class="subtitle" id="data-subtitle"></div>
         <div id="data-content" style="overflow-x:auto; margin-top:0.75rem;"></div>
       </div>
-    </div>
-  </div>
-
-  <div class="modal-overlay" id="modal-overlay">
-    <div class="modal-box">
-      <div class="modal-header">
-        <h2 id="modal-title"></h2>
-        <button class="modal-close-btn" onclick="closeModal()">&#215;</button>
-      </div>
-      <div class="modal-body"  id="modal-body"></div>
-      <div class="modal-footer" id="modal-footer"></div>
     </div>
   </div>
 
@@ -1674,18 +1610,7 @@ function renderWIPAgeChart() {
   });
 }
 
-// ── Config store (localStorage) ────────────────────────────────────────────
-const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-
-function getStoredConfigs() {
-  try { return JSON.parse(localStorage.getItem('flowlens_configs') || '{}'); }
-  catch { return {}; }
-}
-
-function setStoredConfigs(data) {
-  localStorage.setItem('flowlens_configs', JSON.stringify(data));
-}
-
+// ── Config save / load (File System Access API, Safari fallback) ───────────
 function buildConfigPayload() {
   const cfg = getConfig();
   return {
@@ -1698,138 +1623,59 @@ function buildConfigPayload() {
   };
 }
 
-function openSaveModal() {
-  const configs = getStoredConfigs();
-  const names   = Object.keys(configs).sort();
-  const today   = new Date().toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
-
-  document.getElementById('modal-title').textContent = 'Save config';
-
-  const body = document.getElementById('modal-body');
-  body.innerHTML = `
-    <div class="modal-name-wrap">
-      <label for="modal-cfg-name">Config name</label>
-      <input class="modal-name-input" id="modal-cfg-name" type="text"
-             value="${esc(today)}" placeholder="e.g. ServiceNow AA — Platform Team" autocomplete="off">
-    </div>
-    <div class="modal-sec-label">${names.length ? 'Saved configs — click to overwrite' : 'No saved configs yet'}</div>
-    <div class="modal-config-list" id="modal-cfg-list">
-      ${names.map(n => `
-        <div class="modal-config-item clickable" data-name="${esc(n)}">
-          <div>
-            <div class="modal-config-name">${esc(n)}</div>
-            <div class="modal-config-date">${esc(new Date(configs[n].savedAt).toLocaleDateString('en-GB', {day:'numeric',month:'short',year:'numeric'}))}</div>
-          </div>
-        </div>`).join('')}
-    </div>`;
-
-  // Click to select name for overwriting
-  body.querySelectorAll('.modal-config-item').forEach(item => {
-    item.addEventListener('click', () => {
-      body.querySelectorAll('.modal-config-item').forEach(i => i.classList.remove('selected'));
-      item.classList.add('selected');
-      document.getElementById('modal-cfg-name').value = item.dataset.name;
-    });
-  });
-
-  const footer = document.getElementById('modal-footer');
-  footer.innerHTML = '';
-  const cancelBtn = document.createElement('button');
-  cancelBtn.className = 'modal-btn-secondary';
-  cancelBtn.textContent = 'Cancel';
-  cancelBtn.onclick = closeModal;
-  const saveBtn = document.createElement('button');
-  saveBtn.className = 'modal-btn-primary';
-  saveBtn.textContent = 'Save';
-  saveBtn.onclick = doSaveConfig;
-  footer.append(cancelBtn, saveBtn);
-
-  document.getElementById('modal-overlay').classList.add('open');
-  const inp = document.getElementById('modal-cfg-name');
-  inp.focus(); inp.select();
-}
-
-function doSaveConfig() {
-  const name = document.getElementById('modal-cfg-name').value.trim();
-  if (!name) { document.getElementById('modal-cfg-name').focus(); return; }
-  const configs = getStoredConfigs();
-  configs[name] = buildConfigPayload();
-  setStoredConfigs(configs);
-  closeModal();
-}
-
-function openLoadModal() {
-  const configs = getStoredConfigs();
-  const names   = Object.keys(configs).sort();
-
-  document.getElementById('modal-title').textContent = 'Saved configs';
-
-  const body = document.getElementById('modal-body');
-  if (names.length) {
-    body.innerHTML = `<div class="modal-config-list" id="modal-cfg-list"></div>`;
-    const list = body.querySelector('#modal-cfg-list');
-    names.forEach(n => {
-      const item = document.createElement('div');
-      item.className = 'modal-config-item';
-      item.innerHTML = `
-        <div style="flex:1;min-width:0">
-          <div class="modal-config-name">${esc(n)}</div>
-          <div class="modal-config-date">${esc(new Date(configs[n].savedAt).toLocaleDateString('en-GB', {day:'numeric',month:'short',year:'numeric'}))}</div>
-        </div>
-        <div class="modal-config-actions">
-          <button class="mcb mcb-load">Load</button>
-          <button class="mcb mcb-del">&#215;</button>
-        </div>`;
-      item.querySelector('.mcb-load').addEventListener('click', () => { applyConfig(configs[n]); closeModal(); });
-      item.querySelector('.mcb-del').addEventListener('click', () => {
-        const all = getStoredConfigs(); delete all[n]; setStoredConfigs(all); openLoadModal();
+async function saveConfig() {
+  const json = JSON.stringify(buildConfigPayload(), null, 2);
+  const suggested = 'flow-lens-config.json';
+  if ('showSaveFilePicker' in window) {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: suggested,
+        types: [{ description: 'Flow Lens config', accept: { 'application/json': ['.json'] } }],
       });
-      list.appendChild(item);
-    });
+      const writable = await handle.createWritable();
+      await writable.write(json);
+      await writable.close();
+    } catch (e) {
+      if (e.name !== 'AbortError') showError('Save failed: ' + e.message);
+    }
   } else {
-    body.innerHTML = '<div class="modal-empty">No saved configs yet.<br>Set up your columns and filters, then hit <strong>Save config</strong>.</div>';
+    // Safari / Firefox fallback — named download
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+    a.download = suggested;
+    a.click();
+    URL.revokeObjectURL(a.href);
   }
+}
 
-  const footer = document.getElementById('modal-footer');
-  footer.innerHTML = '';
-
-  // Import from file (for cross-machine portability)
-  const importLabel = document.createElement('label');
-  importLabel.className = 'modal-btn-link';
-  importLabel.style.cursor = 'pointer';
-  importLabel.textContent = 'Import from file';
-  const fileIn = document.createElement('input');
-  fileIn.type = 'file'; fileIn.accept = '.json'; fileIn.style.display = 'none';
-  fileIn.addEventListener('change', () => {
-    const file = fileIn.files[0];
-    if (!file) return;
-    fileIn.value = '';
-    const reader = new FileReader();
-    reader.onload = e => {
-      try { applyConfig(JSON.parse(e.target.result)); closeModal(); }
-      catch { showError('Could not read config file — must be a Flow Lens config.'); }
+async function loadConfig() {
+  if ('showOpenFilePicker' in window) {
+    try {
+      const [handle] = await window.showOpenFilePicker({
+        types: [{ description: 'Flow Lens config', accept: { 'application/json': ['.json'] } }],
+      });
+      const file = await handle.getFile();
+      applyConfig(JSON.parse(await file.text()));
+    } catch (e) {
+      if (e.name !== 'AbortError') showError('Load failed: ' + e.message);
+    }
+  } else {
+    // Safari / Firefox fallback — file input
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = '.json';
+    input.onchange = () => {
+      const file = input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        try { applyConfig(JSON.parse(e.target.result)); }
+        catch { showError('Could not read config file — must be a Flow Lens config.'); }
+      };
+      reader.readAsText(file);
     };
-    reader.readAsText(file);
-  });
-  importLabel.appendChild(fileIn);
-
-  const closeBtn = document.createElement('button');
-  closeBtn.className = 'modal-btn-secondary';
-  closeBtn.textContent = 'Close';
-  closeBtn.onclick = closeModal;
-  footer.append(importLabel, closeBtn);
-
-  document.getElementById('modal-overlay').classList.add('open');
+    input.click();
+  }
 }
-
-function closeModal() {
-  document.getElementById('modal-overlay').classList.remove('open');
-}
-
-document.getElementById('modal-overlay').addEventListener('click', e => {
-  if (e.target === document.getElementById('modal-overlay')) closeModal();
-});
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
 function applyConfig(cfg) {
   if (!allRows.length) { showError('Load your CSV data first, then apply a config.'); return; }
