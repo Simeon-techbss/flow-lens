@@ -761,20 +761,29 @@ function autoDetect() {
   if (id)    document.getElementById('col-id').value    = id;
   if (title) document.getElementById('col-title').value = title;
 
-  renderAll();
+  renderAll(true);
 }
 
 function populateFilterValues(n) {
   const col = document.getElementById(`col-filter-${n}`).value;
   const sel = document.getElementById(`val-filter-${n}`);
   sel.innerHTML = '<option value="">All</option>';
-  if (col) {
-    [...new Set(allRows.map(r => r[col]).filter(Boolean))].sort().forEach(v => {
-      const opt = document.createElement('option');
-      opt.value = v; opt.textContent = v;
-      sel.appendChild(opt);
-    });
+  if (!col) return;
+  const unique = [...new Set(allRows.map(r => r[col]).filter(Boolean))].sort();
+  const capped = unique.length > 500 ? unique.slice(0, 500) : unique;
+  const frag = document.createDocumentFragment();
+  capped.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v; opt.textContent = v;
+    frag.appendChild(opt);
+  });
+  if (unique.length > 500) {
+    const note = document.createElement('option');
+    note.disabled = true;
+    note.textContent = `… ${unique.length - 500} more values not shown`;
+    frag.appendChild(note);
   }
+  sel.appendChild(frag);
 }
 
 // ── Workflow stages ────────────────────────────────────────────────────────
@@ -793,9 +802,12 @@ function isStrictDate(str) {
 
 function detectWorkflowCols() {
   const skipNames = /^(id|title|summary|name|description|link|url|href|type|category|label|tag|team|group|assignee|reporter|priority|status|blocked|reason|ref|key|number|demand|detail|sys_id)/i;
+  // Sample up to 1000 evenly-spaced rows so detection stays fast on large files
+  const step = Math.max(1, Math.floor(allRows.length / 1000));
+  const sample = allRows.filter((_, i) => i % step === 0);
   return columns.filter(col => {
     if (skipNames.test(col.trim())) return false;
-    const nonEmpty = allRows.map(r => r[col]).filter(v => v && String(v).trim());
+    const nonEmpty = sample.map(r => r[col]).filter(v => v && String(v).trim());
     if (!nonEmpty.length) return false;
     const dateCount = nonEmpty.filter(v => isStrictDate(v)).length;
     return dateCount / nonEmpty.length >= 0.8;
@@ -960,7 +972,13 @@ function processData(cfg) {
 }
 
 // ── Render all ─────────────────────────────────────────────────────────────
-function renderAll() {
+let _renderAllTimer = null;
+function renderAll(immediate) {
+  if (immediate) { _doRenderAll(); return; }
+  clearTimeout(_renderAllTimer);
+  _renderAllTimer = setTimeout(_doRenderAll, 250);
+}
+function _doRenderAll() {
   const cfg = getConfig();
   if (!cfg.startCol || !cfg.endCol) return;
 
@@ -1208,6 +1226,13 @@ const CFD_COLORS = [
   'rgba(234,179,8,0.92)',   'rgba(148,163,184,0.92)',
 ];
 
+// Binary search: count elements in sorted numeric array that are <= target
+function countUpto(sorted, target) {
+  let lo = 0, hi = sorted.length;
+  while (lo < hi) { const mid = (lo + hi) >>> 1; if (sorted[mid] <= target) lo = mid + 1; else hi = mid; }
+  return lo;
+}
+
 function buildCFDData() {
   const visibleStages = workflowStages.filter(col => !hiddenStages.has(col));
   if (visibleStages.length < 2) return null;
@@ -1217,6 +1242,7 @@ function buildCFDData() {
   const rows = allRows.filter(row => rowMatchesFilters(row, cfg));
   if (!rows.length) return null;
 
+  // Parse all stage dates once, indexed [rowIdx][stageIdx]
   const allStagesParsed = rows.map(row => workflowStages.map(col => parseDate(row[col])));
 
   let minDate = null;
@@ -1226,39 +1252,51 @@ function buildCFDData() {
   const weeks = [];
   const cur = new Date(weekStart(minDate));
   while (cur <= today) { weeks.push(new Date(cur)); cur.setDate(cur.getDate() + 7); }
+  const weekMs = weeks.map(w => w.getTime());
 
-  // Each line = items that reached this stage OR any later stage by that week.
-  // Guarantees every line >= the line below, even when items skip stages.
-  const stageCounts = visibleStages.map(col => {
+  // For each visible stage: pre-build a sorted array of the earliest date each item
+  // reached that stage OR any later stage. Binary search replaces O(rows) filter per week.
+  const reachSorted = visibleStages.map(col => {
     const stageIdx = workflowStages.indexOf(col);
-    const laterIndices = workflowStages.slice(stageIdx).map((_, offset) => stageIdx + offset);
-    return weeks.map(wk =>
-      allStagesParsed.filter(dates => laterIndices.some(si => dates[si] && dates[si] <= wk)).length
-    );
+    const result = [];
+    for (const dates of allStagesParsed) {
+      let earliest = null;
+      for (let j = stageIdx; j < workflowStages.length; j++) {
+        if (dates[j] && (!earliest || dates[j] < earliest)) earliest = dates[j];
+      }
+      if (earliest) result.push(earliest.getTime());
+    }
+    result.sort((a, b) => a - b);
+    return result;
   });
 
-  // Little's Law CT per stage per week: ~CT = WIP ÷ (exits in last 28 days / 28)
-  // Same method as Actionable Agile. Last visible stage has no exit, always null.
-  const llCtPerStage = visibleStages.map((col, si) => {
-    const stageIdx = workflowStages.indexOf(col);
+  const stageCounts = reachSorted.map(sorted => weekMs.map(wk => countUpto(sorted, wk)));
+
+  // Little's Law CT per stage per week.
+  // Pre-compute for each stage: sorted array of exit-event timestamps (when an item
+  // left this stage), so throughput in any 28-day window = two binary searches.
+  const exitSorted = visibleStages.map((col, si) => {
     const isLast = si === visibleStages.length - 1;
-    if (isLast) return weeks.map(() => null);
-    return weeks.map((wk, wi) => {
-      const windowMs = 28 * 86400000;
-      const windowStart = new Date(wk.getTime() - windowMs);
-      // WIP in this stage at wk = items reached here but not yet reached next visible stage
+    if (isLast) return null;
+    const stageIdx = workflowStages.indexOf(col);
+    const exits = [];
+    for (const dates of allStagesParsed) {
+      if (!dates[stageIdx]) continue; // never entered this stage
+      for (let j = stageIdx + 1; j < workflowStages.length; j++) {
+        if (dates[j]) { exits.push(dates[j].getTime()); break; }
+      }
+    }
+    exits.sort((a, b) => a - b);
+    return exits;
+  });
+
+  const windowMs = 28 * 86400000;
+  const llCtPerStage = visibleStages.map((_, si) => {
+    if (!exitSorted[si]) return weekMs.map(() => null);
+    return weekMs.map((wk, wi) => {
       const wip = stageCounts[si][wi] - stageCounts[si + 1][wi];
       if (wip <= 0) return null;
-      // Throughput = items that exited this stage (entered any later stage) in the 28-day window
-      let tp = 0;
-      for (const dates of allStagesParsed) {
-        const enter = dates[stageIdx];
-        if (!enter || enter > wk) continue;
-        for (let j = stageIdx + 1; j < workflowStages.length; j++) {
-          const exit = dates[j];
-          if (exit && exit >= windowStart && exit <= wk) { tp++; break; }
-        }
-      }
+      const tp = countUpto(exitSorted[si], wk) - countUpto(exitSorted[si], wk - windowMs);
       if (tp === 0) return null;
       return Math.round(wip / (tp / 28));
     });
@@ -2089,7 +2127,7 @@ function applyConfig(cfg) {
   if (cfg.dateRange !== undefined) document.getElementById('filter-range').value = cfg.dateRange;
 
   buildWorkflowUI();
-  renderAll();
+  renderAll(true);
 }
 
 // ── Footer (data range + copy) ─────────────────────────────────────────────
