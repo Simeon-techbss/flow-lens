@@ -641,6 +641,40 @@ function getCachedDate(row, col) {
   return row._pd[col];
 }
 
+// Actionable Agile exports sometimes have unquoted commas in the Title column, which
+// PapaParse splits into extra fields shifting all subsequent columns. This detects those
+// rows via __parsed_extra and re-aligns using the URL column as an anchor.
+function fixMalformedRows(rows, fieldNames) {
+  const urlColIdx = fieldNames.findIndex(f => /^link$/i.test(f.trim()) || /^url$/i.test(f.trim()));
+  if (urlColIdx < 0) return { rows, corrected: 0 };
+
+  let corrected = 0;
+  const fixed = rows.map(row => {
+    if (!row.__parsed_extra || !row.__parsed_extra.length) return row;
+
+    // Reconstruct all raw field values in original order
+    const allVals = fieldNames.map(f => row[f] || '').concat(row.__parsed_extra);
+
+    // Find the actual URL field position
+    const actualUrlIdx = allVals.findIndex(v => typeof v === 'string' && v.startsWith('http'));
+    if (actualUrlIdx < 0 || actualUrlIdx <= urlColIdx) return row;
+
+    const shift = actualUrlIdx - urlColIdx;
+    const newRow = {};
+    newRow[fieldNames[0]] = allVals[0];
+    // Re-join the split title segments back into one value
+    newRow[fieldNames[1]] = allVals.slice(1, actualUrlIdx).join(',');
+    // Map the remaining fields using the recovered positions
+    for (let i = urlColIdx; i < fieldNames.length; i++) {
+      newRow[fieldNames[i]] = allVals[i + shift] || '';
+    }
+    corrected++;
+    return newRow;
+  });
+
+  return { rows: fixed, corrected };
+}
+
 function daysBetween(a, b) { return (b - a) / 86400000; }
 
 function percentile(sorted, p) {
@@ -684,9 +718,11 @@ function processFile(file) {
     header: true, skipEmptyLines: true,
     complete(results) {
       if (!results.data.length) { showError('CSV appears to be empty or could not be parsed.'); return; }
-      allRows = results.data;
       columns = results.meta.fields || [];
-      document.getElementById('status-text').textContent = `${file.name} · ${allRows.length.toLocaleString()} rows`;
+      const { rows, corrected } = fixMalformedRows(results.data, columns);
+      allRows = rows;
+      const corrNote = corrected > 0 ? ` · ${corrected} rows corrected` : '';
+      document.getElementById('status-text').textContent = `${file.name} · ${allRows.length.toLocaleString()} rows${corrNote}`;
       document.getElementById('reload-btn').style.display = 'inline-block';
       setupConfig();
     },
