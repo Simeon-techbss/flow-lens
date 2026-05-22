@@ -641,38 +641,52 @@ function getCachedDate(row, col) {
   return row._pd[col];
 }
 
-// Actionable Agile exports sometimes have unquoted commas in the Title column, which
-// PapaParse splits into extra fields shifting all subsequent columns. This detects those
-// rows via __parsed_extra and re-aligns using the URL column as an anchor.
+// Actionable Agile exports have two CSV corruption patterns:
+// 1. Unquoted commas in Title → PapaParse creates extra fields, shifting subsequent columns.
+//    Fixed by locating the URL column as an anchor and re-aligning.
+// 2. Newlines inside unquoted fields → PapaParse creates short "fragment" rows.
+//    Fixed by dropping rows that lack a valid URL (every real ServiceNow row has one).
 function fixMalformedRows(rows, fieldNames) {
   const urlColIdx = fieldNames.findIndex(f => /^link$/i.test(f.trim()) || /^url$/i.test(f.trim()));
   if (urlColIdx < 0) return { rows, corrected: 0 };
+  const urlField = fieldNames[urlColIdx];
 
-  let corrected = 0;
-  const fixed = rows.map(row => {
-    if (!row.__parsed_extra || !row.__parsed_extra.length) return row;
+  let corrected = 0, skipped = 0;
+  const fixed = [];
 
-    // Reconstruct all raw field values in original order
+  for (const row of rows) {
+    // Drop fragment rows (from newlines in fields): no valid URL means not a real row
+    const urlVal = row[urlField] || '';
+    if (!urlVal.startsWith('http')) {
+      skipped++;
+      continue;
+    }
+
+    if (!row.__parsed_extra || !row.__parsed_extra.length) {
+      fixed.push(row);
+      continue;
+    }
+
+    // Comma-in-title: reconstruct all raw field values and re-align via the URL anchor
     const allVals = fieldNames.map(f => row[f] || '').concat(row.__parsed_extra);
-
-    // Find the actual URL field position
     const actualUrlIdx = allVals.findIndex(v => typeof v === 'string' && v.startsWith('http'));
-    if (actualUrlIdx < 0 || actualUrlIdx <= urlColIdx) return row;
+    if (actualUrlIdx < 0 || actualUrlIdx <= urlColIdx) {
+      fixed.push(row); // URL in correct position — comma was in a later column, first cols are fine
+      continue;
+    }
 
     const shift = actualUrlIdx - urlColIdx;
     const newRow = {};
     newRow[fieldNames[0]] = allVals[0];
-    // Re-join the split title segments back into one value
     newRow[fieldNames[1]] = allVals.slice(1, actualUrlIdx).join(',');
-    // Map the remaining fields using the recovered positions
     for (let i = urlColIdx; i < fieldNames.length; i++) {
       newRow[fieldNames[i]] = allVals[i + shift] || '';
     }
     corrected++;
-    return newRow;
-  });
+    fixed.push(newRow);
+  }
 
-  return { rows: fixed, corrected };
+  return { rows: fixed, corrected: corrected + skipped };
 }
 
 function daysBetween(a, b) { return (b - a) / 86400000; }
