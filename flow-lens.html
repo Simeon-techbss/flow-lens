@@ -633,6 +633,14 @@ function parseDate(str) {
   return isNaN(d.getTime()) ? null : d;
 }
 
+// Caches parseDate results on each row object. Cache is automatically invalidated when
+// allRows is replaced on CSV reload (new row objects).
+function getCachedDate(row, col) {
+  if (!row._pd) row._pd = {};
+  if (!(col in row._pd)) row._pd[col] = parseDate(row[col]);
+  return row._pd[col];
+}
+
 function daysBetween(a, b) { return (b - a) / 86400000; }
 
 function percentile(sorted, p) {
@@ -894,7 +902,7 @@ function calculateFlowEfficiency(completedItems) {
   const efficiencies = [];
 
   rows.forEach(row => {
-    const dates = workflowStages.map(col => parseDate(row[col]));
+    const dates = workflowStages.map(col => getCachedDate(row, col));
     let processTime = 0, queueTime = 0;
     dates.forEach((d, i) => {
       if (!d) return;
@@ -942,8 +950,8 @@ function processData(cfg) {
 
   allRows.forEach(row => {
     if (!rowMatchesFilters(row, cfg)) return;
-    const startDate = parseDate(row[cfg.startCol]);
-    const endDate   = parseDate(row[cfg.endCol]);
+    const startDate = getCachedDate(row, cfg.startCol);
+    const endDate   = getCachedDate(row, cfg.endCol);
     const id          = cfg.idCol    ? (row[cfg.idCol]    || '') : '';
     const title       = cfg.titleCol ? (row[cfg.titleCol] || '') : '';
     const link        = cfg.linkCol  ? (row[cfg.linkCol]  || '') : '';
@@ -959,7 +967,7 @@ function processData(cfg) {
       if (age >= 0) {
         let currentStage = '';
         for (let i = workflowStages.length - 1; i >= 0; i--) {
-          if (parseDate(row[workflowStages[i]])) { currentStage = workflowStages[i]; break; }
+          if (getCachedDate(row, workflowStages[i])) { currentStage = workflowStages[i]; break; }
         }
         wip.push({ id, title, link, startDate, age, currentStage, blockedDays });
       }
@@ -973,6 +981,7 @@ function processData(cfg) {
 
 // ── Render all ─────────────────────────────────────────────────────────────
 let _renderAllTimer = null;
+let lastRenderPayload = null;
 function renderAll(immediate) {
   if (immediate) { _doRenderAll(); return; }
   clearTimeout(_renderAllTimer);
@@ -1030,14 +1039,24 @@ function _doRenderAll() {
   document.getElementById('btn-save-config').style.display = 'inline-block';
 
   updateFooter();
-  renderInsights(completed, wip, p50, p70, p85, p95);
-  renderScatter(completed, p50, p70, p85, p95);
-  renderThroughput(completed);
-  renderWIPOverTime();
-  renderCFD();
-  renderHistogram(completed, p50, p70, p85, p95);
-  renderAging(wip, p50, p70, p85, p95);
-  renderData();
+  lastRenderPayload = { completed, wip, p50, p70, p85, p95 };
+  renderActiveTab();
+}
+
+function renderActiveTab() {
+  if (!lastRenderPayload) return;
+  const { completed, wip, p50, p70, p85, p95 } = lastRenderPayload;
+  const tab = document.querySelector('.tab-btn.active')?.dataset.tab || 'insights';
+  switch (tab) {
+    case 'insights':   renderInsights(completed, wip, p50, p70, p85, p95); break;
+    case 'scatter':    renderScatter(completed, p50, p70, p85, p95); break;
+    case 'throughput': renderThroughput(completed); break;
+    case 'wiptime':    renderWIPOverTime(); break;
+    case 'cfd':        renderCFD(); break;
+    case 'histogram':  renderHistogram(completed, p50, p70, p85, p95); break;
+    case 'aging':      renderAging(wip, p50, p70, p85, p95); break;
+    case 'data':       renderData(); break;
+  }
 }
 
 // ── Scatter ────────────────────────────────────────────────────────────────
@@ -1176,7 +1195,7 @@ function renderWIPOverTime() {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const rows = allRows
     .filter(row => rowMatchesFilters(row, cfg))
-    .map(row => ({ startDate: parseDate(row[cfg.startCol]), endDate: parseDate(row[cfg.endCol]) }))
+    .map(row => ({ startDate: getCachedDate(row, cfg.startCol), endDate: getCachedDate(row, cfg.endCol) }))
     .filter(r => r.startDate);
 
   if (!rows.length) return;
@@ -1243,7 +1262,7 @@ function buildCFDData() {
   if (!rows.length) return null;
 
   // Parse all stage dates once, indexed [rowIdx][stageIdx]
-  const allStagesParsed = rows.map(row => workflowStages.map(col => parseDate(row[col])));
+  const allStagesParsed = rows.map(row => workflowStages.map(col => getCachedDate(row, col)));
 
   let minDate = null;
   allStagesParsed.forEach(dates => dates.forEach(d => { if (d && (!minDate || d < minDate)) minDate = d; }));
@@ -1767,7 +1786,7 @@ function renderData() {
 function calculateMultitaskingIndex(cfg) {
   const items = allRows
     .filter(row => rowMatchesFilters(row, cfg))
-    .map(row => ({ start: parseDate(row[cfg.startCol]), end: parseDate(row[cfg.endCol]) }))
+    .map(row => ({ start: getCachedDate(row, cfg.startCol), end: getCachedDate(row, cfg.endCol) }))
     .filter(r => r.start);
   if (items.length < 2) return null;
   let total = 0;
@@ -1924,7 +1943,7 @@ function renderPaceChart(completed) {
   const startedByWeek = {};
   allRows.forEach(row => {
     if (!rowMatchesFilters(row, cfg)) return;
-    const d = parseDate(row[cfg.startCol]);
+    const d = getCachedDate(row, cfg.startCol);
     if (!d) return;
     const k = weekStart(d).toISOString().slice(0, 10);
     startedByWeek[k] = (startedByWeek[k] || 0) + 1;
@@ -1980,7 +1999,7 @@ function renderWIPAgeChart() {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const rows = allRows
     .filter(row => rowMatchesFilters(row, cfg))
-    .map(row => ({ startDate: parseDate(row[cfg.startCol]), endDate: parseDate(row[cfg.endCol]) }))
+    .map(row => ({ startDate: getCachedDate(row, cfg.startCol), endDate: getCachedDate(row, cfg.endCol) }))
     .filter(r => r.startDate);
 
   if (!rows.length) return;
@@ -2152,8 +2171,8 @@ function updateFooter() {
   if (!minDate || !maxDate) {
     const cfg = getConfig();
     allRows.forEach(row => {
-      const s = parseDate(row[cfg.startCol]);
-      const e = parseDate(row[cfg.endCol]);
+      const s = getCachedDate(row, cfg.startCol);
+      const e = getCachedDate(row, cfg.endCol);
       if (s && (!minDate || s < minDate)) minDate = s;
       if (e && (!maxDate || e > maxDate)) maxDate = e;
     });
@@ -2242,6 +2261,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    renderActiveTab();
   });
 });
 </script>
