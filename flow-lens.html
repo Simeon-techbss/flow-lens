@@ -1299,18 +1299,22 @@ function _doRenderAll() {
   const fe = calculateFlowEfficiency(completed);
   document.getElementById('stat-fe').textContent = fe !== null ? fe.toFixed(0) + '%' : '—';
 
-  const blockedItems = completed.filter(d => d.blockedDays > 0);
-  if (cfg.blockedFlagCol) {
-    const currentlyBlocked = wip.filter(i => i.currentlyBlocked).length;
-    document.getElementById('stat-blocked').textContent = currentlyBlocked;
-    document.getElementById('stat-blocked-label').textContent = 'Currently blocked';
-  } else if (cfg.blockedDaysCol && completed.length) {
-    const pct = (blockedItems.length / completed.length * 100).toFixed(0);
-    document.getElementById('stat-blocked').textContent = `${blockedItems.length} (${pct}%)`;
-    document.getElementById('stat-blocked-label').textContent = 'Items blocked';
+  const totalBlockedDays = Math.round(completed.reduce((s, d) => s + (d.blockedDays || 0), 0));
+  const currentlyBlockedCount = cfg.blockedFlagCol ? wip.filter(i => i.currentlyBlocked).length : null;
+  const blockedEl = document.getElementById('stat-blocked');
+  const blockedLbl = document.getElementById('stat-blocked-label');
+  if (cfg.blockedFlagCol && cfg.blockedDaysCol) {
+    blockedEl.innerHTML = `<span>${currentlyBlockedCount} items</span><span style="font-size:0.75em;opacity:0.75"> · ${totalBlockedDays}d</span>`;
+    blockedLbl.textContent = 'Blocked now · total days';
+  } else if (cfg.blockedFlagCol) {
+    blockedEl.textContent = currentlyBlockedCount;
+    blockedLbl.textContent = 'Currently blocked';
+  } else if (cfg.blockedDaysCol) {
+    blockedEl.textContent = totalBlockedDays + 'd';
+    blockedLbl.textContent = 'Total days blocked';
   } else {
-    document.getElementById('stat-blocked').textContent = '—';
-    document.getElementById('stat-blocked-label').textContent = 'Items blocked';
+    blockedEl.textContent = '—';
+    blockedLbl.textContent = 'Blocked';
   }
   if (completed.length > 1) {
     const spanWeeks = daysBetween(completed[0].endDate, completed[completed.length-1].endDate) / 7;
