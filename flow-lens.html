@@ -562,6 +562,7 @@ License: MIT
         <button class="tab-btn" data-tab="blocked">Blocked</button>
         <button class="tab-btn" data-tab="ffe">Fuzzy Front End</button>
         <button class="tab-btn" data-tab="data">Data</button>
+        <button class="tab-btn" data-tab="ai">AI <span style="font-size:0.65em;font-weight:400;opacity:0.55;vertical-align:middle">(beta)</span></button>
       </div>
     </div>
 
@@ -890,6 +891,32 @@ License: MIT
         <h2>Imported Data</h2>
         <div class="subtitle" id="data-subtitle"></div>
         <div id="data-content" style="overflow-x:auto; margin-top:0.75rem;"></div>
+      </div>
+    </div>
+
+    <div id="tab-ai" class="tab-pane">
+      <div class="chart-card">
+        <h2>AI Prompt Generator <span style="font-size:0.65rem;font-weight:500;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:4px;padding:0.15rem 0.5rem;vertical-align:middle;letter-spacing:0.02em">BETA</span></h2>
+        <div class="subtitle">Generates a structured prompt from your data — copy it into any AI tool. <strong>Nothing is sent automatically.</strong> You control exactly where it goes — Copilot, Claude, ChatGPT, or anything else.</div>
+
+        <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:0.85rem 1.1rem;margin:1rem 0;font-size:0.83rem;color:#0369a1;line-height:1.6">
+          <strong>How it works:</strong> Click Generate to build a prompt from your current data. Copy it. Paste it into your preferred AI assistant. The AI has no access to your data — only what you choose to paste.
+        </div>
+
+        <div style="display:flex;align-items:center;gap:1.25rem;flex-wrap:wrap;margin-bottom:1rem">
+          <label style="display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;color:#374151;cursor:pointer">
+            <input type="checkbox" id="ai-include-full" style="width:1rem;height:1rem;accent-color:#0ea5e9">
+            Include full item data <span style="color:#94a3b8;font-size:0.78rem">(larger prompt — best with Claude or GPT-4)</span>
+          </label>
+        </div>
+
+        <div style="display:flex;gap:0.75rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
+          <button onclick="generateAIPrompt()" style="background:#0f172a;color:white;border:none;border-radius:7px;padding:0.6rem 1.4rem;font-size:0.88rem;font-weight:600;cursor:pointer;letter-spacing:-0.01em" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#0f172a'">Generate prompt</button>
+          <button id="ai-copy-btn" onclick="copyAIPrompt()" style="display:none;background:white;color:#374151;border:1px solid #d1d5db;border-radius:7px;padding:0.6rem 1.2rem;font-size:0.88rem;cursor:pointer" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#d1d5db'">Copy to clipboard</button>
+          <span id="ai-copy-confirm" style="display:none;font-size:0.82rem;color:#22c55e;font-weight:500">Copied!</span>
+        </div>
+
+        <textarea id="ai-prompt-output" readonly style="display:none;width:100%;min-height:420px;font-family:monospace;font-size:0.78rem;line-height:1.6;padding:1rem;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#1e293b;resize:vertical;white-space:pre"></textarea>
       </div>
     </div>
   </div>
@@ -1583,6 +1610,7 @@ function renderActiveTab() {
     case 'health':     renderTeamHealth(); break;
     case 'ffe':        renderFFE(completed); break;
     case 'data':       renderData(); break;
+    case 'ai':         /* prompt generated on demand */ break;
   }
 }
 
@@ -3296,6 +3324,185 @@ function applyConfig(cfg) {
 
   buildWorkflowUI();
   renderAll(true);
+}
+
+// ── AI Prompt Generator ────────────────────────────────────────────────────
+function generateAIPrompt() {
+  if (!lastRenderPayload) return;
+  const { completed, wip, p50, p70, p85, p95 } = lastRenderPayload;
+  const cfg = getConfig();
+  const includeFull = document.getElementById('ai-include-full').checked;
+
+  // ── Core metrics ──
+  const sortedCT = completed.map(d => d.cycleTime).sort((a, b) => a - b);
+  const spanWeeks = completed.length > 1
+    ? daysBetween(completed[0].endDate, completed[completed.length-1].endDate) / 7
+    : 0;
+  const avgThroughput = spanWeeks > 0 ? (completed.length / spanWeeks).toFixed(1) : 'N/A';
+  const fe = calculateFlowEfficiency(completed);
+  const totalBlockedDays = Math.round(completed.reduce((s, d) => s + (d.blockedDays || 0), 0));
+  const blockedItems = completed.filter(d => (d.blockedDays || 0) > 0);
+  const currentlyBlocked = cfg.blockedFlagCol ? wip.filter(i => i.currentlyBlocked) : null;
+  const smellyWIP = wip.filter(i => i.age > p85);
+
+  // Weekly throughput for variance
+  const weekMap = {};
+  completed.forEach(d => {
+    const wk = d.endDate.toISOString().slice(0, 10).replace(/-\d{2}$/, '-01');
+    const mon = new Date(d.endDate); mon.setDate(mon.getDate() - mon.getDay() + 1);
+    const key = mon.toISOString().slice(0, 10);
+    weekMap[key] = (weekMap[key] || 0) + 1;
+  });
+  const weekCounts = Object.values(weekMap).sort((a, b) => a - b);
+  const minWk = weekCounts[0] ?? 'N/A';
+  const maxWk = weekCounts[weekCounts.length - 1] ?? 'N/A';
+
+  // ── Top outliers ──
+  const top5LongCT = [...completed].sort((a, b) => b.cycleTime - a.cycleTime).slice(0, 5);
+  const top5OldWIP = [...wip].sort((a, b) => b.age - a.age).slice(0, 5);
+  const top5Blocked = [...completed].filter(d => d.blockedDays > 0)
+    .sort((a, b) => b.blockedDays - a.blockedDays).slice(0, 5);
+
+  const fmtItem = (d, fields) => {
+    const parts = [];
+    if (fields.id   && d.id)    parts.push(`ID: ${d.id}`);
+    if (fields.title && d.title) parts.push(`"${d.title}"`);
+    if (fields.ct)   parts.push(`cycle time: ${d.cycleTime.toFixed(1)}d`);
+    if (fields.age)  parts.push(`age: ${d.age.toFixed(1)}d`);
+    if (fields.stage && d.currentStage) parts.push(`stage: ${d.currentStage}`);
+    if (fields.bd && d.blockedDays)  parts.push(`blocked: ${d.blockedDays.toFixed(1)}d (${d.cycleTime > 0 ? (d.blockedDays/d.cycleTime*100).toFixed(0)+'% of CT' : '?'})`);
+    return '  • ' + parts.join(' | ');
+  };
+
+  // ── Full data CSV ──
+  const toCsv = (rows, cols) => {
+    const header = cols.join(',');
+    const lines = rows.map(r => cols.map(c => {
+      const v = r[c] !== undefined ? r[c] : (r._row ? r._row[c] ?? '' : '');
+      return typeof v === 'string' && v.includes(',') ? `"${v}"` : v;
+    }).join(','));
+    return [header, ...lines].join('\n');
+  };
+
+  const completedCols = ['id','title','cycleTime','blockedDays','flowEfficiency','currentStage'].filter(c =>
+    c !== 'id' || cfg.idCol).filter(c => c !== 'title' || cfg.titleCol);
+
+  // Build the prompt
+  let prompt = `You are a flow metrics consultant reviewing Kanban data for a software team. Analyse the data below and provide:
+1. A plain-English summary of what the data tells us about this team's flow — written for someone who manages the team, not a flow expert
+2. The 3 most important things this team should investigate, with clear reasoning from the numbers
+3. Any patterns or anomalies that stand out (spikes, outliers, correlations)
+4. One or two questions worth asking the team to explain what you see
+
+Be direct and specific. Reference the actual numbers. Avoid generic agile advice.
+
+─────────────────────────────────────────
+FLOW METRICS DATA
+─────────────────────────────────────────
+
+SUMMARY
+  Period: ${completed.length ? completed[0].endDate.toISOString().slice(0,10) + ' to ' + completed[completed.length-1].endDate.toISOString().slice(0,10) : 'N/A'}
+  Items completed: ${completed.length}
+  Items in progress (WIP): ${wip.length}
+  Items flagged as overdue (older than p85): ${smellyWIP.length}
+
+CYCLE TIME (completed items only)
+  p50 (median):  ${p50.toFixed(1)} days
+  p70:           ${p70.toFixed(1)} days
+  p85:           ${p85.toFixed(1)} days
+  p95:           ${p95.toFixed(1)} days
+  Note: p85 is the key threshold — 85% of work completes within this time. Items above it are outliers.
+
+THROUGHPUT
+  Average: ${avgThroughput} items/week
+  Range:   ${minWk} to ${maxWk} items/week
+  Note: High variance in throughput makes forecasting unreliable.
+
+WIP
+  Current: ${wip.length} items in progress
+  Smelly (age > p85 of ${p85.toFixed(1)}d): ${smellyWIP.length} items — these are statistical outliers that need attention
+`;
+
+  if (fe !== null) {
+    prompt += `
+FLOW EFFICIENCY
+  ${fe.toFixed(1)}% — the proportion of cycle time spent actively working (vs waiting)
+  Typical range: 5–40%. Below 15% suggests significant queuing or blocking.
+`;
+  }
+
+  if (cfg.blockedDaysCol) {
+    prompt += `
+BLOCKED DATA
+  Items with blocked time: ${blockedItems.length} of ${completed.length} completed (${completed.length ? (blockedItems.length/completed.length*100).toFixed(0) : 0}%)
+  Total days lost to blocking: ${totalBlockedDays}d across all completed items
+`;
+    if (currentlyBlocked !== null) {
+      prompt += `  Currently blocked in WIP: ${currentlyBlocked.length} of ${wip.length}\n`;
+    }
+  }
+
+  prompt += `
+─────────────────────────────────────────
+OUTLIERS — LONGEST CYCLE TIMES (top 5 completed items)
+${top5LongCT.map(d => fmtItem(d, {id:true,title:true,ct:true,bd:!!cfg.blockedDaysCol})).join('\n') || '  None'}
+
+OUTLIERS — OLDEST WIP ITEMS (top 5 in-progress)
+${top5OldWIP.map(d => fmtItem(d, {id:true,title:true,age:true,stage:true})).join('\n') || '  None'}
+`;
+
+  if (cfg.blockedDaysCol && top5Blocked.length) {
+    prompt += `
+OUTLIERS — MOST BLOCKED COMPLETED ITEMS (top 5)
+${top5Blocked.map(d => fmtItem(d, {id:true,title:true,ct:true,bd:true})).join('\n')}
+`;
+  }
+
+  if (includeFull) {
+    prompt += `
+─────────────────────────────────────────
+FULL COMPLETED ITEMS DATA
+id,title,cycleTime_days${cfg.blockedDaysCol ? ',blockedDays' : ''}${fe !== null ? ',flowEfficiency_pct' : ''}
+${completed.map(d => [
+  d.id || '',
+  d.title ? `"${d.title.replace(/"/g,'""')}"` : '',
+  d.cycleTime.toFixed(1),
+  ...(cfg.blockedDaysCol ? [d.blockedDays.toFixed(1)] : []),
+  ...(fe !== null ? [d.flowEfficiency !== null ? d.flowEfficiency.toFixed(0) : ''] : []),
+].join(',')).join('\n')}
+
+FULL WIP DATA
+id,title,age_days,stage${cfg.blockedDaysCol ? ',blockedDays' : ''}${cfg.blockedFlagCol ? ',currentlyBlocked' : ''}
+${wip.map(d => [
+  d.id || '',
+  d.title ? `"${d.title.replace(/"/g,'""')}"` : '',
+  d.age.toFixed(1),
+  d.currentStage || '',
+  ...(cfg.blockedDaysCol ? [d.blockedDays.toFixed(1)] : []),
+  ...(cfg.blockedFlagCol ? [d.currentlyBlocked ? 'Yes' : 'No'] : []),
+].join(',')).join('\n')}
+`;
+  }
+
+  prompt += `
+─────────────────────────────────────────
+End of data. Please provide your analysis.`;
+
+  const textarea = document.getElementById('ai-prompt-output');
+  textarea.value = prompt;
+  textarea.style.display = 'block';
+  document.getElementById('ai-copy-btn').style.display = 'inline-block';
+  document.getElementById('ai-copy-confirm').style.display = 'none';
+}
+
+function copyAIPrompt() {
+  const textarea = document.getElementById('ai-prompt-output');
+  if (!textarea.value) return;
+  navigator.clipboard.writeText(textarea.value).then(() => {
+    const confirm = document.getElementById('ai-copy-confirm');
+    confirm.style.display = 'inline';
+    setTimeout(() => confirm.style.display = 'none', 2500);
+  });
 }
 
 // ── Footer (data range + copy) ─────────────────────────────────────────────
