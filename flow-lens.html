@@ -1690,7 +1690,7 @@ function showScatterBreakdown(pts) {
       </div>` : '';
 
     const label = [d._id, d._title ? d._title.slice(0, 60) + (d._title.length > 60 ? '…' : '') : ''].filter(Boolean).join('  ·  ');
-    const ctLabel = `${item.cycleTime.toFixed(1)}d CT` + (item.leadTime ? ` · ${item.leadTime.toFixed(1)}d Lead Time` : '');
+    const ctLabel = `${item.cycleTime.toFixed(1)}d Cycle Time` + (item.leadTime ? ` · ${item.leadTime.toFixed(1)}d Lead Time` : '');
 
     return `<div style="margin-bottom:${pts.length > 1 ? '1rem' : '0'}">
       <div class="sb-header">
