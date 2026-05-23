@@ -1658,8 +1658,8 @@ function getStageBreakdown(item) {
   return breakdown;
 }
 
-function showScatterBreakdown(pts) {
-  const panel = document.getElementById('scatter-click-info');
+function showScatterBreakdown(pts, panelId = 'scatter-click-info') {
+  const panel = document.getElementById(panelId);
   const cfg = getConfig();
   const hasFFE = workflowStages.indexOf(cfg.startCol) > 0;
 
@@ -1705,7 +1705,7 @@ function showScatterBreakdown(pts) {
   panel.innerHTML = `<div class="sb-panel">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.65rem;gap:0.75rem;flex-wrap:wrap">
       <div style="font-size:0.72rem;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em">Time in stage</div>
-      <button class="sb-close" onclick="document.getElementById('scatter-click-info').style.display='none'">×</button>
+      <button class="sb-close" onclick="document.getElementById('${panelId}').style.display='none'">×</button>
     </div>
     <div style="font-size:0.72rem;color:#94a3b8;margin-bottom:0.75rem">
       <span style="display:inline-flex;align-items:center;gap:0.3rem;margin-right:0.75rem"><span style="width:10px;height:8px;background:#38bdf8;border-radius:2px;display:inline-block"></span>Active work</span>
@@ -2560,7 +2560,7 @@ function renderFFE(completed) {
       datasets: [
         {
           label: 'FFE time', order: 10,
-          data: items.map(d => ({ x: d.backlogDate, y: d.ffeTime, _id: d.id, _title: d.title, _link: d.link })),
+          data: items.map(d => ({ x: d.backlogDate, y: d.ffeTime, _id: d.id, _title: d.title, _link: d.link, _item: d })),
           backgroundColor: items.map(d => d.ffeTime > fp85 ? 'rgba(239,68,68,0.6)' : d.ffeTime > fp50 ? 'rgba(249,115,22,0.55)' : 'rgba(56,189,248,0.55)'),
           pointRadius: 4, pointHoverRadius: 7,
         },
@@ -2571,15 +2571,8 @@ function renderFFE(completed) {
     options: {
       responsive: true, maintainAspectRatio: false,
       onClick(event, elements) {
-        const clickItems = elements.map(el => {
-          const d = charts.ffeScatter.data.datasets[el.datasetIndex].data[el.index];
-          const parts = [];
-          if (d._id)    parts.push(d._id);
-          if (d._title) parts.push(d._title.slice(0, 55) + (d._title.length > 55 ? '…' : ''));
-          parts.push(`FFE: ${Math.round(d.y)}d`);
-          return { text: parts.join('  ·  '), link: d._link };
-        });
-        showClickInfo('ffe-click-info', clickItems);
+        const pts = elements.map(el => charts.ffeScatter.data.datasets[el.datasetIndex].data[el.index]).filter(d => d && d._item);
+        if (pts.length) showScatterBreakdown(pts, 'ffe-click-info');
       },
       onHover(event, elements) { event.native.target.style.cursor = elements.length ? 'pointer' : 'default'; },
       plugins: { legend: { display: false }, tooltip: {
