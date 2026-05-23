@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flow Lens · Security &amp; Data Handling</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #f8fafc; color: #1e293b; line-height: 1.6; }
+
+    header {
+      background: #0f172a; color: white; padding: 1.25rem 2rem;
+      display: flex; align-items: center; gap: 1.5rem;
+    }
+    header h1 { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.02em; }
+    header span { font-size: 0.85rem; color: #94a3b8; }
+    header a { margin-left: auto; font-size: 0.8rem; color: #38bdf8; text-decoration: none; border: 1px solid #334155; border-radius: 4px; padding: 0.3rem 0.75rem; }
+    header a:hover { background: #1e293b; }
+
+    main { max-width: 820px; margin: 0 auto; padding: 2.5rem 1.5rem; }
+
+    h2 { font-size: 1.1rem; font-weight: 700; color: #0f172a; margin-bottom: 0.75rem; }
+    h3 { font-size: 0.9rem; font-weight: 600; color: #0f172a; margin: 1.25rem 0 0.4rem; }
+    p  { font-size: 0.88rem; color: #475569; margin-bottom: 0.6rem; }
+
+    .card {
+      background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+      padding: 1.5rem; margin-bottom: 1.5rem;
+    }
+
+    .callout {
+      background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px;
+      padding: 0.75rem 1rem; font-size: 0.83rem; color: #0369a1; margin: 0.75rem 0;
+    }
+    .callout.green {
+      background: #f0fdf4; border-color: #bbf7d0; color: #166534;
+    }
+
+    table.data-table {
+      width: 100%; border-collapse: collapse; font-size: 0.84rem; margin: 0.75rem 0;
+    }
+    table.data-table th {
+      background: #f1f5f9; color: #374151; font-weight: 600;
+      padding: 0.5rem 0.85rem; text-align: left; border-bottom: 2px solid #e2e8f0;
+    }
+    table.data-table td {
+      padding: 0.5rem 0.85rem; border-bottom: 1px solid #f1f5f9; color: #475569;
+      vertical-align: top;
+    }
+    table.data-table tr:last-child td { border-bottom: none; }
+    table.data-table td.yes { color: #166534; font-weight: 600; }
+    table.data-table td.no  { color: #b91c1c; font-weight: 600; }
+    table.data-table td.low { color: #92400e; font-weight: 600; }
+
+    .lib-list { display: flex; flex-direction: column; gap: 0.5rem; margin: 0.75rem 0; }
+    .lib-row { display: grid; grid-template-columns: 9rem 6rem 1fr; gap: 0.5rem 1rem; font-size: 0.84rem; align-items: baseline; }
+    .lib-name { font-weight: 600; color: #0f172a; }
+    .lib-ver  { color: #94a3b8; font-family: monospace; font-size: 0.78rem; }
+    .lib-desc { color: #475569; }
+
+    .steps { list-style: none; counter-reset: steps; margin: 0.75rem 0; }
+    .steps li {
+      counter-increment: steps; display: flex; gap: 1rem;
+      padding: 0.55rem 0; border-bottom: 1px solid #f1f5f9; font-size: 0.88rem; color: #475569;
+    }
+    .steps li:last-child { border-bottom: none; }
+    .steps li::before {
+      content: counter(steps); min-width: 1.5rem; height: 1.5rem;
+      background: #0f172a; color: white; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.72rem; font-weight: 700; flex-shrink: 0; margin-top: 0.1rem;
+    }
+
+    footer { text-align: center; padding: 2rem; font-size: 0.78rem; color: #94a3b8; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Flow Lens</h1>
+    <span>Security &amp; data handling</span>
+  </div>
+  <a href="flow-lens.html">Open tool →</a>
+</header>
+
+<main>
+
+  <div class="card">
+    <h2>Summary</h2>
+    <p>Flow Lens is a single HTML file that runs entirely inside the user's web browser. It has no server, no backend, and no data transmission. The CSV file you load into it never leaves your machine under any circumstances.</p>
+    <div class="callout green">
+      <strong>Short version for IT approval:</strong> Flow Lens is a local browser tool. It reads a CSV from your file system into browser memory, renders charts, and discards the data when you close the tab. No data is sent anywhere, no accounts are required, and nothing is installed.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Data handling</h2>
+    <table class="data-table">
+      <thead>
+        <tr><th>Question</th><th>Answer</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Is the CSV uploaded to any server?</td><td class="no">No — read by the browser's File API into memory only</td></tr>
+        <tr><td>Is any data transmitted over the internet?</td><td class="no">No — CSV data never leaves the device</td></tr>
+        <tr><td>Is any data written to disk or browser storage?</td><td class="no">No — no localStorage, cookies, or IndexedDB writes</td></tr>
+        <tr><td>Is data retained after closing the tab?</td><td class="no">No — all data is discarded on tab close</td></tr>
+        <tr><td>Does the tool collect analytics or telemetry?</td><td class="no">No — no analytics, no usage tracking, no error reporting</td></tr>
+        <tr><td>Is a login or account required?</td><td class="no">No</td></tr>
+        <tr><td>Does it make any network requests?</td><td class="no">No — fully self-contained, works offline immediately</td></tr>
+        <tr><td>Can it be used offline?</td><td class="yes">Yes — always, with no setup required</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Network activity</h2>
+    <div class="callout green">
+      <strong>Flow Lens makes zero automatic network requests.</strong> All JavaScript libraries are bundled directly inside the HTML file. Opening the tool does not contact any external server under any circumstances.
+    </div>
+    <p>The tool is a single self-contained file. No CDN, no external dependencies, no internet connection required — ever.</p>
+
+    <h3>Libraries bundled inside the file</h3>
+    <p>The following open-source libraries are embedded directly in <code style="font-size:0.82rem;background:#f1f5f9;padding:0.1rem 0.35rem;border-radius:3px">flow-lens.html</code> at fixed versions:</p>
+
+    <div class="lib-list">
+      <div class="lib-row"><span class="lib-name">Chart.js</span><span class="lib-ver">4.4.0</span><span class="lib-desc">Renders all charts</span></div>
+      <div class="lib-row"><span class="lib-name">chartjs-adapter-date-fns</span><span class="lib-ver">3.0.0</span><span class="lib-desc">Date handling for chart axes</span></div>
+      <div class="lib-row"><span class="lib-name">PapaParse</span><span class="lib-ver">5.4.1</span><span class="lib-desc">Parses the CSV file</span></div>
+      <div class="lib-row"><span class="lib-name">html2canvas</span><span class="lib-ver">1.4.1</span><span class="lib-desc">Screenshot export</span></div>
+    </div>
+
+    <h3>User-initiated links — only when clicked</h3>
+    <p>The tool contains links to an online user guide and the author's website. These open in a new browser tab only when explicitly clicked by the user, and carry no data.</p>
+  </div>
+
+  <div class="card">
+    <h2>Risk assessment</h2>
+    <table class="data-table">
+      <thead>
+        <tr><th>Risk</th><th>Level</th><th>Notes</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Data exfiltration to a remote server</td>
+          <td class="no">None</td>
+          <td>No outbound data calls exist in the code</td>
+        </tr>
+        <tr>
+          <td>Data persisted on the user's machine</td>
+          <td class="no">None</td>
+          <td>No storage writes of any kind occur</td>
+        </tr>
+        <tr>
+          <td>Unauthorised access to data</td>
+          <td class="no">None</td>
+          <td>No server, no shared instance, no login — data exists only in a single local browser session</td>
+        </tr>
+        <tr>
+          <td>Supply chain compromise via CDN</td>
+          <td class="no">None</td>
+          <td>No CDN is used — libraries are bundled at fixed versions inside the file. No external code can be injected.</td>
+        </tr>
+        <tr>
+          <td>Installation of software</td>
+          <td class="no">None</td>
+          <td>No installation required — it is a single file opened in a browser</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Independent verification</h2>
+    <p>Anyone with browser developer tools can verify these claims without trusting this document:</p>
+    <ol class="steps">
+      <li>Open <code style="font-size:0.82rem;background:#f1f5f9;padding:0.1rem 0.35rem;border-radius:3px">flow-lens.html</code> in Chrome or Edge.</li>
+      <li>Open Developer Tools (F12) and go to the <strong>Network</strong> tab.</li>
+      <li>Drop a CSV onto the page and interact with the charts.</li>
+      <li>Confirm that no network requests are made after the initial library loads — and that no requests contain CSV data.</li>
+    </ol>
+    <p>All application logic is plain JavaScript inside the single HTML file and is fully human-readable. The source code is publicly available at <a href="https://github.com/Simeon-techbss/flow-lens" target="_blank" rel="noopener" style="color:#0369a1">github.com/Simeon-techbss/flow-lens</a>.</p>
+  </div>
+
+</main>
+
+<footer>Flow Lens · runs entirely in your browser · no data is uploaded &nbsp;·&nbsp; Built by <a href="https://simeonherbert.com" target="_blank" rel="noopener" style="color:#94a3b8;text-decoration:none;border-bottom:1px solid #cbd5e1">Simeon Herbert</a> &nbsp;·&nbsp; MIT licence</footer>
+
+</body>
+</html>

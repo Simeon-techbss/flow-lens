@@ -38,11 +38,12 @@ Column names don't matter — you map them inside the tool. Works with any syste
 
 ## Libraries used
 
-All loaded from CDN — no npm, no build step.
+All bundled directly inside `flow-lens.html` — no CDN, no npm, no build step. The tool makes zero network requests.
 
 - [Chart.js 4.4.0](https://www.chartjs.org/)
 - [chartjs-adapter-date-fns 3.0.0](https://github.com/chartjs/chartjs-adapter-date-fns)
 - [PapaParse 5.4.1](https://www.papaparse.com/)
+- [html2canvas 1.4.1](https://html2canvas.hertzen.com/)
 
 ## Licence
 
