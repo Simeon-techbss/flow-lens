@@ -2806,7 +2806,7 @@ function renderBlocked(completed, wip, p85) {
         { label: 'ID',            render: d => idCell(d) },
         { label: 'Title',         render: d => d.title || '—', style: 'style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"' },
         { label: 'Current stage', render: d => d.currentStage || '—' },
-        { label: 'Age',           render: d => `<span style="font-weight:600;color:${d.age > p85 ? '#dc2626' : '#475569'}">${d.age}d</span>` },
+        { label: 'Age',           render: d => `<span style="font-weight:600;color:${d.age > p85 ? '#dc2626' : '#475569'}">${d.age.toFixed(1)}d</span>` },
         { label: 'Blocked days',  render: d => d.blockedDays ? `<span style="color:#dc2626;font-weight:600">${d.blockedDays}d</span>` : '—' },
       ]);
     }
