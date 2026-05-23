@@ -403,7 +403,7 @@
       </div>
       <div class="config-field">
         <label>Currently Blocked</label>
-        <div class="hint">Boolean flag — Yes/No, True/False, 1/0. If not mapped, any WIP item with blocked days is assumed currently blocked.</div>
+        <div class="hint">Boolean flag — Yes/No, True/False, 1/0. If not mapped, currently blocked indicators are not shown.</div>
         <select id="col-blocked-flag"><option value="">— none —</option></select>
       </div>
     </div>
@@ -1251,8 +1251,6 @@ function processData(cfg) {
         if (cfg.blockedFlagCol) {
           const v = (row[cfg.blockedFlagCol] || '').toString().trim().toLowerCase();
           currentlyBlocked = ['yes','true','1','y'].includes(v);
-        } else if (cfg.blockedDaysCol && blockedDays > 0) {
-          currentlyBlocked = true;
         }
         wip.push({ id, title, link, startDate, age, currentStage, blockedDays, currentlyBlocked });
       }
