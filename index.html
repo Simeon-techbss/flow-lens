@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flow Lens · Kanban flow metrics in your browser</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #f8fafc; color: #1e293b; min-height: 100vh; display: flex; flex-direction: column; }
+
+    header { background: #0f172a; color: white; padding: 1.25rem 2rem; display: flex; align-items: center; gap: 1rem; }
+    header h1 { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.02em; }
+    header h1 span { color: #38bdf8; }
+
+    main { flex: 1; max-width: 680px; margin: 0 auto; padding: 3.5rem 1.5rem 2rem; }
+
+    .hero { text-align: center; margin-bottom: 3rem; }
+    .hero h2 { font-size: 1.9rem; font-weight: 800; color: #0f172a; letter-spacing: -0.03em; line-height: 1.2; margin-bottom: 1rem; }
+    .hero p { font-size: 1rem; color: #64748b; line-height: 1.7; max-width: 520px; margin: 0 auto 2rem; }
+
+    .download-btn {
+      display: inline-block; background: #0f172a; color: white;
+      font-size: 1rem; font-weight: 600; padding: 0.85rem 2rem;
+      border-radius: 8px; text-decoration: none; letter-spacing: -0.01em;
+    }
+    .download-btn:hover { background: #1e293b; }
+    .download-note { font-size: 0.78rem; color: #94a3b8; margin-top: 0.75rem; }
+
+    .features { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2.5rem; }
+    @media (max-width: 500px) { .features { grid-template-columns: 1fr; } }
+    .feature { background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.1rem 1.25rem; }
+    .feature h3 { font-size: 0.88rem; font-weight: 700; color: #0f172a; margin-bottom: 0.3rem; }
+    .feature p  { font-size: 0.82rem; color: #64748b; line-height: 1.5; }
+
+    .privacy { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 10px; padding: 1.1rem 1.25rem; margin-bottom: 2.5rem; font-size: 0.85rem; color: #0369a1; line-height: 1.6; }
+    .privacy strong { color: #0f172a; }
+
+    .how { margin-bottom: 2.5rem; }
+    .how h2 { font-size: 0.95rem; font-weight: 700; color: #0f172a; margin-bottom: 1rem; }
+    .steps { list-style: none; counter-reset: steps; display: flex; flex-direction: column; gap: 0.6rem; }
+    .steps li { counter-increment: steps; display: flex; gap: 0.85rem; font-size: 0.88rem; color: #475569; align-items: flex-start; }
+    .steps li::before {
+      content: counter(steps); min-width: 1.6rem; height: 1.6rem;
+      background: #0f172a; color: white; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.72rem; font-weight: 700; flex-shrink: 0;
+    }
+
+    .links { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .links a { font-size: 0.82rem; color: #64748b; text-decoration: none; border: 1px solid #e2e8f0; border-radius: 4px; padding: 0.3rem 0.75rem; background: white; }
+    .links a:hover { border-color: #94a3b8; }
+
+    footer { text-align: center; padding: 2rem; font-size: 0.75rem; color: #94a3b8; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Flow<span>Lens</span></h1>
+</header>
+
+<main>
+  <div class="hero">
+    <h2>Kanban flow metrics,<br>entirely in your browser</h2>
+    <p>Drop in a CSV from any work management system. Get instant cycle time, throughput, WIP, aging work, and a Cumulative Flow Diagram. No login. No server. No data leaving your machine.</p>
+    <a class="download-btn" href="flow-lens.html" download="flow-lens.html">Download Flow Lens</a>
+    <div class="download-note">Single HTML file · open in any modern browser · free</div>
+  </div>
+
+  <div class="privacy">
+    <strong>Your data stays on your machine.</strong> Flow Lens runs entirely in your browser — your CSV is never uploaded anywhere. You can even disconnect from the internet after downloading and it still works.
+  </div>
+
+  <div class="features">
+    <div class="feature">
+      <h3>Cycle Time</h3>
+      <p>Percentile-based control chart and histogram. See p50, p70, p85, p95 and spot outliers instantly.</p>
+    </div>
+    <div class="feature">
+      <h3>Throughput</h3>
+      <p>Weekly completion rate bar chart. Understand your team's delivery cadence over time.</p>
+    </div>
+    <div class="feature">
+      <h3>Cumulative Flow</h3>
+      <p>Interactive CFD with clickable markers. Select any date range to analyse WIP and completions.</p>
+    </div>
+    <div class="feature">
+      <h3>Aging WIP</h3>
+      <p>See every item in progress, how long it's been there, and which stage it's stuck in.</p>
+    </div>
+  </div>
+
+  <div class="how">
+    <h2>How to use it</h2>
+    <ol class="steps">
+      <li>Click Download above and save the file somewhere handy.</li>
+      <li>Open <code style="font-size:0.82rem;background:#f1f5f9;padding:0.1rem 0.35rem;border-radius:3px">flow-lens.html</code> in Chrome, Edge, Firefox, or Safari.</li>
+      <li>Drop your CSV onto the page. Map your columns in the Config panel.</li>
+      <li>Done — all charts update immediately.</li>
+    </ol>
+  </div>
+
+  <div class="links">
+    <a href="guide.html">Data format guide</a>
+    <a href="https://github.com/Simeon-techbss/flow-lens">View on GitHub</a>
+  </div>
+</main>
+
+<footer>Flow Lens · MIT licence · built by Simeon Herbert</footer>
+
+</body>
+</html>
