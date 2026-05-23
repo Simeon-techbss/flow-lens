@@ -401,6 +401,11 @@
         <div class="hint">Days the item was blocked — used in flow efficiency</div>
         <select id="col-blocked"><option value="">— none —</option></select>
       </div>
+      <div class="config-field">
+        <label>Currently Blocked</label>
+        <div class="hint">Boolean flag — Yes/No, True/False, 1/0. If not mapped, any WIP item with blocked days is assumed currently blocked.</div>
+        <select id="col-blocked-flag"><option value="">— none —</option></select>
+      </div>
     </div>
 
     <div class="workflow-section" id="workflow-section" style="display:none">
@@ -958,7 +963,7 @@ function clearError()   { document.getElementById('error-area').innerHTML = ''; 
 function setupConfig() {
   document.getElementById('config-panel').style.display = 'block';
 
-  ['col-start','col-end','col-id','col-title','col-link','col-blocked',
+  ['col-start','col-end','col-id','col-title','col-link','col-blocked','col-blocked-flag',
    'col-filter-1','col-filter-2','col-filter-3'].forEach(id => {
     const sel = document.getElementById(id);
     const hasNone = id !== 'col-start' && id !== 'col-end';
@@ -972,16 +977,18 @@ function setupConfig() {
 
   // Auto-select known columns
   const detectedLink    = columns.find(c => /^link$/i.test(c.trim()) || /^url$/i.test(c.trim()) || /ticket.?url/i.test(c)) || '';
-  const detectedBlocked = columns.find(c => /blocked.?days/i.test(c)) || '';
-  if (detectedLink)    document.getElementById('col-link').value    = detectedLink;
-  if (detectedBlocked) document.getElementById('col-blocked').value = detectedBlocked;
+  const detectedBlocked     = columns.find(c => /blocked.?days/i.test(c)) || '';
+  const detectedBlockedFlag = columns.find(c => /blocked.?flag|currently.?blocked|is.?blocked/i.test(c)) || '';
+  if (detectedLink)         document.getElementById('col-link').value          = detectedLink;
+  if (detectedBlocked)      document.getElementById('col-blocked').value       = detectedBlocked;
+  if (detectedBlockedFlag)  document.getElementById('col-blocked-flag').value  = detectedBlockedFlag;
 
   workflowStages = detectWorkflowCols();
   workflowStages.forEach(col => { if (!(col in stageTypes)) stageTypes[col] = autoDetectStageType(col); });
   buildWorkflowUI();
   autoDetect();
 
-  ['col-start','col-end','col-id','col-title','col-link','col-blocked','filter-range'].forEach(id => {
+  ['col-start','col-end','col-id','col-title','col-link','col-blocked','col-blocked-flag','filter-range'].forEach(id => {
     document.getElementById(id).addEventListener('change', renderAll);
   });
   [1,2,3].forEach(n => {
@@ -1172,7 +1179,8 @@ function getConfig() {
     idCol:          document.getElementById('col-id').value,
     titleCol:       document.getElementById('col-title').value,
     linkCol:        document.getElementById('col-link').value,
-    blockedDaysCol: document.getElementById('col-blocked').value,
+    blockedDaysCol:  document.getElementById('col-blocked').value,
+    blockedFlagCol:  document.getElementById('col-blocked-flag').value,
     filters: [1,2,3].map(n => ({
       col: document.getElementById(`col-filter-${n}`).value,
       val: document.getElementById(`val-filter-${n}`).value,
@@ -1239,7 +1247,14 @@ function processData(cfg) {
         for (let i = workflowStages.length - 1; i >= 0; i--) {
           if (getCachedDate(row, workflowStages[i])) { currentStage = workflowStages[i]; break; }
         }
-        wip.push({ id, title, link, startDate, age, currentStage, blockedDays });
+        let currentlyBlocked = false;
+        if (cfg.blockedFlagCol) {
+          const v = (row[cfg.blockedFlagCol] || '').toString().trim().toLowerCase();
+          currentlyBlocked = ['yes','true','1','y'].includes(v);
+        } else if (cfg.blockedDaysCol && blockedDays > 0) {
+          currentlyBlocked = true;
+        }
+        wip.push({ id, title, link, startDate, age, currentStage, blockedDays, currentlyBlocked });
       }
     }
   });
@@ -1906,7 +1921,7 @@ function renderTeamHealth() {
   document.getElementById('th-period-label').textContent =
     `${fmt(curStart)} → ${fmt(curEnd)}  vs  ${fmt(prevStart)} → ${fmt(prevEnd)}`;
 
-  const { completed } = processData(cfg);
+  const { completed, wip } = processData(cfg);
   const preStart = getPreStartStages(cfg);
 
   const curItems  = completed.filter(d => d.endDate >= curStart  && d.endDate <= curEnd);
@@ -1989,6 +2004,20 @@ function renderTeamHealth() {
     </div>`;
   }
 
+  const hasBlockedCols = !!(cfg.blockedDaysCol || cfg.blockedFlagCol);
+  const blockedNow = hasBlockedCols ? wip.filter(i => i.currentlyBlocked).length : null;
+  const blockedPct = (blockedNow !== null && wip.length) ? (blockedNow / wip.length * 100) : null;
+  const blockedCard = hasBlockedCols
+    ? `<div class="th-card ${blockedNow === 0 ? 'th-good' : blockedNow <= wip.length * 0.1 ? 'th-warn' : 'th-bad'}">
+        <div class="th-label">Currently Blocked</div>
+        <div class="th-value">${blockedNow ?? '—'}</div>
+        <div class="th-trend ${blockedNow === 0 ? '' : 'down'}">${
+          blockedNow === 0 ? 'None blocked right now'
+          : `${blockedPct !== null ? blockedPct.toFixed(0) + '% of WIP — check Aging WIP' : 'of current WIP'}`
+        }</div>
+      </div>`
+    : '';
+
   document.getElementById('th-cards').innerHTML = [
     card('Throughput',        curTP,       prevTP,       '/wk', true,  v => v.toFixed(1)),
     card('Cycle Time (p50)',  curCT,       prevCT,       'd',   false, v => Math.round(v)),
@@ -1996,6 +2025,7 @@ function renderTeamHealth() {
     card('Backlog Size (avg)',curBacklog,  prevBacklog,  '',    false, v => Math.round(v)),
     card('FFE Time (p50)',   curFFE,      prevFFE,      'd',   false, v => Math.round(v)),
     card('Flow Efficiency',  curFE,       prevFE,       '%',   true,  v => v.toFixed(0)),
+    blockedCard,
   ].join('');
 
   // Narrative
@@ -2393,6 +2423,10 @@ function renderAging(wip, p50, p70, p85, p95) {
     { label: '>85th — investigate',          color: 'rgba(239,68,68,0.85)',  maxAge: Infinity },
   ];
 
+  const cfg = getConfig();
+  const hasBlockedData = !!(cfg.blockedDaysCol || cfg.blockedFlagCol);
+  const blockedOverlay = [];
+
   const datasets = zones.map((zone, zi) => {
     const prevMax = zi === 0 ? -Infinity : zones[zi - 1].maxAge;
     const points = [];
@@ -2400,11 +2434,26 @@ function renderAging(wip, p50, p70, p85, p95) {
       const stageItems = itemsByStage[stage].filter(item => item.age > prevMax && item.age <= zone.maxAge);
       stageItems.forEach((item, ii) => {
         const jitter = stageItems.length > 1 ? (ii / (stageItems.length - 1) - 0.5) * 0.5 : 0;
-        points.push({ x: si + jitter, y: item.age, _id: item.id, _title: item.title, _link: item.link });
+        const pt = { x: si + jitter, y: item.age, _id: item.id, _title: item.title, _link: item.link };
+        points.push(pt);
+        if (hasBlockedData && item.currentlyBlocked) blockedOverlay.push({ x: pt.x, y: pt.y });
       });
     });
     return { label: zone.label, data: points, backgroundColor: zone.color, pointRadius: 7, pointHoverRadius: 9, pointHitRadius: 14 };
   });
+
+  if (blockedOverlay.length) {
+    datasets.push({
+      label: 'Currently blocked',
+      data: blockedOverlay,
+      backgroundColor: 'rgba(0,0,0,0)',
+      borderColor: '#ef4444',
+      borderWidth: 2.5,
+      pointRadius: 10,
+      pointHoverRadius: 12,
+      pointHitRadius: 0,
+    });
+  }
 
   const xLabels = displayStages.map(s => `${s} (${stageCounts[s]})`);
 
@@ -2482,9 +2531,11 @@ function renderAging(wip, p50, p70, p85, p95) {
   });
 
   const overP85 = wip.filter(i => i.age > p85).length;
+  const blockedNow = hasBlockedData ? wip.filter(i => i.currentlyBlocked).length : 0;
   legendEl.innerHTML = `
-    ${wip.length} items in progress &nbsp;·&nbsp; ${overP85} over 85th percentile &nbsp;·&nbsp;
-    Age vs completed cycle time:
+    ${wip.length} items in progress &nbsp;·&nbsp; ${overP85} over 85th percentile
+    ${blockedNow > 0 ? ` &nbsp;·&nbsp; <span style="color:#ef4444;font-weight:600">⊘ ${blockedNow} currently blocked</span>` : ''}
+    &nbsp;·&nbsp; Age vs completed cycle time:
     <span style="color:#16a34a">≤50th</span> ·
     <span style="color:#a16207">≤70th</span> ·
     <span style="color:#ea580c">≤85th</span> ·
@@ -2621,14 +2672,17 @@ function renderInsights(completed, wip, p50, p70, p85, p95) {
   // WIP card
   document.getElementById('ic-wip-num').textContent = wip.length || '—';
   const smellyItems = wip.filter(i => i.age > p85);
+  const hasBlockedCfg = !!(cfg.blockedDaysCol || cfg.blockedFlagCol);
+  const blockedNowCount = hasBlockedCfg ? wip.filter(i => i.currentlyBlocked).length : 0;
   const wipCtxEl = document.getElementById('ic-wip-context');
+  const wipLines = [];
   if (wip.length && completed.length && p85 > 0) {
-    wipCtxEl.textContent = smellyItems.length > 0
-      ? `${smellyItems.length} over the 85th percentile`
-      : 'All within normal range';
-  } else {
-    wipCtxEl.textContent = '';
+    wipLines.push(smellyItems.length > 0 ? `${smellyItems.length} over the 85th percentile` : 'All within normal range');
   }
+  if (blockedNowCount > 0) {
+    wipLines.push(`<span style="color:#ef4444">⊘ ${blockedNowCount} currently blocked</span>`);
+  }
+  wipCtxEl.innerHTML = wipLines.join('<br>') || '';
 
   // Smelly tickets card
   const smellyEl = document.getElementById('ic-smelly-content');
@@ -2793,7 +2847,7 @@ function buildConfigPayload() {
   const cfg = getConfig();
   return {
     version:  1,
-    fields:   { startCol: cfg.startCol, endCol: cfg.endCol, idCol: cfg.idCol, titleCol: cfg.titleCol, linkCol: cfg.linkCol, blockedDaysCol: cfg.blockedDaysCol },
+    fields:   { startCol: cfg.startCol, endCol: cfg.endCol, idCol: cfg.idCol, titleCol: cfg.titleCol, linkCol: cfg.linkCol, blockedDaysCol: cfg.blockedDaysCol, blockedFlagCol: cfg.blockedFlagCol },
     workflow: { stages: workflowStages, types: stageTypes, hidden: [...hiddenStages] },
     filters:  cfg.filters,
     dateRange: document.getElementById('filter-range').value,
@@ -2850,7 +2904,7 @@ function applyConfig(cfg) {
 
   const fieldMap = {
     startCol: 'col-start', endCol: 'col-end', idCol: 'col-id',
-    titleCol: 'col-title', linkCol: 'col-link', blockedDaysCol: 'col-blocked',
+    titleCol: 'col-title', linkCol: 'col-link', blockedDaysCol: 'col-blocked', blockedFlagCol: 'col-blocked-flag',
   };
   if (cfg.fields) {
     Object.entries(fieldMap).forEach(([key, elId]) => {
