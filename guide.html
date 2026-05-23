@@ -217,6 +217,47 @@
     </div>
   </div>
 
+  <div class="card" id="ffe">
+    <h2>Fuzzy Front End and the commitment point</h2>
+    <p>The <strong>commitment point</strong> is the moment the team commits to doing the work — typically a "Ready" or "Selected" stage. In Flow Lens, this is your <strong>Start column</strong>.</p>
+    <p><strong>Cycle time is measured from the commitment point to Done.</strong> It represents the customer's wait time once the team has accepted the work.</p>
+    <p>Everything before the commitment point is the <strong>Fuzzy Front End (FFE)</strong> — the time an idea spends being created, discussed, refined, and prioritised before the team commits to it. This is not part of cycle time.</p>
+
+    <h3>How Flow Lens handles this</h3>
+    <p>Any workflow stage columns ordered before your Start column are automatically treated as backlog. You don't need to configure anything separately — the order you set in the Config panel is all that matters.</p>
+    <p>For example, if your stages are:</p>
+    <div class="example-wrap">
+      <table class="example">
+        <thead>
+          <tr>
+            <th class="stage">Idea</th>
+            <th class="stage">Refine</th>
+            <th class="stage" style="background:#0369a1;outline:2px solid #f59e0b">Ready ← Start</th>
+            <th class="stage">Doing</th>
+            <th class="stage">Done</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td colspan="2" style="text-align:center;color:#0369a1;font-size:0.78rem;font-weight:600">← FFE (backlog)</td>
+            <td colspan="3" style="text-align:center;color:#0f172a;font-size:0.78rem;font-weight:600">← cycle time measured here</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Idea and Refine are FFE. The Fuzzy Front End tab shows how long items spend here before being committed.</p>
+
+    <h3>If you don't have pre-start stages</h3>
+    <p>If your CSV only has stages from the commitment point onwards (e.g. To do, Doing, Done), the FFE tab and Team Health backlog metrics will show a blank state. That's expected — there's simply no pre-commitment data to analyse.</p>
+
+    <div class="callout">
+      FFE time is measured from the earliest date in any pre-start stage to the date the item entered your Start column.
+    </div>
+
+    <h3>A note on "Ready"</h3>
+    <p>Some teams debate whether "Ready" is the commitment point or still part of the queue. In Flow Lens, Ready (your Start column) <em>is</em> the commitment point — cycle time starts here. Items sitting in Ready waiting to be picked up are counted as committed WIP, not backlog. This is the stricter interpretation and the one that keeps cycle time honest.</p>
+  </div>
+
   <div class="card">
     <h2>Setting up the tool</h2>
     <ol class="steps">

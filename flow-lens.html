@@ -114,7 +114,9 @@
     .stat .label { font-size: 0.72rem; color: #64748b; margin-top: 0.25rem; }
 
     #tabs { display: none; margin-top: 1.5rem; }
-    .tab-bar { display: flex; gap: 0; border-bottom: 2px solid #e2e8f0; margin-bottom: 1.5rem; overflow-x: auto; }
+    .tab-bar { display: flex; flex-direction: column; border-bottom: 2px solid #e2e8f0; margin-bottom: 1.5rem; }
+    .tab-row { display: flex; gap: 0; overflow-x: auto; }
+    .tab-row-label { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #cbd5e1; padding: 0.4rem 0.75rem 0; }
     .tab-btn {
       padding: 0.6rem 1.25rem; font-size: 0.875rem; font-weight: 500; color: #64748b;
       background: none; border: none; cursor: pointer;
@@ -198,6 +200,36 @@
     .pct-legend { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #f1f5f9; }
     .pct-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; color: #475569; }
     .pct-swatch { width: 22px; height: 3px; border-radius: 2px; display: inline-block; }
+
+    .th-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+    @media (max-width: 640px) { .th-grid { grid-template-columns: 1fr 1fr; } }
+    .th-card { background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.1rem 1.25rem; }
+    .th-card.th-good { border-color: #bbf7d0; background: #f0fdf4; }
+    .th-card.th-warn { border-color: #fde68a; background: #fffbeb; }
+    .th-card.th-bad  { border-color: #fecaca; background: #fef2f2; }
+    .th-card.th-na   { opacity: 0.6; }
+    .th-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #94a3b8; margin-bottom: 0.4rem; }
+    .th-value { font-size: 1.55rem; font-weight: 800; color: #0f172a; line-height: 1.1; }
+    .th-unit  { font-size: 0.85rem; font-weight: 400; color: #64748b; margin-left: 0.1rem; }
+    .th-trend { font-size: 0.78rem; margin-top: 0.4rem; color: #94a3b8; }
+    .th-trend.up   { color: #16a34a; font-weight: 600; }
+    .th-trend.down { color: #dc2626; font-weight: 600; }
+    .th-trend.warn { color: #d97706; font-weight: 600; }
+
+    .ffe-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin: 1rem 0 1.5rem; }
+    @media (max-width: 640px) { .ffe-summary { grid-template-columns: 1fr 1fr; } }
+    .ffe-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.75rem 1rem; }
+    .ffe-card .val { font-size: 1.4rem; font-weight: 800; color: #0f172a; line-height: 1.1; }
+    .ffe-card .pct { font-size: 0.68rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.15rem; }
+    .ffe-card .lbl { font-size: 0.72rem; color: #94a3b8; margin-top: 0.15rem; }
+    .ffe-card.lead { border-color: #bae6fd; background: #f0f9ff; }
+    .ffe-card.lead .val { color: #0369a1; }
+    .ffe-section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #94a3b8; margin: 1.25rem 0 0.5rem; }
+    .ffe-slice-row { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .ffe-slice-row label { font-size: 0.83rem; font-weight: 600; color: #374151; }
+    .ffe-slice-row select { padding: 0.3rem 0.6rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.83rem; background: white; color: #1e293b; }
+    .ffe-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    @media (max-width: 700px) { .ffe-two-col { grid-template-columns: 1fr; } }
 
     .cfd-zoom {
       display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
@@ -374,7 +406,7 @@
     <div class="workflow-section" id="workflow-section" style="display:none">
       <div class="workflow-section-header">
         <span>Workflow Stages</span>
-        <small>Drag to reorder &mdash; order drives the CFD</small>
+        <small>Drag to reorder · order drives the CFD · stages <strong>before</strong> your Start column are treated as backlog (fuzzy front end)</small>
       </div>
       <div class="stage-list" id="stage-list"></div>
     </div>
@@ -425,15 +457,23 @@
 
   <div id="tabs">
     <div class="tab-bar">
-      <button class="tab-btn active" data-tab="insights">Flow Insights</button>
-      <button class="tab-btn" data-tab="scatter">Control Chart</button>
-      <button class="tab-btn" data-tab="throughput">Throughput</button>
-      <button class="tab-btn" data-tab="wiptime">WIP Over Time</button>
-      <button class="tab-btn" data-tab="cfd">CFD</button>
-      <button class="tab-btn" data-tab="histogram">Histogram</button>
-      <button class="tab-btn" data-tab="floweff">Flow Efficiency</button>
-      <button class="tab-btn" data-tab="aging">Aging WIP</button>
-      <button class="tab-btn" data-tab="data">Data</button>
+      <div class="tab-row-label">Flow</div>
+      <div class="tab-row">
+        <button class="tab-btn active" data-tab="insights">Flow Insights</button>
+        <button class="tab-btn" data-tab="cfd">CFD</button>
+        <button class="tab-btn" data-tab="throughput">Throughput</button>
+        <button class="tab-btn" data-tab="wiptime">WIP Over Time</button>
+        <button class="tab-btn" data-tab="health">Team Health</button>
+      </div>
+      <div class="tab-row-label">Detail</div>
+      <div class="tab-row">
+        <button class="tab-btn" data-tab="scatter">Control Chart</button>
+        <button class="tab-btn" data-tab="histogram">Histogram</button>
+        <button class="tab-btn" data-tab="floweff">Flow Efficiency</button>
+        <button class="tab-btn" data-tab="aging">Aging WIP</button>
+        <button class="tab-btn" data-tab="ffe">Fuzzy Front End</button>
+        <button class="tab-btn" data-tab="data">Data</button>
+      </div>
     </div>
 
     <div id="tab-insights" class="tab-pane active">
@@ -495,13 +535,23 @@
       </div>
       <div class="ic2-bot">
         <div class="ic2-card ic2-plain">
-          <div class="ic2-q">Are we finishing what we start?</div>
+          <div class="ic2-q">Are we finishing what we start? <button class="info-btn" data-info="info-pace" onclick="toggleInfo('info-pace')" title="How to read this">ℹ</button></div>
+          <div class="info-panel" id="info-pace">
+            <div class="info-row"><strong>What this shows</strong> — items started (entered your start stage) vs items completed (reached your end stage) each week. When the green "completed" bars are consistently higher than blue "started" bars, your backlog is shrinking. When started consistently outpaces completed, WIP grows and cycle times will lengthen.</div>
+            <div class="info-row"><strong>What to look for</strong> — a healthy team finishes roughly as much as it starts each week (steady state). A team that repeatedly starts more than it finishes is accumulating WIP debt — Little's Law guarantees this will show up as longer cycle times. Spikes in "started" without matching spikes in "completed" often signal unplanned work or poor commitment discipline.</div>
+            <div class="info-row"><strong>The commitment point matters</strong> — if your start column is your backlog (not your commitment point), this chart will show large volumes of items "starting" that haven't actually been committed to. Map your start column to the column where work is actively pulled, not where it's first created.</div>
+          </div>
           <div class="ic2-sub">Items started vs completed per week</div>
           <div class="chart-wrap" style="height:230px"><canvas id="chart-pace"></canvas></div>
         </div>
         <div class="ic2-card ic2-plain">
-          <div class="ic2-q">Are tickets getting stale?</div>
-          <div class="ic2-sub">WIP count, total age and average age over time</div>
+          <div class="ic2-q">Are tickets getting stale? <button class="info-btn" data-info="info-wipage" onclick="toggleInfo('info-wipage')" title="How to read this">ℹ</button></div>
+          <div class="info-panel" id="info-wipage">
+            <div class="info-row"><strong>What this shows</strong> — WIP count (green bars, left axis) and average age of in-progress items in days (purple line, right axis) over time. Rising bars mean more work is being started. Rising average age means items are sitting longer before completing.</div>
+            <div class="info-row"><strong>Average age</strong> is the key signal — if it's climbing while WIP count is flat, the same items are ageing in place and nothing is finishing. That's a flow problem. Use the Aging WIP tab to find exactly which items are driving it.</div>
+            <div class="info-row"><strong>Healthy pattern</strong> — WIP count is flat or gently declining, average age is flat or declining. This means the team is completing work at least as fast as new work arrives.</div>
+          </div>
+          <div class="ic2-sub">WIP count (bars) and average age in days (line)</div>
           <div class="chart-wrap" style="height:230px"><canvas id="chart-wipage"></canvas></div>
         </div>
       </div>
@@ -539,6 +589,35 @@
           <div class="info-row"><strong>Throughput and forecasting:</strong> The Monte Carlo forecast on the Flow Insights tab samples this historical throughput distribution to estimate future completions. More stable throughput = tighter, more reliable forecast range.</div>
         </div>
         <div class="chart-wrap"><canvas id="chart-throughput"></canvas></div>
+      </div>
+    </div>
+
+    <div id="tab-health" class="tab-pane">
+      <div class="chart-card">
+        <h2>Team Health <button class="info-btn" data-info="info-health" onclick="toggleInfo('info-health')" title="How to read this">ℹ</button></h2>
+        <div class="subtitle">A scorecard comparing the current period against the previous period of the same length. Green = improving or stable. Amber = watch. Red = take action.</div>
+        <div class="info-panel" id="info-health">
+          <div class="info-row"><strong>What this shows</strong> — key flow metrics for the selected period, compared to the same-length period before it. Each card shows the current value, the direction of change, and a traffic light signal.</div>
+          <div class="info-row"><strong>Throughput</strong> — items completed per week. Higher is better. Declining throughput is the first sign of a flow problem.</div>
+          <div class="info-row"><strong>Cycle time (p50)</strong> — median time from commitment to done. Lower is better. Rising cycle time usually follows rising WIP — Little's Law in action.</div>
+          <div class="info-row"><strong>System WIP</strong> — items committed but not yet done (from your Start column). Stable or declining is healthy. Growing WIP directly causes longer cycle times.</div>
+          <div class="info-row"><strong>Backlog size</strong> — items in pre-commitment stages (before your Start column). Only available if you have stages configured before your Start column. Growing backlog means demand is exceeding commitment rate.</div>
+          <div class="info-row"><strong>FFE time (p50)</strong> — median time items spend in the backlog before commitment. Only available with pre-commitment stages. Rising FFE means decisions are taking longer — a prioritisation or capacity issue upstream of your flow.</div>
+          <div class="info-row"><strong>Flow efficiency</strong> — percentage of cycle time spent in active work vs queues. Requires stages to be marked P (process) or Q (queue) in Config.</div>
+          <div class="info-row" style="background:#fffbeb;border-color:#fde68a"><strong>Important:</strong> If your Start column is where work first enters the system (not where the team commits to it), backlog and FFE metrics cannot be separated from system metrics. <a href="https://simeon-techbss.github.io/flow-lens/guide.html#ffe" target="_blank" style="color:#0ea5e9">Learn about the commitment point →</a></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:0.75rem;margin:1rem 0 1.5rem;flex-wrap:wrap;">
+          <span style="font-size:0.83rem;font-weight:600;color:#374151;">Period</span>
+          <select id="th-period" onchange="renderTeamHealth()" style="padding:0.3rem 0.6rem;border:1px solid #d1d5db;border-radius:6px;font-size:0.83rem;background:white;color:#1e293b;">
+            <option value="4">Last 4 weeks</option>
+            <option value="8" selected>Last 8 weeks</option>
+            <option value="12">Last 12 weeks</option>
+            <option value="26">Last 26 weeks</option>
+          </select>
+          <span id="th-period-label" style="font-size:0.78rem;color:#94a3b8;"></span>
+        </div>
+        <div id="th-cards" class="th-grid"></div>
+        <div id="th-narrative" style="margin-top:1.25rem;padding:0.9rem 1.1rem;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;color:#475569;line-height:1.6;"></div>
       </div>
     </div>
 
@@ -601,7 +680,14 @@
           <div class="info-row"><strong>Long right tail</strong> means some items take much longer than most. This makes forecasting harder and erodes stakeholder trust. Usually caused by: items being too large, blockers, context switching, or items sitting in queues.</div>
           <div class="info-row"><strong>Two peaks (bimodal)</strong> suggests two different types of work with different natural cycle times — consider whether they should be tracked separately.</div>
         </div>
+        <div style="margin:1rem 0 0.5rem; display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
+          <label style="display:flex;align-items:center;gap:0.3rem;font-size:0.83rem;color:#374151;cursor:pointer;">
+            <input type="checkbox" id="hist-hide-zero" onchange="renderHistogram(lastRenderPayload&&lastRenderPayload.completed||[],lastRenderPayload&&lastRenderPayload.p50,lastRenderPayload&&lastRenderPayload.p70,lastRenderPayload&&lastRenderPayload.p85,lastRenderPayload&&lastRenderPayload.p95)"> Hide CT = 0 (automated / same-day closures)
+          </label>
+          <span id="hist-filter-info" style="font-size:0.8rem;color:#94a3b8;margin-left:0.5rem;"></span>
+        </div>
         <div class="chart-wrap"><canvas id="chart-histogram"></canvas></div>
+        <div id="hist-stats" style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid #f1f5f9;font-size:0.8rem;color:#64748b;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
       </div>
     </div>
 
@@ -655,6 +741,47 @@
         <div class="chart-wrap"><canvas id="chart-aging"></canvas></div>
         <div class="chart-click-info" id="aging-click-info"></div>
         <div id="aging-legend" style="margin-top:1rem;padding-top:1rem;border-top:1px solid #f1f5f9;font-size:0.76rem;color:#94a3b8;line-height:2"></div>
+      </div>
+    </div>
+
+    <div id="tab-ffe" class="tab-pane">
+      <div class="chart-card">
+        <h2>Fuzzy Front End &amp; Lead Time <button class="info-btn" data-info="info-ffe" onclick="toggleInfo('info-ffe')" title="How to read this">ℹ</button></h2>
+        <div class="subtitle">How long items wait in the backlog before commitment, and total lead time from creation to completion.</div>
+        <div class="info-panel" id="info-ffe">
+          <div class="info-row"><strong>Fuzzy Front End (FFE)</strong> is the time from when an item enters the backlog to when the team commits to doing it (your Start column). This is the prioritisation and selection phase — it reflects how quickly your team makes decisions, not how fast it delivers.</div>
+          <div class="info-row"><strong>Commitment point</strong> is the moment an item moves from the backlog into active flow. Cycle time should always be measured from this point, not from creation. Items can sit in the backlog for months — including that time inflates cycle time and hides delivery capability.</div>
+          <div class="info-row"><strong>Lead time</strong> = FFE time + cycle time. This is the total elapsed time from backlog entry to completion — what the business or customer actually experiences.</div>
+          <div class="info-row"><strong>Slice by</strong> — use the dropdown to break FFE down by any column in your data (demand type, team, assignment group). This reveals which types of work sit longest before commitment.</div>
+        </div>
+        <div id="ffe-no-col" style="padding:2rem 0;color:#94a3b8;font-size:0.88rem;max-width:560px">
+          No backlog stages detected. To enable this tab, add your pre-commitment stages (e.g. <em>Idea, Backlog, Ready</em>) to the workflow stage list in Config and drag them <strong style="color:#475569">above your Start column</strong>. Stages before the Start column are treated as the fuzzy front end.
+          <br><br><a href="https://simeon-techbss.github.io/flow-lens/guide.html#ffe" target="_blank" style="color:#0ea5e9;text-decoration:none">Learn about the commitment point and FFE →</a>
+        </div>
+        <div id="ffe-content" style="display:none">
+          <div class="ffe-section-label">Fuzzy Front End — time from backlog to commitment</div>
+          <div class="ffe-summary" id="ffe-pct-cards"></div>
+          <div class="ffe-section-label">Lead Time — total time from backlog to done</div>
+          <div class="ffe-summary" id="ffe-lead-cards"></div>
+          <div class="ffe-slice-row">
+            <label>Slice by</label>
+            <select id="ffe-slice-col" onchange="renderFFE(lastRenderPayload&&lastRenderPayload.completed||[])">
+              <option value="">— none —</option>
+            </select>
+            <span id="ffe-item-count" style="font-size:0.78rem;color:#94a3b8"></span>
+          </div>
+          <div class="ffe-two-col">
+            <div>
+              <div style="font-size:0.78rem;color:#94a3b8;margin-bottom:0.4rem">FFE time per item over time — click a dot for details</div>
+              <div class="chart-wrap" style="height:320px"><canvas id="chart-ffe-scatter"></canvas></div>
+              <div class="chart-click-info" id="ffe-click-info"></div>
+            </div>
+            <div>
+              <div style="font-size:0.78rem;color:#94a3b8;margin-bottom:0.4rem" id="ffe-bar-label">Median FFE by group</div>
+              <div class="chart-wrap" style="height:320px"><canvas id="chart-ffe-bar"></canvas></div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1058,6 +1185,12 @@ function rowMatchesFilters(row, cfg) {
   return cfg.filters.every(f => !f.col || !f.val || row[f.col] === f.val);
 }
 
+function getPreStartStages(cfg) {
+  if (!cfg.startCol) return [];
+  const idx = workflowStages.indexOf(cfg.startCol);
+  return idx > 0 ? workflowStages.slice(0, idx) : [];
+}
+
 function processData(cfg) {
   if (!cfg.startCol || !cfg.endCol) return { completed: [], wip: [] };
   const cutoff = cfg.filterDays ? new Date(Date.now() - cfg.filterDays * 86400000) : null;
@@ -1070,12 +1203,18 @@ function processData(cfg) {
     const id          = cfg.idCol    ? (row[cfg.idCol]    || '') : '';
     const title       = cfg.titleCol ? (row[cfg.titleCol] || '') : '';
     const link        = cfg.linkCol  ? (row[cfg.linkCol]  || '') : '';
-    const blockedDays = cfg.blockedDaysCol ? (parseFloat(row[cfg.blockedDaysCol]) || 0) : 0;
+    const blockedDays  = cfg.blockedDaysCol ? (parseFloat(row[cfg.blockedDaysCol]) || 0) : 0;
+    const preStart     = getPreStartStages(cfg);
+    const backlogDate  = preStart.length
+      ? preStart.reduce((earliest, col) => { const d = getCachedDate(row, col); return d && (!earliest || d < earliest) ? d : earliest; }, null)
+      : null;
 
     if (startDate && endDate && endDate >= startDate) {
       const ct = daysBetween(startDate, endDate);
       if (ct < 0) return;
       if (cutoff && endDate < cutoff) return;
+      const ffeTime  = (backlogDate && backlogDate <= startDate) ? daysBetween(backlogDate, startDate) : null;
+      const leadTime = (backlogDate && backlogDate <= endDate)   ? daysBetween(backlogDate, endDate)   : null;
       let flowEfficiency = null;
       if (workflowStages.length >= 2) {
         const stageDates = workflowStages.map(col => getCachedDate(row, col));
@@ -1092,7 +1231,7 @@ function processData(cfg) {
         const total = processTime + queueTime + blockedDays;
         if (total > 0) flowEfficiency = processTime / total * 100;
       }
-      completed.push({ id, title, link, startDate, endDate, cycleTime: ct, blockedDays, flowEfficiency });
+      completed.push({ id, title, link, startDate, endDate, cycleTime: ct, blockedDays, flowEfficiency, backlogDate, ffeTime, leadTime, _row: row });
     } else if (startDate && !endDate) {
       const age = daysBetween(startDate, new Date());
       if (age >= 0) {
@@ -1187,6 +1326,8 @@ function renderActiveTab() {
     case 'histogram':  renderHistogram(completed, p50, p70, p85, p95); break;
     case 'floweff':    renderFlowEff(completed); break;
     case 'aging':      renderAging(wip, p50, p70, p85, p95); break;
+    case 'health':     renderTeamHealth(); break;
+    case 'ffe':        renderFFE(completed); break;
     case 'data':       renderData(); break;
   }
 }
@@ -1749,6 +1890,290 @@ function exportCFDRangeItems() {
   URL.revokeObjectURL(a.href);
 }
 
+// ── Team Health ────────────────────────────────────────────────────────────
+function renderTeamHealth() {
+  const cfg = getConfig();
+  if (!cfg.startCol || !cfg.endCol) return;
+
+  const periodWeeks = parseInt(document.getElementById('th-period')?.value || '8');
+  const today = new Date(); today.setHours(0,0,0,0);
+  const curEnd   = new Date(today);
+  const curStart = new Date(today.getTime() - periodWeeks * 7 * 86400000);
+  const prevEnd   = new Date(curStart);
+  const prevStart = new Date(curStart.getTime() - periodWeeks * 7 * 86400000);
+
+  const fmt = d => fmtDate(d);
+  document.getElementById('th-period-label').textContent =
+    `${fmt(curStart)} → ${fmt(curEnd)}  vs  ${fmt(prevStart)} → ${fmt(prevEnd)}`;
+
+  const { completed } = processData(cfg);
+  const preStart = getPreStartStages(cfg);
+
+  const curItems  = completed.filter(d => d.endDate >= curStart  && d.endDate <= curEnd);
+  const prevItems = completed.filter(d => d.endDate >= prevStart && d.endDate <  prevEnd);
+
+  function med(arr) { if (!arr.length) return null; const s=[...arr].sort((a,b)=>a-b); return percentile(s,50); }
+  function avg(arr) { return arr.length ? arr.reduce((s,v)=>s+v,0)/arr.length : null; }
+
+  // Throughput
+  const curTP  = curItems.length  / periodWeeks;
+  const prevTP = prevItems.length / periodWeeks;
+
+  // Cycle time p50
+  const curCT  = med(curItems.map(d=>d.cycleTime));
+  const prevCT = med(prevItems.map(d=>d.cycleTime));
+
+  // System WIP (avg per week in period)
+  const allRowsF = allRows.filter(r => rowMatchesFilters(r, cfg));
+  function avgWIP(start, end) {
+    const weeks = []; const c = new Date(weekStart(start));
+    while (c <= end) { weeks.push(new Date(c)); c.setDate(c.getDate()+7); }
+    if (!weeks.length) return null;
+    const counts = weeks.map(wk => allRowsF.filter(r => {
+      const s = getCachedDate(r, cfg.startCol), e = getCachedDate(r, cfg.endCol);
+      return s && s <= wk && (!e || e > wk);
+    }).length);
+    return avg(counts);
+  }
+  const curWIP  = avgWIP(curStart, curEnd);
+  const prevWIP = avgWIP(prevStart, prevEnd);
+
+  // Backlog size (avg per week, if pre-start stages exist)
+  function avgBacklog(start, end) {
+    if (!preStart.length) return null;
+    const weeks = []; const c = new Date(weekStart(start));
+    while (c <= end) { weeks.push(new Date(c)); c.setDate(c.getDate()+7); }
+    if (!weeks.length) return null;
+    const counts = weeks.map(wk => allRowsF.filter(r => {
+      const s = getCachedDate(r, cfg.startCol);
+      const hasPreStart = preStart.some(col => { const d = getCachedDate(r,col); return d && d <= wk; });
+      return hasPreStart && (!s || s > wk);
+    }).length);
+    return avg(counts);
+  }
+  const curBacklog  = avgBacklog(curStart, curEnd);
+  const prevBacklog = avgBacklog(prevStart, prevEnd);
+
+  // FFE p50
+  const curFFE  = med(curItems.filter(d=>d.ffeTime!==null).map(d=>d.ffeTime));
+  const prevFFE = med(prevItems.filter(d=>d.ffeTime!==null).map(d=>d.ffeTime));
+
+  // Flow efficiency avg
+  const curFE  = avg(curItems.filter(d=>d.flowEfficiency!==null).map(d=>d.flowEfficiency));
+  const prevFE = avg(prevItems.filter(d=>d.flowEfficiency!==null).map(d=>d.flowEfficiency));
+
+  // Card builder
+  function pct(cur, prev) { if (cur===null||prev===null||prev===0) return null; return ((cur-prev)/prev*100); }
+  function card(label, cur, prev, unit, higherBetter, fmt) {
+    const change = pct(cur, prev);
+    const na = cur === null;
+    let cls = 'th-card', trendCls = '', trendTxt = 'No previous data';
+    if (!na && change !== null) {
+      const improving = higherBetter ? change > 3 : change < -3;
+      const declining = higherBetter ? change < -3 : change > 3;
+      cls += improving ? ' th-good' : declining ? ' th-bad' : ' th-warn';
+      trendCls = improving ? 'up' : declining ? 'down' : 'warn';
+      const sign = change > 0 ? '+' : '';
+      trendTxt = `${sign}${change.toFixed(1)}% vs previous period`;
+    } else if (!na) {
+      cls += ' th-warn';
+      trendTxt = 'No previous period data';
+    } else {
+      cls += ' th-na';
+    }
+    const valStr = na ? '—' : fmt(cur);
+    return `<div class="${cls}">
+      <div class="th-label">${label}</div>
+      <div class="th-value">${valStr}${!na&&unit?`<span class="th-unit">${unit}</span>`:''}</div>
+      <div class="th-trend ${trendCls}">${na ? 'Not available — no pre-commitment stages configured' : trendTxt}</div>
+    </div>`;
+  }
+
+  document.getElementById('th-cards').innerHTML = [
+    card('Throughput',        curTP,       prevTP,       '/wk', true,  v => v.toFixed(1)),
+    card('Cycle Time (p50)',  curCT,       prevCT,       'd',   false, v => Math.round(v)),
+    card('System WIP (avg)', curWIP,      prevWIP,      '',    false, v => Math.round(v)),
+    card('Backlog Size (avg)',curBacklog,  prevBacklog,  '',    false, v => Math.round(v)),
+    card('FFE Time (p50)',   curFFE,      prevFFE,      'd',   false, v => Math.round(v)),
+    card('Flow Efficiency',  curFE,       prevFE,       '%',   true,  v => v.toFixed(0)),
+  ].join('');
+
+  // Narrative
+  const signals = [];
+  if (curTP !== null && prevTP !== null) {
+    if (curTP > prevTP * 1.05) signals.push('throughput is improving');
+    else if (curTP < prevTP * 0.95) signals.push('throughput is declining — investigate capacity or blockers');
+    else signals.push('throughput is steady');
+  }
+  if (curWIP !== null && prevWIP !== null) {
+    if (curWIP > prevWIP * 1.1) signals.push('system WIP is growing — more being committed than completed');
+    else if (curWIP < prevWIP * 0.9) signals.push('system WIP is reducing — good flow discipline');
+    else signals.push('system WIP is stable');
+  }
+  if (curCT !== null && prevCT !== null) {
+    if (curCT > prevCT * 1.1) signals.push('cycle time is lengthening — often caused by rising WIP');
+    else if (curCT < prevCT * 0.9) signals.push('cycle time is improving');
+  }
+  if (curBacklog !== null && prevBacklog !== null) {
+    if (curBacklog > prevBacklog * 1.1) signals.push('backlog is growing — demand exceeding commitment rate');
+    else if (curBacklog < prevBacklog * 0.9) signals.push('backlog is shrinking — healthy demand management');
+  }
+  document.getElementById('th-narrative').innerHTML = signals.length
+    ? `<strong>Last ${periodWeeks} weeks:</strong> ${signals.join(' · ')}.`
+    : '<span style="color:#94a3b8">Not enough data to generate a summary for this period.</span>';
+}
+
+// ── Fuzzy Front End ────────────────────────────────────────────────────────
+function renderFFE(completed) {
+  const cfg = getConfig();
+  const noCol  = document.getElementById('ffe-no-col');
+  const content = document.getElementById('ffe-content');
+
+  const preStartStages = getPreStartStages(cfg);
+  if (!preStartStages.length) {
+    noCol.style.display = ''; content.style.display = 'none'; return;
+  }
+  noCol.style.display = 'none'; content.style.display = '';
+
+  const items = completed.filter(d => d.ffeTime !== null && d.ffeTime >= 0);
+  document.getElementById('ffe-item-count').textContent =
+    `${items.length} of ${completed.length} items have a backlog date`;
+
+  // Populate slice dropdown from categorical columns (non-date, non-empty)
+  const sliceSel = document.getElementById('ffe-slice-col');
+  const currentSlice = sliceSel.value;
+  const dateColSet = new Set(workflowStages.concat([cfg.startCol, cfg.endCol]).filter(Boolean));
+  const catCols = columns.filter(c => !dateColSet.has(c) &&
+    completed.some(d => d._row && d._row[c] && !getCachedDate(d._row, c)));
+  sliceSel.innerHTML = '<option value="">— none —</option>' +
+    catCols.map(c => `<option value="${c}"${c === currentSlice ? ' selected' : ''}>${c}</option>`).join('');
+
+  // ── FFE percentile cards ──
+  function pctCards(vals, containerId, cardClass) {
+    const sorted = [...vals].sort((a, b) => a - b);
+    const p = p => percentile(sorted, p);
+    const fmt = v => Math.round(v) + 'd';
+    document.getElementById(containerId).innerHTML = [
+      { pct: '50th', val: p(50), lbl: 'Median' },
+      { pct: '70th', val: p(70), lbl: '70th percentile' },
+      { pct: '85th', val: p(85), lbl: '85th — SLE' },
+      { pct: '95th', val: p(95), lbl: '95th percentile' },
+    ].map(s => `<div class="ffe-card ${cardClass}">
+      <div class="pct">${s.pct}</div>
+      <div class="val">${sorted.length ? fmt(s.val) : '—'}</div>
+      <div class="lbl">${s.lbl}</div>
+    </div>`).join('');
+  }
+
+  const ffeTimes   = items.map(d => d.ffeTime);
+  const leadItems  = completed.filter(d => d.leadTime !== null && d.leadTime >= 0);
+  const leadTimes  = leadItems.map(d => d.leadTime);
+
+  pctCards(ffeTimes,  'ffe-pct-cards',  '');
+  pctCards(leadTimes, 'ffe-lead-cards', 'lead');
+
+  // ── Scatter chart: FFE time per item ──
+  if (charts.ffeScatter) { charts.ffeScatter.destroy(); charts.ffeScatter = null; }
+  const ffeSorted = [...ffeTimes].sort((a,b)=>a-b);
+  const fp85 = percentile(ffeSorted, 85);
+  const fp50 = percentile(ffeSorted, 50);
+  const scatterCtx = document.getElementById('chart-ffe-scatter').getContext('2d');
+  const minD = items.length ? new Date(items[0].backlogDate.getTime() - 7*86400000) : new Date();
+  const maxD = items.length ? new Date(items[items.length-1].backlogDate.getTime() + 7*86400000) : new Date();
+  charts.ffeScatter = new Chart(scatterCtx, {
+    type: 'scatter',
+    data: {
+      datasets: [
+        {
+          label: 'FFE time', order: 10,
+          data: items.map(d => ({ x: d.backlogDate, y: d.ffeTime, _id: d.id, _title: d.title, _link: d.link })),
+          backgroundColor: items.map(d => d.ffeTime > fp85 ? 'rgba(239,68,68,0.6)' : d.ffeTime > fp50 ? 'rgba(249,115,22,0.55)' : 'rgba(56,189,248,0.55)'),
+          pointRadius: 4, pointHoverRadius: 7,
+        },
+        { type:'line', label:'50th', data:[{x:minD,y:fp50},{x:maxD,y:fp50}], borderColor:'#22c55e', borderWidth:1.5, borderDash:[6,4], pointRadius:0, fill:false, order:1 },
+        { type:'line', label:'85th', data:[{x:minD,y:fp85},{x:maxD,y:fp85}], borderColor:'#f97316', borderWidth:1.5, borderDash:[6,4], pointRadius:0, fill:false, order:2 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      onClick(event, elements) {
+        const clickItems = elements.map(el => {
+          const d = charts.ffeScatter.data.datasets[el.datasetIndex].data[el.index];
+          const parts = [];
+          if (d._id)    parts.push(d._id);
+          if (d._title) parts.push(d._title.slice(0, 55) + (d._title.length > 55 ? '…' : ''));
+          parts.push(`FFE: ${Math.round(d.y)}d`);
+          return { text: parts.join('  ·  '), link: d._link };
+        });
+        showClickInfo('ffe-click-info', clickItems);
+      },
+      onHover(event, elements) { event.native.target.style.cursor = elements.length ? 'pointer' : 'default'; },
+      plugins: { legend: { display: false }, tooltip: {
+        callbacks: { label: ctx => {
+          const d = ctx.raw;
+          const parts = [];
+          if (d._id) parts.push(d._id);
+          if (d._title) parts.push(d._title.slice(0,40));
+          parts.push(`FFE: ${Math.round(d.y)}d`);
+          return parts.join(' · ');
+        }}
+      }},
+      scales: {
+        x: { type:'time', time:{ unit:'month' }, ticks:{ color:'#94a3b8', font:{size:10} }, grid:{ color:'#f1f5f9' } },
+        y: { title:{ display:true, text:'Days in backlog', color:'#94a3b8', font:{size:10} }, ticks:{ color:'#94a3b8' }, grid:{ color:'#f1f5f9' } }
+      }
+    }
+  });
+
+  // ── Bar chart: median FFE by slice group ──
+  if (charts.ffeBar) { charts.ffeBar.destroy(); charts.ffeBar = null; }
+  const barCtx = document.getElementById('chart-ffe-bar').getContext('2d');
+  const sliceCol = sliceSel.value;
+
+  if (!sliceCol) {
+    document.getElementById('ffe-bar-label').textContent = 'Median FFE by group — select a Slice By column';
+    charts.ffeBar = new Chart(barCtx, {
+      type: 'bar', data: { labels: [], datasets: [{ data: [] }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
+    return;
+  }
+
+  document.getElementById('ffe-bar-label').textContent = `Median FFE by ${sliceCol}`;
+  const groups = {};
+  items.forEach(d => {
+    const key = (d._row && d._row[sliceCol]) || '(blank)';
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(d.ffeTime);
+  });
+  const sorted = Object.entries(groups)
+    .map(([k, vals]) => ({ k, med: percentile([...vals].sort((a,b)=>a-b), 50), n: vals.length }))
+    .sort((a, b) => b.med - a.med);
+
+  charts.ffeBar = new Chart(barCtx, {
+    type: 'bar',
+    data: {
+      labels: sorted.map(s => s.k),
+      datasets: [{ label: 'Median FFE (days)', data: sorted.map(s => Math.round(s.med)),
+        backgroundColor: sorted.map(s => s.med > fp85 ? 'rgba(239,68,68,0.7)' : s.med > fp50 ? 'rgba(249,115,22,0.65)' : 'rgba(56,189,248,0.65)'),
+        borderRadius: 4 }]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: {
+        callbacks: { label: ctx => {
+          const s = sorted[ctx.dataIndex];
+          return `Median: ${ctx.parsed.x}d  (${s.n} items)`;
+        }}
+      }},
+      scales: {
+        x: { title:{ display:true, text:'Median days in backlog', color:'#94a3b8', font:{size:10} }, ticks:{ color:'#94a3b8' }, grid:{ color:'#f1f5f9' } },
+        y: { ticks:{ color:'#94a3b8', font:{size:10} }, grid:{ display:false } }
+      }
+    }
+  });
+}
+
 // ── Histogram ──────────────────────────────────────────────────────────────
 function renderHistogram(data, p50, p70, p85, p95) {
   if (charts.histogram) { charts.histogram.destroy(); charts.histogram = null; }
@@ -1760,7 +2185,14 @@ function renderHistogram(data, p50, p70, p85, p95) {
   }
 
   if (!data.length) return;
-  const cycleTimes = data.map(d => d.cycleTime);
+
+  const hideZero = document.getElementById('hist-hide-zero')?.checked;
+  const filtered = hideZero ? data.filter(d => d.cycleTime > 0) : data;
+  const hidden   = data.length - filtered.length;
+  const infoEl   = document.getElementById('hist-filter-info');
+  if (infoEl) infoEl.textContent = hidden > 0 ? `${hidden} zero-CT items hidden` : '';
+
+  const cycleTimes = filtered.map(d => d.cycleTime);
   const maxCT = Math.ceil(Math.max(...cycleTimes));
 
   if (maxCT === 0) {
@@ -1801,6 +2233,19 @@ function renderHistogram(data, p50, p70, p85, p95) {
       }
     }
   });
+
+  // Stats line below chart
+  const statsEl = document.getElementById('hist-stats');
+  if (statsEl && cycleTimes.length) {
+    const mean = cycleTimes.reduce((s, v) => s + v, 0) / cycleTimes.length;
+    statsEl.innerHTML = [
+      `<span><strong>Mean:</strong> ${mean.toFixed(1)}d</span>`,
+      `<span><strong>p50:</strong> ${p50.toFixed(1)}d</span>`,
+      `<span><strong>p85:</strong> ${p85.toFixed(1)}d</span>`,
+      `<span><strong>p95:</strong> ${p95.toFixed(1)}d</span>`,
+      `<span><strong>Items:</strong> ${cycleTimes.length}${hideZero && hidden > 0 ? ` (${hidden} zero-CT hidden)` : ''}</span>`,
+    ].join('');
+  }
 }
 
 // ── Flow Efficiency Distribution ────────────────────────────────────────────
@@ -2308,13 +2753,12 @@ function renderWIPAgeChart() {
   const cur = new Date(weekStart(minDate));
   while (cur <= today) { weeks.push(new Date(cur)); cur.setDate(cur.getDate() + 7); }
 
-  const wipCounts = [], totalAges = [], avgAges = [];
+  const wipCounts = [], avgAges = [];
   weeks.forEach(wk => {
     const items = rows.filter(r => r.startDate <= wk && (!r.endDate || r.endDate > wk));
     const count = items.length;
     const total = items.reduce((sum, r) => sum + daysBetween(r.startDate, wk), 0);
     wipCounts.push(count);
-    totalAges.push(Math.round(total));
     avgAges.push(count > 0 ? +(total / count).toFixed(1) : 0);
   });
 
@@ -2322,9 +2766,8 @@ function renderWIPAgeChart() {
     data: {
       labels: weeks,
       datasets: [
-        { type: 'line', label: 'Total Age',       data: totalAges,  borderColor: '#38bdf8', borderWidth: 1.5, pointRadius: 0, fill: false, tension: 0.2 },
-        { type: 'line', label: 'Average age',     data: avgAges,    borderColor: '#a78bfa', borderWidth: 1.5, pointRadius: 0, fill: false, tension: 0.2 },
-        { type: 'line', label: 'Work in Progress',data: wipCounts,  borderColor: '#22c55e', borderWidth: 2,   pointRadius: 0, fill: false, tension: 0.2 },
+        { type: 'bar',  label: 'WIP count',   data: wipCounts, backgroundColor: 'rgba(34,197,94,0.25)', borderColor: '#22c55e', borderWidth: 1, yAxisID: 'y' },
+        { type: 'line', label: 'Avg age (days)', data: avgAges, borderColor: '#a78bfa', borderWidth: 2, pointRadius: 0, fill: false, tension: 0.3, yAxisID: 'y2' },
       ]
     },
     options: {
@@ -2336,8 +2779,10 @@ function renderWIPAgeChart() {
       scales: {
         x: { type: 'time', time: { unit: 'month', displayFormats: { month: 'MM/yy' } },
              grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 10 } } },
-        y: { title: { display: true, text: 'Number of items', color: '#94a3b8', font: { size: 10 } },
-             grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 10 } }, min: 0 }
+        y:  { position: 'left',  title: { display: true, text: 'WIP count', color: '#22c55e', font: { size: 10 } },
+              grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 10 } }, min: 0 },
+        y2: { position: 'right', title: { display: true, text: 'Avg age (days)', color: '#a78bfa', font: { size: 10 } },
+              grid: { drawOnChartArea: false }, ticks: { color: '#94a3b8', font: { size: 10 } }, min: 0 },
       }
     }
   });
