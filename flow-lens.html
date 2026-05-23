@@ -2632,13 +2632,13 @@ function renderFFE(completed) {
         {
           label: 'In progress', order: 9,
           data: wipFFEItems.map(d => ({ x: d.backlogDate, y: d.ffeTime, _id: d.id, _title: d.title, _link: d.link, _item: d, _isWIP: true })),
-          backgroundColor: 'rgba(34,197,94,0.75)',
+          backgroundColor: wipFFEItems.map(d => d.ffeTime > fp85 ? 'rgba(239,68,68,0.65)' : d.ffeTime > fp50 ? 'rgba(249,115,22,0.6)' : 'rgba(56,189,248,0.6)'),
           pointRadius: 4, pointHoverRadius: 7, pointStyle: 'triangle',
         },
         {
           label: 'Not started', order: 8,
           data: backlogFFEItems.map(d => ({ x: d.backlogDate, y: d.ffeAge, _id: d.id, _title: d.title, _link: d.link, _item: d, _isBacklog: true })),
-          backgroundColor: 'rgba(148,163,184,0.65)',
+          backgroundColor: backlogFFEItems.map(d => d.ffeAge > fp85 ? 'rgba(239,68,68,0.65)' : d.ffeAge > fp50 ? 'rgba(249,115,22,0.6)' : 'rgba(56,189,248,0.6)'),
           pointRadius: 4, pointHoverRadius: 7, pointStyle: 'rect',
         },
         { type:'line', label:'50th', _lineLabel:`p50 — ${Math.round(fp50)}d`, data:[{x:minD,y:fp50},{x:maxD,y:fp50}], borderColor:'#22c55e', borderWidth:1.5, borderDash:[6,4], pointRadius:0, fill:false, order:1 },
@@ -2659,7 +2659,15 @@ function renderFFE(completed) {
       },
       onHover(event, elements) { event.native.target.style.cursor = elements.length ? 'pointer' : 'default'; },
       plugins: {
-        legend: { display: true, labels: { filter: item => ['Done','In progress','Not started'].includes(item.text), boxWidth: 10, boxHeight: 10, font: { size: 11 }, color: '#64748b' } },
+        legend: { display: true, labels: {
+          usePointStyle: true,
+          generateLabels: () => [
+            { text: 'Done',        fillStyle: 'rgba(56,189,248,0.7)', strokeStyle: 'transparent', pointStyle: 'circle',   hidden: false, datasetIndex: 0 },
+            { text: 'In progress', fillStyle: 'rgba(56,189,248,0.7)', strokeStyle: 'transparent', pointStyle: 'triangle', hidden: false, datasetIndex: 1 },
+            { text: 'Not started', fillStyle: 'rgba(56,189,248,0.7)', strokeStyle: 'transparent', pointStyle: 'rect',     hidden: false, datasetIndex: 2 },
+          ],
+          font: { size: 11 }, color: '#64748b'
+        }},
         tooltip: {
         callbacks: { label: ctx => {
           const d = ctx.raw;
