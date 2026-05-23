@@ -2661,10 +2661,10 @@ function renderFFE(completed) {
       plugins: {
         legend: { display: true, labels: {
           usePointStyle: true,
-          generateLabels: () => [
-            { text: 'Done',        fillStyle: 'rgba(56,189,248,0.7)', strokeStyle: 'transparent', pointStyle: 'circle',   hidden: false, datasetIndex: 0 },
-            { text: 'In progress', fillStyle: 'rgba(56,189,248,0.7)', strokeStyle: 'transparent', pointStyle: 'triangle', hidden: false, datasetIndex: 1 },
-            { text: 'Not started', fillStyle: 'rgba(56,189,248,0.7)', strokeStyle: 'transparent', pointStyle: 'rect',     hidden: false, datasetIndex: 2 },
+          generateLabels: (chart) => [
+            { text: 'Done',        fillStyle: 'rgba(56,189,248,0.7)', strokeStyle: 'transparent', pointStyle: 'circle',   hidden: !chart.isDatasetVisible(0), datasetIndex: 0 },
+            { text: 'In progress', fillStyle: 'rgba(56,189,248,0.7)', strokeStyle: 'transparent', pointStyle: 'triangle', hidden: !chart.isDatasetVisible(1), datasetIndex: 1 },
+            { text: 'Not started', fillStyle: 'rgba(56,189,248,0.7)', strokeStyle: 'transparent', pointStyle: 'rect',     hidden: !chart.isDatasetVisible(2), datasetIndex: 2 },
           ],
           font: { size: 11 }, color: '#64748b'
         }},
