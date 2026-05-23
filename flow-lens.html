@@ -257,6 +257,20 @@
     .aging-table tr:last-child td { border-bottom: none; }
     .aging-table tr:hover td { background: #fafafa; }
 
+    .blocked-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem; }
+    @media (max-width: 560px) { .blocked-compare { grid-template-columns: 1fr; } }
+    .blocked-ccard { border-radius: 10px; padding: 1rem 1.25rem; }
+    .blocked-ccard.is-blocked { background: #fef2f2; border: 1px solid #fecaca; }
+    .blocked-ccard.is-clean   { background: #f0fdf4; border: 1px solid #bbf7d0; }
+    .blocked-ccard-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.75rem; }
+    .blocked-ccard.is-blocked .blocked-ccard-label { color: #dc2626; }
+    .blocked-ccard.is-clean   .blocked-ccard-label { color: #16a34a; }
+    .blocked-stat-row { display: flex; justify-content: space-between; padding: 0.28rem 0; font-size: 0.83rem; color: #475569; border-bottom: 1px solid rgba(0,0,0,0.05); }
+    .blocked-stat-row:last-child { border-bottom: none; }
+    .blocked-stat-row span:last-child { font-weight: 700; color: #0f172a; }
+    .blocked-cost { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 0.7rem 1rem; margin-bottom: 1.5rem; font-size: 0.84rem; color: #92400e; line-height: 1.5; }
+    .blocked-section-title { font-size: 0.88rem; font-weight: 700; color: #0f172a; margin: 1.5rem 0 0.65rem; padding-bottom: 0.4rem; border-bottom: 2px solid #f1f5f9; }
+
     .empty-state { text-align: center; padding: 3rem; color: #94a3b8; font-size: 0.875rem; line-height: 1.6; }
     .chart-click-info {
       display: none; margin-top: 0.75rem; padding: 0.5rem 0.75rem;
@@ -476,6 +490,7 @@
         <button class="tab-btn" data-tab="histogram">Histogram</button>
         <button class="tab-btn" data-tab="floweff">Flow Efficiency</button>
         <button class="tab-btn" data-tab="aging">Aging WIP</button>
+        <button class="tab-btn" data-tab="blocked">Blocked</button>
         <button class="tab-btn" data-tab="ffe">Fuzzy Front End</button>
         <button class="tab-btn" data-tab="data">Data</button>
       </div>
@@ -790,6 +805,14 @@
             </div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <div id="tab-blocked" class="tab-pane">
+      <div class="chart-card">
+        <h2>Blocked Items</h2>
+        <div class="subtitle">Impact of blocking on cycle time, and which items are currently stuck.</div>
+        <div id="blocked-content"></div>
       </div>
     </div>
 
@@ -1349,6 +1372,7 @@ function renderActiveTab() {
     case 'histogram':  renderHistogram(completed, p50, p70, p85, p95); break;
     case 'floweff':    renderFlowEff(completed); break;
     case 'aging':      renderAging(wip, p50, p70, p85, p95); break;
+    case 'blocked':    renderBlocked(completed, wip, p85); break;
     case 'health':     renderTeamHealth(); break;
     case 'ffe':        renderFFE(completed); break;
     case 'data':       renderData(); break;
@@ -2548,6 +2572,128 @@ function renderAging(wip, p50, p70, p85, p95) {
     <span style="color:#ea580c">≤85th</span> ·
     <span style="color:#dc2626">&gt;85th</span>
   `;
+}
+
+// ── Blocked report ─────────────────────────────────────────────────────────
+function renderBlocked(completed, wip, p85) {
+  const cfg = getConfig();
+  const container = document.getElementById('blocked-content');
+
+  if (!cfg.blockedDaysCol) {
+    container.innerHTML = '<div class="empty-state">Map a Blocked Days column in Config to enable this report.</div>';
+    return;
+  }
+
+  const blockedDone  = completed.filter(d => d.blockedDays > 0).sort((a, b) => b.blockedDays - a.blockedDays);
+  const cleanDone    = completed.filter(d => !d.blockedDays);
+  const nowBlocked   = cfg.blockedFlagCol ? wip.filter(i => i.currentlyBlocked).sort((a, b) => b.age - a.age) : null;
+
+  function stats(items) {
+    if (!items.length) return null;
+    const cts = items.map(d => d.cycleTime).sort((a, b) => a - b);
+    return { count: items.length, p50: percentile(cts, 50), p85: percentile(cts, 85), p95: percentile(cts, 95) };
+  }
+  const bSt = stats(blockedDone);
+  const cSt = stats(cleanDone);
+
+  function statRow(label, val) {
+    return `<div class="blocked-stat-row"><span>${label}</span><span>${val}</span></div>`;
+  }
+
+  function itemTable(items, columns) {
+    const ths = columns.map(c => `<th>${c.label}</th>`).join('');
+    const trs = items.map(row => {
+      const tds = columns.map(c => `<td ${c.style||''}>${c.render(row)}</td>`).join('');
+      return `<tr>${tds}</tr>`;
+    }).join('');
+    return `<div style="overflow-x:auto"><table class="aging-table"><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table></div>`;
+  }
+
+  function idCell(d) {
+    const id = d.id || '—';
+    return d.link ? `<a href="${d.link}" target="_blank" rel="noopener" style="color:#0ea5e9;text-decoration:none">${id}</a>` : id;
+  }
+
+  let html = '';
+
+  // ── Section 1: Impact comparison ──
+  html += `<div class="blocked-compare">`;
+
+  html += `<div class="blocked-ccard is-blocked">
+    <div class="blocked-ccard-label">Blocked — ${blockedDone.length} items</div>`;
+  if (bSt) {
+    const total = Math.round(blockedDone.reduce((s, d) => s + d.blockedDays, 0));
+    const avg   = (total / blockedDone.length).toFixed(1);
+    html += statRow('p50 cycle time', Math.round(bSt.p50) + 'd');
+    html += statRow('p85 cycle time', Math.round(bSt.p85) + 'd');
+    html += statRow('p95 cycle time', Math.round(bSt.p95) + 'd');
+    html += `<div style="height:0.5rem"></div>`;
+    html += statRow('Total blocked days', total + 'd');
+    html += statRow('Avg blocked per item', avg + 'd');
+  } else {
+    html += `<div style="font-size:0.84rem;color:#94a3b8">No blocked completed items</div>`;
+  }
+  html += `</div>`;
+
+  html += `<div class="blocked-ccard is-clean">
+    <div class="blocked-ccard-label">Not blocked — ${cleanDone.length} items</div>`;
+  if (cSt) {
+    html += statRow('p50 cycle time', Math.round(cSt.p50) + 'd');
+    html += statRow('p85 cycle time', Math.round(cSt.p85) + 'd');
+    html += statRow('p95 cycle time', Math.round(cSt.p95) + 'd');
+  } else {
+    html += `<div style="font-size:0.84rem;color:#94a3b8">No clean items found</div>`;
+  }
+  html += `</div></div>`;
+
+  // Cost callout
+  if (bSt && cSt) {
+    const p50cost = Math.round(bSt.p50 - cSt.p50);
+    const p85cost = Math.round(bSt.p85 - cSt.p85);
+    if (p85cost > 0 || p50cost > 0) {
+      const parts = [];
+      if (p50cost > 0) parts.push(`<strong>${p50cost}d longer at p50</strong>`);
+      if (p85cost > 0) parts.push(`<strong>${p85cost}d longer at p85</strong>`);
+      html += `<div class="blocked-cost">⚠ Blocked items take ${parts.join(' and ')} compared to items that were never blocked.</div>`;
+    }
+  }
+
+  // ── Section 2: Completed blocked items ──
+  if (blockedDone.length) {
+    html += `<div class="blocked-section-title">Completed items — blocking time recorded</div>`;
+    html += itemTable(blockedDone, [
+      { label: 'ID',           render: d => idCell(d) },
+      { label: 'Title',        render: d => d.title || '—', style: 'style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"' },
+      { label: 'Done',         render: d => fmtDate(d.endDate), style: 'style="white-space:nowrap"' },
+      { label: 'Cycle time',   render: d => d.cycleTime + 'd' },
+      { label: 'Blocked days', render: d => `<span style="color:#dc2626;font-weight:600">${d.blockedDays}d</span>` },
+      { label: '% of CT',      render: d => {
+          if (!d.cycleTime) return '—';
+          const p = Math.round(d.blockedDays / d.cycleTime * 100);
+          const c = p > 50 ? '#dc2626' : p > 25 ? '#d97706' : '#475569';
+          return `<span style="color:${c};font-weight:600">${p}%</span>`;
+        }
+      },
+    ]);
+  }
+
+  // ── Section 3: Currently blocked WIP ──
+  if (nowBlocked !== null) {
+    html += `<div class="blocked-section-title">Currently blocked — needs action today</div>`;
+    if (!nowBlocked.length) {
+      html += `<div style="font-size:0.85rem;color:#16a34a;padding:0.6rem 0">✓ No items currently blocked</div>`;
+    } else {
+      html += itemTable(nowBlocked, [
+        { label: 'ID',            render: d => idCell(d) },
+        { label: 'Title',         render: d => d.title || '—', style: 'style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"' },
+        { label: 'Current stage', render: d => d.currentStage || '—' },
+        { label: 'Age',           render: d => `<span style="font-weight:600;color:${d.age > p85 ? '#dc2626' : '#475569'}">${d.age}d</span>` },
+        { label: 'Blocked days',  render: d => d.blockedDays ? `<span style="color:#dc2626;font-weight:600">${d.blockedDays}d</span>` : '—' },
+      ]);
+    }
+  }
+
+  container.innerHTML = html;
 }
 
 // ── Data preview ───────────────────────────────────────────────────────────
