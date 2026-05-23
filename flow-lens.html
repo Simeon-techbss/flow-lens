@@ -457,7 +457,7 @@
     <div class="stat"><div class="value" id="stat-throughput">—</div><div class="label">Throughput avg/wk</div></div>
     <div class="stat"><div class="value" id="stat-wip">—</div><div class="label">WIP (today)</div></div>
     <div class="stat"><div class="value" id="stat-fe">—</div><div class="label">Flow efficiency</div></div>
-    <div class="stat" id="stat-blocked-wrap" style="display:none"><div class="value" id="stat-blocked">—</div><div class="label">Items blocked</div></div>
+    <div class="stat" id="stat-blocked-wrap"><div class="value" id="stat-blocked">—</div><div class="label" id="stat-blocked-label">Items blocked</div></div>
   </div>
 
   <div id="tabs">
@@ -1300,15 +1300,18 @@ function _doRenderAll() {
   document.getElementById('stat-fe').textContent = fe !== null ? fe.toFixed(0) + '%' : '—';
 
   const blockedItems = completed.filter(d => d.blockedDays > 0);
-  const blockedWrap  = document.getElementById('stat-blocked-wrap');
-  if (cfg.blockedDaysCol && completed.length) {
-    blockedWrap.style.display = '';
+  if (cfg.blockedFlagCol) {
+    const currentlyBlocked = wip.filter(i => i.currentlyBlocked).length;
+    document.getElementById('stat-blocked').textContent = currentlyBlocked;
+    document.getElementById('stat-blocked-label').textContent = 'Currently blocked';
+  } else if (cfg.blockedDaysCol && completed.length) {
     const pct = (blockedItems.length / completed.length * 100).toFixed(0);
     document.getElementById('stat-blocked').textContent = `${blockedItems.length} (${pct}%)`;
+    document.getElementById('stat-blocked-label').textContent = 'Items blocked';
   } else {
-    blockedWrap.style.display = 'none';
+    document.getElementById('stat-blocked').textContent = '—';
+    document.getElementById('stat-blocked-label').textContent = 'Items blocked';
   }
-
   if (completed.length > 1) {
     const spanWeeks = daysBetween(completed[0].endDate, completed[completed.length-1].endDate) / 7;
     document.getElementById('stat-throughput').textContent = spanWeeks > 0 ? (completed.length / spanWeeks).toFixed(1) : '—';
@@ -2006,19 +2009,17 @@ function renderTeamHealth() {
     </div>`;
   }
 
-  const hasBlockedCols = !!(cfg.blockedDaysCol || cfg.blockedFlagCol);
-  const blockedNow = hasBlockedCols ? wip.filter(i => i.currentlyBlocked).length : null;
+  const blockedNow = cfg.blockedFlagCol ? wip.filter(i => i.currentlyBlocked).length : null;
   const blockedPct = (blockedNow !== null && wip.length) ? (blockedNow / wip.length * 100) : null;
-  const blockedCard = hasBlockedCols
-    ? `<div class="th-card ${blockedNow === 0 ? 'th-good' : blockedNow <= wip.length * 0.1 ? 'th-warn' : 'th-bad'}">
-        <div class="th-label">Currently Blocked</div>
-        <div class="th-value">${blockedNow ?? '—'}</div>
-        <div class="th-trend ${blockedNow === 0 ? '' : 'down'}">${
-          blockedNow === 0 ? 'None blocked right now'
-          : `${blockedPct !== null ? blockedPct.toFixed(0) + '% of WIP — check Aging WIP' : 'of current WIP'}`
-        }</div>
-      </div>`
-    : '';
+  const blockedCard = `<div class="th-card ${blockedNow === null ? 'th-na' : blockedNow === 0 ? 'th-good' : blockedNow <= wip.length * 0.1 ? 'th-warn' : 'th-bad'}">
+      <div class="th-label">Currently Blocked</div>
+      <div class="th-value">${blockedNow ?? '—'}</div>
+      <div class="th-trend ${blockedNow === null ? '' : blockedNow === 0 ? '' : 'down'}">${
+        blockedNow === null ? 'Not available — map a Currently Blocked column'
+        : blockedNow === 0 ? 'None blocked right now'
+        : `${blockedPct !== null ? blockedPct.toFixed(0) + '% of WIP — check Aging WIP' : 'of current WIP'}`
+      }</div>
+    </div>`;
 
   document.getElementById('th-cards').innerHTML = [
     card('Throughput',        curTP,       prevTP,       '/wk', true,  v => v.toFixed(1)),
