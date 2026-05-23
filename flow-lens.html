@@ -1857,7 +1857,8 @@ function updateCFDAnalysis() {
       const w1   = cfdWip(si, wi1);
       const diff = w1 - w0;
       const diffStr = diff === 0 ? '—' : (diff > 0 ? `+${diff}` : `${diff}`);
-      const diffCol = diff > 0 ? '#ef4444' : diff < 0 ? '#22c55e' : '#94a3b8';
+      const isDone = si === visibleStages.length - 1;
+      const diffCol = diff === 0 ? '#94a3b8' : (diff > 0) === isDone ? '#22c55e' : '#ef4444';
       rh += `<tr><td><span class="cfd-dot" style="background:${col}"></span>${stage}</td>`;
       rh += `<td>${w0}</td><td>${w1}</td><td style="color:${diffCol};font-weight:600">${diffStr}</td></tr>`;
     });
