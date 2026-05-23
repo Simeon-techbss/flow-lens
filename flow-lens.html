@@ -367,8 +367,6 @@ License: MIT
     .sb-actions { display: flex; align-items: center; gap: 0.75rem; }
     .sb-close { background: none; border: none; cursor: pointer; color: #94a3b8; font-size: 1.1rem; line-height: 1; padding: 0; }
     .sb-close:hover { color: #ef4444; }
-    .sb-toggle { font-size: 0.75rem; color: #64748b; display: flex; align-items: center; gap: 0.35rem; cursor: pointer; white-space: nowrap; }
-    .sb-toggle input { accent-color: #0ea5e9; width: 0.85rem; height: 0.85rem; cursor: pointer; }
     .sb-rows { display: flex; flex-direction: column; gap: 0.4rem; }
     .sb-row { display: grid; grid-template-columns: 9rem 3.5rem 1fr; gap: 0.5rem; align-items: center; }
     .sb-stage { font-size: 0.8rem; color: #374151; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1660,8 +1658,6 @@ function getStageBreakdown(item) {
   return breakdown;
 }
 
-let _sbHideFFE = false;
-
 function showScatterBreakdown(pts) {
   const panel = document.getElementById('scatter-click-info');
   const cfg = getConfig();
@@ -1672,11 +1668,10 @@ function showScatterBreakdown(pts) {
     if (!item) return '';
 
     const breakdown = getStageBreakdown(item);
-    const visible = _sbHideFFE ? breakdown.filter(r => !r.isFFE) : breakdown;
-    const totalDays = visible.reduce((s, r) => s + r.days, 0) || 1;
+    const totalDays = breakdown.reduce((s, r) => s + r.days, 0) || 1;
 
     const stageColors = { process: '#38bdf8', queue: '#cbd5e1', ffe: '#e2e8f0' };
-    const stageRows = visible.map(r => {
+    const stageRows = breakdown.map(r => {
       const pct = (r.days / totalDays * 100).toFixed(1);
       const color = r.isFFE ? stageColors.ffe : (stageTypes[r.stage] === 'process' ? stageColors.process : stageColors.queue);
       return `<div class="sb-row">
@@ -1707,12 +1702,10 @@ function showScatterBreakdown(pts) {
     </div>`;
   }).join('');
 
-  const ffeToggle = hasFFE ? `<label class="sb-toggle"><input type="checkbox" ${_sbHideFFE ? 'checked' : ''} onchange="_sbHideFFE=this.checked;showScatterBreakdown(window._sbLastPts)"> Hide pre-commitment (FFE)</label>` : '';
-
   panel.innerHTML = `<div class="sb-panel">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.65rem;gap:0.75rem;flex-wrap:wrap">
       <div style="font-size:0.72rem;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em">Time in stage</div>
-      <div class="sb-actions">${ffeToggle}<button class="sb-close" onclick="document.getElementById('scatter-click-info').style.display='none'">×</button></div>
+      <button class="sb-close" onclick="document.getElementById('scatter-click-info').style.display='none'">×</button>
     </div>
     <div style="font-size:0.72rem;color:#94a3b8;margin-bottom:0.75rem">
       <span style="display:inline-flex;align-items:center;gap:0.3rem;margin-right:0.75rem"><span style="width:10px;height:8px;background:#38bdf8;border-radius:2px;display:inline-block"></span>Active work</span>
@@ -1721,7 +1714,6 @@ function showScatterBreakdown(pts) {
     </div>
     ${rows}
   </div>`;
-  window._sbLastPts = pts;
   panel.style.display = 'flex';
 }
 
