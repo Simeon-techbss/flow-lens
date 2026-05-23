@@ -1488,7 +1488,7 @@ function getPreStartStages(cfg) {
 function processData(cfg) {
   if (!cfg.startCol || !cfg.endCol) return { completed: [], wip: [] };
   const cutoff = cfg.filterDays ? new Date(Date.now() - cfg.filterDays * 86400000) : null;
-  const completed = [], wip = [];
+  const completed = [], wip = [], backlog = [];
 
   allRows.forEach(row => {
     if (!rowMatchesFilters(row, cfg)) return;
@@ -1538,14 +1538,19 @@ function processData(cfg) {
           const v = (row[cfg.blockedFlagCol] || '').toString().trim().toLowerCase();
           currentlyBlocked = ['yes','true','1','y'].includes(v);
         }
-        wip.push({ id, title, link, startDate, age, currentStage, blockedDays, currentlyBlocked, _row: row });
+        const wipFFE = (backlogDate && backlogDate <= startDate) ? daysBetween(backlogDate, startDate) : null;
+        wip.push({ id, title, link, startDate, age, ffeTime: wipFFE, backlogDate, currentStage, blockedDays, currentlyBlocked, _row: row });
       }
+    } else if (!startDate && backlogDate) {
+      const ffeAge = daysBetween(backlogDate, new Date());
+      if (ffeAge >= 0) backlog.push({ id, title, link, backlogDate, ffeAge, _row: row });
     }
   });
 
   completed.sort((a, b) => a.endDate - b.endDate);
   wip.sort((a, b) => b.age - a.age);
-  return { completed, wip };
+  backlog.sort((a, b) => b.ffeAge - a.ffeAge);
+  return { completed, wip, backlog };
 }
 
 // ── Render all ─────────────────────────────────────────────────────────────
@@ -1560,7 +1565,7 @@ function _doRenderAll() {
   const cfg = getConfig();
   if (!cfg.startCol || !cfg.endCol) return;
 
-  const { completed, wip } = processData(cfg);
+  const { completed, wip, backlog } = processData(cfg);
 
   if (!completed.length && !wip.length) {
     showError('No usable rows found. Check your start and end date column selection.');
@@ -1615,7 +1620,7 @@ function _doRenderAll() {
   document.getElementById('btn-save-config').style.display = 'inline-block';
 
   updateFooter();
-  lastRenderPayload = { completed, wip, p50, p70, p85, p95 };
+  lastRenderPayload = { completed, wip, backlog, p50, p70, p85, p95 };
   renderActiveTab();
 }
 
@@ -1695,7 +1700,10 @@ function showScatterBreakdown(pts, panelId = 'scatter-click-info') {
       </div>` : '';
 
     const label = [d._id, d._title ? d._title.slice(0, 60) + (d._title.length > 60 ? '…' : '') : ''].filter(Boolean).join('  ·  ');
-    const ctLabel = `${item.cycleTime.toFixed(1)}d Cycle Time` + (item.leadTime ? ` · ${item.leadTime.toFixed(1)}d Lead Time` : '');
+    const doneBadge = item.endDate
+      ? `<span style="font-size:0.7rem;background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:3px;padding:0.05rem 0.4rem;margin-left:0.4rem;white-space:nowrap">✓ done ${item.endDate.toISOString().slice(0,10)}</span>`
+      : `<span style="font-size:0.7rem;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:3px;padding:0.05rem 0.4rem;margin-left:0.4rem;white-space:nowrap">⏳ in progress · est. as of today</span>`;
+    const ctLabel = `${item.cycleTime.toFixed(1)}d Cycle Time` + (item.leadTime ? ` · ${item.leadTime.toFixed(1)}d Lead Time` : '') + doneBadge;
 
     return `<div style="margin-bottom:${pts.length > 1 ? '1rem' : '0'}">
       <div class="sb-header">
@@ -1747,8 +1755,8 @@ function getWIPStageBreakdown(item) {
   return breakdown;
 }
 
-function showAgingBreakdown(pts) {
-  const panel = document.getElementById('aging-click-info');
+function showAgingBreakdown(pts, panelId = 'aging-click-info') {
+  const panel = document.getElementById(panelId);
   const cfg = getConfig();
   const hasFFE = workflowStages.indexOf(cfg.startCol) > 0;
 
@@ -1793,12 +1801,34 @@ function showAgingBreakdown(pts) {
   panel.innerHTML = `<div class="sb-panel">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.65rem;gap:0.75rem;flex-wrap:wrap">
       <div style="font-size:0.72rem;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em">Time in stage</div>
-      <button class="sb-close" onclick="document.getElementById('aging-click-info').style.display='none'">×</button>
+      <button class="sb-close" onclick="document.getElementById('${panelId}').style.display='none'">×</button>
     </div>
     <div style="font-size:0.72rem;color:#94a3b8;margin-bottom:0.75rem">
       <span style="display:inline-flex;align-items:center;gap:0.3rem;margin-right:0.75rem"><span style="width:10px;height:8px;background:#818cf8;border-radius:2px;display:inline-block"></span>Current stage</span>
       <span style="display:inline-flex;align-items:center;gap:0.3rem;margin-right:0.75rem"><span style="width:10px;height:8px;background:#38bdf8;border-radius:2px;display:inline-block"></span>Active work</span>
       <span style="display:inline-flex;align-items:center;gap:0.3rem${hasFFE ? '' : ';display:none'}"><span style="width:10px;height:8px;background:#e2e8f0;border-radius:2px;display:inline-block"></span>Pre-commitment</span>
+    </div>
+    ${rows}
+  </div>`;
+  panel.style.display = 'flex';
+}
+
+function showBacklogBreakdown(pts, panelId) {
+  const panel = document.getElementById(panelId);
+  const rows = pts.map(d => {
+    const label = [d._id, d._title ? d._title.slice(0, 60) + (d._title.length > 60 ? '…' : '') : ''].filter(Boolean).join('  ·  ');
+    return `<div style="margin-bottom:${pts.length > 1 ? '1rem' : '0'}">
+      <div class="sb-header">
+        <span class="sb-title">${label || 'Item'}</span>
+        <span class="sb-ct"><span style="font-size:0.7rem;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:3px;padding:0.05rem 0.4rem;white-space:nowrap">⏳ ${Math.round(d.y)}d in backlog · not yet started</span></span>
+      </div>
+      ${d._link ? `<a class="sb-open" href="${d._link}" target="_blank" rel="noopener">Open ticket →</a>` : ''}
+    </div>`;
+  }).join('');
+  panel.innerHTML = `<div class="sb-panel">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.65rem">
+      <div style="font-size:0.72rem;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em">Backlog — not yet started</div>
+      <button class="sb-close" onclick="document.getElementById('${panelId}').style.display='none'">×</button>
     </div>
     ${rows}
   </div>`;
@@ -2514,13 +2544,16 @@ function renderFFE(completed) {
   }
   noCol.style.display = 'none'; content.style.display = '';
 
+  const wipItems   = (lastRenderPayload && lastRenderPayload.wip)     || [];
+  const backlogItems = (lastRenderPayload && lastRenderPayload.backlog) || [];
   const minFFE = parseInt(document.getElementById('ffe-min-days').value) || 0;
-  const items = completed.filter(d => d.ffeTime !== null && d.ffeTime >= Math.max(0, minFFE));
-  const totalWithBacklog = completed.filter(d => d.ffeTime !== null && d.ffeTime >= 0).length;
+  const minF = Math.max(0, minFFE);
+  const items        = completed.filter(d => d.ffeTime !== null && d.ffeTime >= minF);
+  const wipFFEItems  = wipItems.filter(d => d.ffeTime !== null && d.ffeTime >= minF);
+  const backlogFFEItems = backlogItems.filter(d => d.ffeAge >= minF);
+  const suffix = minFFE > 0 ? ` (≥ ${minFFE}d)` : '';
   document.getElementById('ffe-item-count').textContent =
-    minFFE > 0
-      ? `${items.length} of ${totalWithBacklog} items shown (≥ ${minFFE}d)`
-      : `${items.length} of ${completed.length} items have a backlog date`;
+    `${items.length} done · ${wipFFEItems.length} in progress · ${backlogFFEItems.length} not started${suffix}`;
 
   // Populate slice dropdown from categorical columns (non-date, non-empty)
   const sliceSel = document.getElementById('ffe-slice-col');
@@ -2561,8 +2594,9 @@ function renderFFE(completed) {
   const fp85 = percentile(ffeSorted, 85);
   const fp50 = percentile(ffeSorted, 50);
   const scatterCtx = document.getElementById('chart-ffe-scatter').getContext('2d');
-  const minD = items.length ? new Date(items[0].backlogDate.getTime() - 7*86400000) : new Date();
-  const maxD = items.length ? new Date(items[items.length-1].backlogDate.getTime() + 7*86400000) : new Date();
+  const allDated = [...items, ...wipFFEItems, ...backlogFFEItems].map(d => d.backlogDate).filter(Boolean);
+  const minD = allDated.length ? new Date(Math.min(...allDated) - 7*86400000) : new Date();
+  const maxD = allDated.length ? new Date(Math.max(...allDated) + 7*86400000) : new Date();
   const ffeLineLabelPlugin = {
     id: 'ffeLineLabels',
     afterDraw(chart) {
@@ -2590,10 +2624,22 @@ function renderFFE(completed) {
     data: {
       datasets: [
         {
-          label: 'FFE time', order: 10,
+          label: 'Done', order: 10,
           data: items.map(d => ({ x: d.backlogDate, y: d.ffeTime, _id: d.id, _title: d.title, _link: d.link, _item: d })),
           backgroundColor: items.map(d => d.ffeTime > fp85 ? 'rgba(239,68,68,0.6)' : d.ffeTime > fp50 ? 'rgba(249,115,22,0.55)' : 'rgba(56,189,248,0.55)'),
           pointRadius: 4, pointHoverRadius: 7,
+        },
+        {
+          label: 'In progress', order: 9,
+          data: wipFFEItems.map(d => ({ x: d.backlogDate, y: d.ffeTime, _id: d.id, _title: d.title, _link: d.link, _item: d, _isWIP: true })),
+          backgroundColor: 'rgba(34,197,94,0.75)',
+          pointRadius: 4, pointHoverRadius: 7, pointStyle: 'triangle',
+        },
+        {
+          label: 'Not started', order: 8,
+          data: backlogFFEItems.map(d => ({ x: d.backlogDate, y: d.ffeAge, _id: d.id, _title: d.title, _link: d.link, _item: d, _isBacklog: true })),
+          backgroundColor: 'rgba(148,163,184,0.65)',
+          pointRadius: 4, pointHoverRadius: 7, pointStyle: 'rect',
         },
         { type:'line', label:'50th', _lineLabel:`p50 — ${Math.round(fp50)}d`, data:[{x:minD,y:fp50},{x:maxD,y:fp50}], borderColor:'#22c55e', borderWidth:1.5, borderDash:[6,4], pointRadius:0, fill:false, order:1 },
         { type:'line', label:'85th', _lineLabel:`p85 — ${Math.round(fp85)}d`, data:[{x:minD,y:fp85},{x:maxD,y:fp85}], borderColor:'#f97316', borderWidth:1.5, borderDash:[6,4], pointRadius:0, fill:false, order:2 },
@@ -2603,16 +2649,25 @@ function renderFFE(completed) {
       responsive: true, maintainAspectRatio: false,
       onClick(event, elements) {
         const pts = elements.map(el => charts.ffeScatter.data.datasets[el.datasetIndex].data[el.index]).filter(d => d && d._item);
-        if (pts.length) showScatterBreakdown(pts, 'ffe-click-info');
+        if (!pts.length) return;
+        const backlogPts = pts.filter(d => d._isBacklog);
+        const wipPts     = pts.filter(d => d._isWIP);
+        const donePts    = pts.filter(d => !d._isBacklog && !d._isWIP);
+        if (donePts.length)    showScatterBreakdown(donePts, 'ffe-click-info');
+        else if (wipPts.length) showAgingBreakdown(wipPts, 'ffe-click-info');
+        else                    showBacklogBreakdown(backlogPts, 'ffe-click-info');
       },
       onHover(event, elements) { event.native.target.style.cursor = elements.length ? 'pointer' : 'default'; },
-      plugins: { legend: { display: false }, tooltip: {
+      plugins: {
+        legend: { display: true, labels: { filter: item => ['Done','In progress','Not started'].includes(item.text), boxWidth: 10, boxHeight: 10, font: { size: 11 }, color: '#64748b' } },
+        tooltip: {
         callbacks: { label: ctx => {
           const d = ctx.raw;
           const parts = [];
           if (d._id) parts.push(d._id);
           if (d._title) parts.push(d._title.slice(0,40));
-          parts.push(`FFE: ${Math.round(d.y)}d`);
+          const tag = d._isBacklog ? 'Waiting' : 'FFE';
+          parts.push(`${tag}: ${Math.round(d.y)}d`);
           return parts.join(' · ');
         }}
       }},
