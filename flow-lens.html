@@ -372,6 +372,9 @@
     <h2>Drop your CSV here or click to browse</h2>
     <p>Works with any CSV containing workflow stage date columns &nbsp;·&nbsp; Data stays on your machine</p>
   </div>
+  <div style="text-align:center;margin-top:0.9rem">
+    <button onclick="loadExampleData()" style="font-size:0.82rem;color:#64748b;background:white;border:1px solid #e2e8f0;border-radius:6px;padding:0.4rem 1.1rem;cursor:pointer;transition:border-color 0.15s" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#e2e8f0'">Try with example data</button>
+  </div>
 
   <div id="error-area"></div>
 
@@ -984,6 +987,141 @@ function resetTool() {
 
 function showError(msg) { document.getElementById('error-area').innerHTML = `<div class="error-msg">${msg}</div>`; }
 function clearError()   { document.getElementById('error-area').innerHTML = ''; }
+
+function loadExampleData() {
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate() + Math.round(n)); return r; }
+  function fmt(d) { return d.toISOString().slice(0, 10); }
+  function randn() {
+    let u = 0, v = 0;
+    while (!u) u = Math.random(); while (!v) v = Math.random();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+  function logn(mu, sigma, min) { return Math.max(min ?? 1, Math.round(Math.exp(mu + sigma * randn()))); }
+  function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+  const sourceWeights = ['Feature','Feature','Feature','Bug','Bug','Bug','Maintenance','Maintenance','Tech Debt','Tech Debt'];
+  const typeMap = {
+    Feature:     ['Value Demand','Value Demand','Value Demand','Improvement Demand'],
+    Bug:         ['Failure Demand','Failure Demand','Failure Demand','Value Demand'],
+    Maintenance: ['Improvement Demand','Improvement Demand','Failure Demand'],
+    'Tech Debt': ['Improvement Demand','Improvement Demand','Value Demand'],
+  };
+  const titleMap = {
+    Feature:     ['Implement user dashboard','Add PDF export','Build notification centre',
+                  'Create reporting module','Add dark mode support','Implement SSO integration',
+                  'Build API rate limiting','Add bulk import','Create audit trail',
+                  'Implement two-factor auth','Add email digest','Build approval workflow',
+                  'Add custom field types','Implement data archiving','Create team permissions',
+                  'Add webhook support','Build mobile-responsive layout','Implement search filters'],
+    Bug:         ['Fix login timeout issue','Resolve data sync error','Fix broken pagination',
+                  'Correct date formatting bug','Fix memory leak in worker','Resolve CSV export failure',
+                  'Fix search returning empty results','Correct rounding in totals',
+                  'Fix broken email links','Resolve duplicate record creation',
+                  'Fix filter not applying on reload','Correct timezone offset error',
+                  'Fix attachment upload failing','Resolve race condition in queue'],
+    Maintenance: ['Upgrade Node.js to LTS','Rotate API credentials','Archive records older than 3 years',
+                  'Update SSL certificates','Clean up log storage','Upgrade database minor version',
+                  'Remove unused cloud storage','Update dependency versions','Review access permissions',
+                  'Consolidate environment configs','Renew signing certificates'],
+    'Tech Debt': ['Refactor authentication module','Remove legacy API endpoints',
+                  'Migrate config to environment variables','Replace deprecated logging library',
+                  'Consolidate duplicate validation logic','Migrate inline SQL to ORM',
+                  'Remove feature flags from 2024','Extract shared utilities to package',
+                  'Add missing test coverage to payment flow'],
+  };
+
+  const rows = [];
+  let id = 1000;
+  function makeId() { return `AXM-${String(++id).padStart(4,'0')}`; }
+
+  // Completed items (~300, spread over last 26 weeks)
+  for (let i = 0; i < 300; i++) {
+    const doneAgo   = Math.floor(Math.random() * 178) + 5;
+    const doneDate  = addDays(today, -doneAgo);
+    const ct        = logn(1.9, 0.65, 1);       // median ~7d
+    const ffe       = logn(2.1, 0.65, 2);       // median ~8d
+    const readyDate = addDays(doneDate, -ct);
+    const backlog   = addDays(readyDate, -ffe);
+    const doingDate = addDays(readyDate, logn(0.3, 0.4, 1));
+    const skipReview = Math.random() < 0.4;
+    const reviewDate = skipReview ? null : addDays(doingDate, logn(0.8, 0.4, 1));
+    const hasBlock  = Math.random() < 0.13;
+    const blockDays = hasBlock ? logn(2.2, 0.6, 1) : 0;
+    const src = pick(sourceWeights);
+    rows.push({
+      ID: makeId(), Title: pick(titleMap[src]),
+      'Demand Source': src, 'Demand Type': pick(typeMap[src]),
+      'Blocked Days': blockDays, 'Currently Blocked': 'No',
+      Backlog: fmt(backlog), Ready: fmt(readyDate),
+      Doing: fmt(doingDate), Review: reviewDate ? fmt(reviewDate) : '', Done: fmt(doneDate),
+    });
+  }
+
+  // WIP items (~35)
+  for (let i = 0; i < 35; i++) {
+    const readyAgo  = logn(2.0, 0.7, 2);
+    const readyDate = addDays(today, -readyAgo);
+    const backlog   = addDays(readyDate, -logn(2.0, 0.6, 2));
+    const doingDate = addDays(readyDate, logn(0.3, 0.4, 1));
+    const inReview  = readyAgo > 5 && Math.random() < 0.3;
+    const reviewDate = inReview ? addDays(doingDate, logn(0.8, 0.4, 1)) : null;
+    const hasBlock  = Math.random() < 0.28;
+    const blockDays = hasBlock ? logn(1.8, 0.5, 1) : 0;
+    const isNowBlocked = hasBlock && Math.random() < 0.55;
+    const src = pick(sourceWeights);
+    rows.push({
+      ID: makeId(), Title: pick(titleMap[src]),
+      'Demand Source': src, 'Demand Type': pick(typeMap[src]),
+      'Blocked Days': blockDays, 'Currently Blocked': isNowBlocked ? 'Yes' : 'No',
+      Backlog: fmt(backlog), Ready: fmt(readyDate),
+      Doing: fmt(doingDate), Review: reviewDate ? fmt(reviewDate) : '', Done: '',
+    });
+  }
+
+  // Backlog-only items (~20, not yet committed)
+  for (let i = 0; i < 20; i++) {
+    const src = pick(sourceWeights);
+    rows.push({
+      ID: makeId(), Title: pick(titleMap[src]),
+      'Demand Source': src, 'Demand Type': pick(typeMap[src]),
+      'Blocked Days': 0, 'Currently Blocked': 'No',
+      Backlog: fmt(addDays(today, -(logn(2.2, 0.7, 2)))),
+      Ready: '', Doing: '', Review: '', Done: '',
+    });
+  }
+
+  rows.sort(() => Math.random() - 0.5);
+
+  const fields = ['ID','Title','Demand Source','Demand Type','Blocked Days','Currently Blocked','Backlog','Ready','Doing','Review','Done'];
+  const csv = [
+    fields.join(','),
+    ...rows.map(r => fields.map(f => { const v = String(r[f] ?? ''); return v.includes(',') ? `"${v}"` : v; }).join(','))
+  ].join('\n');
+
+  Papa.parse(csv, {
+    header: true, skipEmptyLines: true,
+    complete(results) {
+      columns = results.meta.fields || [];
+      allRows = results.data;
+      document.getElementById('status-text').textContent = `Example data (Axiom Team) · ${allRows.length} rows · dates relative to today`;
+      document.getElementById('reload-btn').style.display = 'inline-block';
+      setupConfig();
+      applyConfig({
+        version: 1,
+        fields: { startCol:'Ready', endCol:'Done', idCol:'ID', titleCol:'Title', blockedDaysCol:'Blocked Days', blockedFlagCol:'Currently Blocked' },
+        workflow: {
+          stages: ['Backlog','Ready','Doing','Review','Done'],
+          types:  { Backlog:'Q', Ready:'Q', Doing:'P', Review:'P', Done:'P' },
+          hidden: [],
+        },
+        filters:   [{ col:'Demand Source', val:'' }, { col:'Demand Type', val:'' }, { col:'', val:'' }],
+        dateRange: '0',
+      });
+    }
+  });
+}
 
 // ── Column config ──────────────────────────────────────────────────────────
 function setupConfig() {
