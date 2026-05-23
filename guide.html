@@ -198,8 +198,37 @@
       </div>
       <div class="col-row">
         <span class="badge badge-opt">Optional</span>
-        <p><strong>Blocked Days</strong> — number of days the item was blocked. Used to calculate flow efficiency.</p>
+        <p><strong>Blocked Days</strong> — total days the item was blocked. Used in flow efficiency and the Blocked tab. Can exceed cycle time if blocking was recorded outside your configured stage window.</p>
       </div>
+      <div class="col-row">
+        <span class="badge badge-opt">Optional</span>
+        <p><strong>Currently Blocked</strong> — a boolean flag (Yes/No, True/False, 1/0) marking whether the item is blocked right now. Separate from Blocked Days — this is a live state, not a duration. If not mapped, the Blocked tab's "currently blocked" section is unavailable.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>What each tab shows</h2>
+    <p>The tool has two rows of tabs. The <strong>Flow</strong> row gives you the big picture; the <strong>Detail</strong> row lets you dig in.</p>
+
+    <h3>Flow row</h3>
+    <div class="col-list">
+      <div class="col-row"><span class="badge badge-stage" style="min-width:7rem;text-align:center">Flow Insights</span><p>Cycle time percentiles, Monte Carlo forecast, current WIP, smelly tickets (WIP over your p85), and multitasking index. Your daily summary page.</p></div>
+      <div class="col-row"><span class="badge badge-stage" style="min-width:7rem;text-align:center">CFD</span><p>Cumulative Flow Diagram. Click to place markers — select two points to get a range analysis: items completed, throughput rate, and WIP change per stage across the period. Export the items in the range as CSV.</p></div>
+      <div class="col-row"><span class="badge badge-stage" style="min-width:7rem;text-align:center">Throughput</span><p>Weekly completion rate bar chart. Understand your team's delivery cadence and spot disruptions.</p></div>
+      <div class="col-row"><span class="badge badge-stage" style="min-width:7rem;text-align:center">WIP Over Time</span><p>WIP count (bars) and average age of in-progress items (line) each week. Rising average age with flat WIP means items are ageing in place — a flow problem.</p></div>
+      <div class="col-row"><span class="badge badge-stage" style="min-width:7rem;text-align:center">Team Health</span><p>Scorecard comparing the current period against the previous same-length period. Traffic lights for throughput, cycle time p50, system WIP, backlog size, FFE time, flow efficiency, and currently blocked. All numbers are period-scoped — they will differ from the summary bar which uses your full date range.</p></div>
+    </div>
+
+    <h3>Detail row</h3>
+    <div class="col-list">
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Control Chart</span><p>Scatter plot of every completed item by date and cycle time. Percentile lines (p50/p70/p85/p95) shown. Orange dots had blocked time. Use this to spot outliers and check whether cycle time is trending up or down over time.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Histogram</span><p>Cycle time distribution. Shows where most items cluster. Option to hide zero-day items (common when your source system back-dates stage entries).</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Flow Efficiency</span><p>Percentage of each item's cycle time spent in active (process) stages vs queues. Requires stages to be marked P or Q in the Config panel. 100% usually means dates were entered in bulk rather than reflecting real activity.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Aging WIP</span><p>Every in-progress item plotted by current stage and age in days, against your completed cycle time percentile bands. Red ring = currently blocked. Items above the p85 band are statistical outliers — worth a conversation.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Blocked</span><p>Requires a Blocked Days column. Shows: cycle time comparison (blocked vs not blocked), currently blocked items needing action today (requires Currently Blocked column), and completed items sorted by blocked days. Items where blocked days exceed cycle time are flagged — likely a data recording issue in the source system.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Fuzzy Front End</span><p>Pre-commitment analysis. Only available if you have workflow stage columns configured before your Start column. Shows how long items spend in the backlog before the team commits to them. <a href="#ffe" style="color:#0ea5e9">See the FFE section below.</a></p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Data</span><p>Full raw data table with column filters. Useful for investigating individual items flagged by other tabs.</p></div>
     </div>
   </div>
 
