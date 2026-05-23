@@ -882,7 +882,12 @@ License: MIT
             <select id="ffe-slice-col" onchange="renderFFE(lastRenderPayload&&lastRenderPayload.completed||[])">
               <option value="">— none —</option>
             </select>
-            <span id="ffe-item-count" style="font-size:0.78rem;color:#94a3b8"></span>
+            <label style="margin-left:1.25rem">Show FFE ≥</label>
+            <input type="number" id="ffe-min-days" min="0" value="" placeholder="0" title="Hide items with fewer backlog days than this"
+              style="width:4.5rem;padding:0.3rem 0.5rem;border:1px solid #d1d5db;border-radius:6px;font-size:0.82rem"
+              onchange="renderFFE(lastRenderPayload&&lastRenderPayload.completed||[])">
+            <label style="font-size:0.82rem;color:#64748b">days</label>
+            <span id="ffe-item-count" style="font-size:0.78rem;color:#94a3b8;margin-left:auto"></span>
           </div>
           <div class="ffe-two-col">
             <div>
@@ -2509,9 +2514,13 @@ function renderFFE(completed) {
   }
   noCol.style.display = 'none'; content.style.display = '';
 
-  const items = completed.filter(d => d.ffeTime !== null && d.ffeTime >= 0);
+  const minFFE = parseInt(document.getElementById('ffe-min-days').value) || 0;
+  const items = completed.filter(d => d.ffeTime !== null && d.ffeTime >= Math.max(0, minFFE));
+  const totalWithBacklog = completed.filter(d => d.ffeTime !== null && d.ffeTime >= 0).length;
   document.getElementById('ffe-item-count').textContent =
-    `${items.length} of ${completed.length} items have a backlog date`;
+    minFFE > 0
+      ? `${items.length} of ${totalWithBacklog} items shown (≥ ${minFFE}d)`
+      : `${items.length} of ${completed.length} items have a backlog date`;
 
   // Populate slice dropdown from categorical columns (non-date, non-empty)
   const sliceSel = document.getElementById('ffe-slice-col');
@@ -2554,8 +2563,30 @@ function renderFFE(completed) {
   const scatterCtx = document.getElementById('chart-ffe-scatter').getContext('2d');
   const minD = items.length ? new Date(items[0].backlogDate.getTime() - 7*86400000) : new Date();
   const maxD = items.length ? new Date(items[items.length-1].backlogDate.getTime() + 7*86400000) : new Date();
+  const ffeLineLabelPlugin = {
+    id: 'ffeLineLabels',
+    afterDraw(chart) {
+      const ctx = chart.ctx;
+      const { right, top } = chart.chartArea;
+      chart.data.datasets.forEach((ds, i) => {
+        if (ds.type !== 'line' || !ds._lineLabel) return;
+        const meta = chart.getDatasetMeta(i);
+        if (!meta.data.length) return;
+        const pt = meta.data[meta.data.length - 1];
+        ctx.save();
+        ctx.font = '600 10px system-ui, sans-serif';
+        ctx.fillStyle = ds.borderColor;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(ds._lineLabel, right + 6, pt.y);
+        ctx.restore();
+      });
+    }
+  };
+
   charts.ffeScatter = new Chart(scatterCtx, {
     type: 'scatter',
+    plugins: [ffeLineLabelPlugin],
     data: {
       datasets: [
         {
@@ -2564,8 +2595,8 @@ function renderFFE(completed) {
           backgroundColor: items.map(d => d.ffeTime > fp85 ? 'rgba(239,68,68,0.6)' : d.ffeTime > fp50 ? 'rgba(249,115,22,0.55)' : 'rgba(56,189,248,0.55)'),
           pointRadius: 4, pointHoverRadius: 7,
         },
-        { type:'line', label:'50th', data:[{x:minD,y:fp50},{x:maxD,y:fp50}], borderColor:'#22c55e', borderWidth:1.5, borderDash:[6,4], pointRadius:0, fill:false, order:1 },
-        { type:'line', label:'85th', data:[{x:minD,y:fp85},{x:maxD,y:fp85}], borderColor:'#f97316', borderWidth:1.5, borderDash:[6,4], pointRadius:0, fill:false, order:2 },
+        { type:'line', label:'50th', _lineLabel:`p50 — ${Math.round(fp50)}d`, data:[{x:minD,y:fp50},{x:maxD,y:fp50}], borderColor:'#22c55e', borderWidth:1.5, borderDash:[6,4], pointRadius:0, fill:false, order:1 },
+        { type:'line', label:'85th', _lineLabel:`p85 — ${Math.round(fp85)}d`, data:[{x:minD,y:fp85},{x:maxD,y:fp85}], borderColor:'#f97316', borderWidth:1.5, borderDash:[6,4], pointRadius:0, fill:false, order:2 },
       ]
     },
     options: {
@@ -2585,6 +2616,7 @@ function renderFFE(completed) {
           return parts.join(' · ');
         }}
       }},
+      layout: { padding: { right: 68 } },
       scales: {
         x: { type:'time', time:{ unit:'month' }, ticks:{ color:'#94a3b8', font:{size:10} }, grid:{ color:'#f1f5f9' } },
         y: { title:{ display:true, text:'Days in backlog', color:'#94a3b8', font:{size:10} }, ticks:{ color:'#94a3b8' }, grid:{ color:'#f1f5f9' } }
