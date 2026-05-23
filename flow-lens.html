@@ -2658,7 +2658,23 @@ function renderBlocked(completed, wip, p85) {
     }
   }
 
-  // ── Section 2: Completed blocked items ──
+  // ── Section 2: Currently blocked WIP ──
+  if (nowBlocked !== null) {
+    html += `<div class="blocked-section-title">Currently blocked — needs action today</div>`;
+    if (!nowBlocked.length) {
+      html += `<div style="font-size:0.85rem;color:#16a34a;padding:0.6rem 0">✓ No items currently blocked</div>`;
+    } else {
+      html += itemTable(nowBlocked, [
+        { label: 'ID',            render: d => idCell(d) },
+        { label: 'Title',         render: d => d.title || '—', style: 'style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"' },
+        { label: 'Current stage', render: d => d.currentStage || '—' },
+        { label: 'Age',           render: d => `<span style="font-weight:600;color:${d.age > p85 ? '#dc2626' : '#475569'}">${d.age}d</span>` },
+        { label: 'Blocked days',  render: d => d.blockedDays ? `<span style="color:#dc2626;font-weight:600">${d.blockedDays}d</span>` : '—' },
+      ]);
+    }
+  }
+
+  // ── Section 3: Completed blocked items ──
   if (blockedDone.length) {
     html += `<div class="blocked-section-title">Completed items — blocking time recorded</div>`;
     html += itemTable(blockedDone, [
@@ -2676,22 +2692,6 @@ function renderBlocked(completed, wip, p85) {
         }
       },
     ]);
-  }
-
-  // ── Section 3: Currently blocked WIP ──
-  if (nowBlocked !== null) {
-    html += `<div class="blocked-section-title">Currently blocked — needs action today</div>`;
-    if (!nowBlocked.length) {
-      html += `<div style="font-size:0.85rem;color:#16a34a;padding:0.6rem 0">✓ No items currently blocked</div>`;
-    } else {
-      html += itemTable(nowBlocked, [
-        { label: 'ID',            render: d => idCell(d) },
-        { label: 'Title',         render: d => d.title || '—', style: 'style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"' },
-        { label: 'Current stage', render: d => d.currentStage || '—' },
-        { label: 'Age',           render: d => `<span style="font-weight:600;color:${d.age > p85 ? '#dc2626' : '#475569'}">${d.age}d</span>` },
-        { label: 'Blocked days',  render: d => d.blockedDays ? `<span style="color:#dc2626;font-weight:600">${d.blockedDays}d</span>` : '—' },
-      ]);
-    }
   }
 
   container.innerHTML = html;
