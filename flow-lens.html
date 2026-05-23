@@ -161,6 +161,12 @@
       border: 1px solid #e2e8f0; border-radius: 4px; padding: 0.2rem 0.55rem; cursor: pointer;
     }
     .cfd-clear-btn:hover { border-color: #ef4444; color: #ef4444; }
+    .cfd-export-btn {
+      font-size: 0.75rem; color: #0ea5e9; background: none;
+      border: 1px solid #0ea5e9; border-radius: 4px; padding: 0.25rem 0.65rem;
+      cursor: pointer; margin-top: 0.6rem; display: inline-block;
+    }
+    .cfd-export-btn:hover { background: #0ea5e9; color: white; }
     .cfd-panels { display: grid; grid-template-columns: 1fr; gap: 1rem; }
     .cfd-panels.two-up { grid-template-columns: 1fr 1fr; }
     .cfd-panel-card {
@@ -220,6 +226,29 @@
     .aging-table tr:hover td { background: #fafafa; }
 
     .empty-state { text-align: center; padding: 3rem; color: #94a3b8; font-size: 0.875rem; line-height: 1.6; }
+    .chart-click-info {
+      display: none; margin-top: 0.75rem; padding: 0.5rem 0.75rem;
+      background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px;
+      flex-direction: column; gap: 0.35rem;
+    }
+    .cci-row {
+      display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap;
+    }
+    .cci-text { flex: 1; min-width: 0; font-size: 0.83rem; color: #0369a1; }
+    .cci-open {
+      padding: 0.25rem 0.7rem; background: #0ea5e9; color: white;
+      border: none; border-radius: 5px; font-size: 0.79rem; font-weight: 600;
+      cursor: pointer; text-decoration: none; white-space: nowrap;
+    }
+    .cci-open:hover { background: #0284c7; }
+    .cci-dismiss {
+      display: flex; justify-content: flex-end; padding-top: 0.15rem;
+    }
+    .cci-close {
+      background: none; border: none; cursor: pointer; padding: 0 0.15rem;
+      color: #7dd3fc; font-size: 1.1rem; line-height: 1;
+    }
+    .cci-close:hover { color: #0369a1; }
     .error-msg { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; border-radius: 8px; padding: 0.75rem 1rem; margin-top: 1rem; font-size: 0.875rem; }
 
     /* ── Insights v2 ── */
@@ -294,7 +323,7 @@
       <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
     </svg>
     <h2>Drop your CSV here or click to browse</h2>
-    <p>Works with Actionable Agile format and any CSV with date columns &nbsp;·&nbsp; Data stays on your machine</p>
+    <p>Works with any CSV containing workflow stage date columns &nbsp;·&nbsp; Data stays on your machine</p>
   </div>
 
   <div id="error-area"></div>
@@ -401,6 +430,7 @@
       <button class="tab-btn" data-tab="wiptime">WIP Over Time</button>
       <button class="tab-btn" data-tab="cfd">CFD</button>
       <button class="tab-btn" data-tab="histogram">Histogram</button>
+      <button class="tab-btn" data-tab="floweff">Flow Efficiency</button>
       <button class="tab-btn" data-tab="aging">Aging WIP</button>
       <button class="tab-btn" data-tab="data">Data</button>
     </div>
@@ -487,6 +517,7 @@
           <div class="info-row"><strong>What to look for:</strong> Dots clustering tightly below the 85th line = predictable team. Outliers above the 95th = worth a conversation. Trend upward over time = system is slowing — check WIP.</div>
         </div>
         <div class="chart-wrap"><canvas id="chart-scatter"></canvas></div>
+        <div class="chart-click-info" id="scatter-click-info"></div>
         <div class="pct-legend">
           <div class="pct-item"><span class="pct-swatch" style="background:#22c55e"></span><span id="legend-p50">50th percentile</span></div>
           <div class="pct-item"><span class="pct-swatch" style="background:#eab308"></span><span id="legend-p70">70th percentile</span></div>
@@ -531,7 +562,7 @@
         <div class="info-panel" id="info-cfd">
           <div class="info-row"><strong>How to read the bands</strong>Each coloured band is a workflow stage. The height of the band at any point = WIP in that stage. A band that widens over time = work is accumulating there — a bottleneck. A flat or shrinking band = flow is moving through.</div>
           <div class="info-row"><strong>Slopes and lines</strong>The slope of any line = its throughput rate (items per day). Two lines with the same slope = balanced flow between those stages. The horizontal distance between any two lines at a point = approximate cycle time between those stages.</div>
-          <div class="info-row"><strong>Tooltip: cycle time per stage</strong>The <em>~Xd</em> shown in the tooltip is an approximate average cycle time for that stage, calculated using <strong>Little's Law</strong>: <span class="info-formula">CT ≈ WIP in stage ÷ recent throughput rate</span> This is the same method Actionable Agile uses (they label it "Approximate" too). It reflects the current state of flow at that point on the chart — if WIP is high and throughput is low, it estimates a longer cycle time. It is not the same as the historical average time individual items spent in the stage.</div>
+          <div class="info-row"><strong>Tooltip: cycle time per stage</strong>The <em>~Xd</em> shown in the tooltip is an approximate average cycle time for that stage, calculated using <strong>Little's Law</strong>: <span class="info-formula">CT ≈ WIP in stage ÷ recent throughput rate</span> It reflects the current state of flow at that point on the chart — if WIP is high and throughput is low, it estimates a longer cycle time. It is not the same as the historical average time individual items spent in the stage.</div>
           <div class="info-row"><strong>What to look for:</strong> Parallel lines with equal slope = smooth, predictable flow. Diverging lines = WIP growing. Flat bottom (Done) line = throughput has stalled. A big orange or red band = your bottleneck.</div>
         </div>
         <div style="display:flex;gap:2rem;flex-wrap:wrap;margin-bottom:1rem;font-size:0.78rem;color:#475569">
@@ -573,6 +604,38 @@
       </div>
     </div>
 
+    <div id="tab-floweff" class="tab-pane">
+      <div class="chart-card">
+        <h2>Flow Efficiency Distribution <button class="info-btn" data-info="info-floweff" onclick="toggleInfo('info-floweff')" title="How to read this">ℹ</button></h2>
+        <div class="subtitle">How much of each item's total time was spent in active (process) stages vs waiting in queues or blocked. High 100% bar usually means items went straight from open to done — filter it out to read the real pattern.</div>
+        <div class="info-panel" id="info-floweff">
+          <div class="info-row"><strong>What is flow efficiency?</strong> Active time (stages marked P) divided by total time including queues (stages marked Q) and blocked days. 100% means an item moved continuously with no waiting — in practice this often means dates were entered in a single click rather than reflecting real activity.</div>
+          <div class="info-row"><strong>Why filter out 100% (or near-100%)?</strong> Automation and manual date cleanup inflate the top bar and compress everything else. Hide those items to see where real work actually spends time waiting.</div>
+          <div class="info-row"><strong>What good looks like:</strong> Most flow metrics teams aim for 20–40% flow efficiency — the majority of cycle time is wait time, not active work. Higher is better, but a realistic average is more useful than one inflated by data quality issues.</div>
+          <div class="info-row"><strong>Stage types matter:</strong> Mark each stage P (process) or Q (queue) in the workflow configuration above. Queue stages and blocked days count as wait time.</div>
+        </div>
+        <div style="margin:1rem 0 0.75rem; display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
+          <label style="font-size:0.83rem;color:#374151;font-weight:600;">Hide items &ge;</label>
+          <input type="number" id="fe-threshold" value="100" min="0" max="100" step="0.1"
+                 style="width:80px;padding:0.3rem 0.55rem;border:1px solid #d1d5db;border-radius:6px;font-size:0.83rem;color:#1e293b;"
+                 onkeydown="if(event.key==='Enter')renderFlowEff(lastRenderPayload&&lastRenderPayload.completed||[])">
+          <span style="font-size:0.83rem;color:#374151;">%</span>
+          <label style="display:flex;align-items:center;gap:0.3rem;font-size:0.83rem;color:#374151;cursor:pointer;margin-left:0.5rem;">
+            <input type="checkbox" id="fe-hide-zero" onchange="renderFlowEff(lastRenderPayload&&lastRenderPayload.completed||[])"> Hide FE = 0%
+          </label>
+          <label style="display:flex;align-items:center;gap:0.3rem;font-size:0.83rem;color:#374151;cursor:pointer;">
+            <input type="checkbox" id="fe-hide-ct1" onchange="renderFlowEff(lastRenderPayload&&lastRenderPayload.completed||[])"> Hide CT &le; 1d
+          </label>
+          <button onclick="renderFlowEff(lastRenderPayload&&lastRenderPayload.completed||[])"
+                  style="padding:0.3rem 0.8rem;background:#0ea5e9;color:white;border:none;border-radius:6px;font-size:0.82rem;cursor:pointer;font-weight:600;">Apply</button>
+          <button onclick="document.getElementById('fe-threshold').value=100;document.getElementById('fe-hide-zero').checked=false;document.getElementById('fe-hide-ct1').checked=false;renderFlowEff(lastRenderPayload&&lastRenderPayload.completed||[])"
+                  style="padding:0.3rem 0.75rem;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem;cursor:pointer;">Show all</button>
+          <span id="fe-filter-info" style="font-size:0.8rem;color:#94a3b8;"></span>
+        </div>
+        <div class="chart-wrap"><canvas id="chart-floweff"></canvas></div>
+      </div>
+    </div>
+
     <div id="tab-aging" class="tab-pane">
       <div class="chart-card">
         <h2>Aging WIP <button class="info-btn" data-info="info-aging" onclick="toggleInfo('info-aging')" title="How to read this">ℹ</button></h2>
@@ -585,10 +648,11 @@
             <br>🟠 <strong>Orange</strong> — between 70th and 85th. At risk. Consider a conversation.
             <br>🔴 <strong>Red</strong> — above 85th percentile. 85% of completed items finished faster than this. Needs attention now.
           </div>
-          <div class="info-row"><strong>Click any dot</strong> to open the ticket directly (if a Link column is mapped).</div>
+          <div class="info-row"><strong>Click any dot</strong> to see the ticket details below the chart. Click "Open ticket →" to open it in a new tab.</div>
           <div class="info-row"><strong>What to look for:</strong> Red dots in early stages (To Do, Doing) are most concerning — they have a long way to go. Red dots in Done but not yet closed = process issue, not delivery issue.</div>
         </div>
         <div class="chart-wrap"><canvas id="chart-aging"></canvas></div>
+        <div class="chart-click-info" id="aging-click-info"></div>
         <div id="aging-legend" style="margin-top:1rem;padding-top:1rem;border-top:1px solid #f1f5f9;font-size:0.76rem;color:#94a3b8;line-height:2"></div>
       </div>
     </div>
@@ -784,10 +848,10 @@ function setupConfig() {
   if (detectedLink)    document.getElementById('col-link').value    = detectedLink;
   if (detectedBlocked) document.getElementById('col-blocked').value = detectedBlocked;
 
-  autoDetect();
   workflowStages = detectWorkflowCols();
   workflowStages.forEach(col => { if (!(col in stageTypes)) stageTypes[col] = autoDetectStageType(col); });
   buildWorkflowUI();
+  autoDetect();
 
   ['col-start','col-end','col-id','col-title','col-link','col-blocked','filter-range'].forEach(id => {
     document.getElementById(id).addEventListener('change', renderAll);
@@ -1011,7 +1075,23 @@ function processData(cfg) {
       const ct = daysBetween(startDate, endDate);
       if (ct < 0) return;
       if (cutoff && endDate < cutoff) return;
-      completed.push({ id, title, link, startDate, endDate, cycleTime: ct, blockedDays });
+      let flowEfficiency = null;
+      if (workflowStages.length >= 2) {
+        const stageDates = workflowStages.map(col => getCachedDate(row, col));
+        let processTime = 0, queueTime = 0;
+        stageDates.forEach((d, i) => {
+          if (!d) return;
+          let nextDate = null;
+          for (let j = i + 1; j < stageDates.length; j++) { if (stageDates[j]) { nextDate = stageDates[j]; break; } }
+          if (!nextDate) return;
+          const dur = daysBetween(d, nextDate);
+          if (dur <= 0) return;
+          if (stageTypes[workflowStages[i]] === 'process') processTime += dur; else queueTime += dur;
+        });
+        const total = processTime + queueTime + blockedDays;
+        if (total > 0) flowEfficiency = processTime / total * 100;
+      }
+      completed.push({ id, title, link, startDate, endDate, cycleTime: ct, blockedDays, flowEfficiency });
     } else if (startDate && !endDate) {
       const age = daysBetween(startDate, new Date());
       if (age >= 0) {
@@ -1104,9 +1184,23 @@ function renderActiveTab() {
     case 'wiptime':    renderWIPOverTime(); break;
     case 'cfd':        renderCFD(); break;
     case 'histogram':  renderHistogram(completed, p50, p70, p85, p95); break;
+    case 'floweff':    renderFlowEff(completed); break;
     case 'aging':      renderAging(wip, p50, p70, p85, p95); break;
     case 'data':       renderData(); break;
   }
+}
+
+// ── Chart click-info panel ─────────────────────────────────────────────────
+function showClickInfo(panelId, items) {
+  const panel = document.getElementById(panelId);
+  if (!items.length) { panel.style.display = 'none'; return; }
+  panel.innerHTML = items.map(({ text, link }) => `
+    <div class="cci-row">
+      <span class="cci-text">${text}</span>
+      ${link ? `<a class="cci-open" href="${link}" target="_blank" rel="noopener">Open ticket →</a>` : ''}
+    </div>`).join('') +
+    `<div class="cci-dismiss"><button class="cci-close" onclick="document.getElementById('${panelId}').style.display='none'">×</button></div>`;
+  panel.style.display = 'flex';
 }
 
 // ── Scatter ────────────────────────────────────────────────────────────────
@@ -1139,12 +1233,12 @@ function renderScatter(data, p50, p70, p85, p95) {
         {
           type: 'scatter', label: 'Completed',
           data: ptData(notBlocked),
-          backgroundColor: 'rgba(56,189,248,0.55)', pointRadius: 5, pointHoverRadius: 7, order: 10,
+          backgroundColor: 'rgba(56,189,248,0.55)', pointRadius: 5, pointHoverRadius: 8, pointHitRadius: 12, order: 10,
         },
         ...(hasBlocked ? [{
           type: 'scatter', label: 'Blocked at some point',
           data: ptData(blocked),
-          backgroundColor: 'rgba(234,179,8,0.75)', pointRadius: 5, pointHoverRadius: 7, order: 9,
+          backgroundColor: 'rgba(234,179,8,0.75)', pointRadius: 5, pointHoverRadius: 8, pointHitRadius: 12, order: 9,
         }] : []),
         ...pctLines.map((pl, i) => ({
           type: 'line', label: pl.label,
@@ -1157,13 +1251,19 @@ function renderScatter(data, p50, p70, p85, p95) {
     options: {
       responsive: true, maintainAspectRatio: false,
       onClick(event, elements) {
-        if (!elements.length) return;
-        const d = charts.scatter.data.datasets[elements[0].datasetIndex].data[elements[0].index];
-        if (d._link) window.open(d._link, '_blank', 'noopener');
+        const items = elements.map(el => {
+          const d = charts.scatter.data.datasets[el.datasetIndex].data[el.index];
+          const parts = [];
+          if (d._id)      parts.push(d._id);
+          if (d._title)   parts.push(d._title.slice(0, 55) + (d._title.length > 55 ? '…' : ''));
+          parts.push(`${d.y.toFixed(1)} days`);
+          if (d._blocked) parts.push(`⚠ blocked ${d._blocked}d`);
+          return { text: parts.join('  ·  '), link: d._link };
+        });
+        showClickInfo('scatter-click-info', items);
       },
       onHover(event, elements) {
-        const d = elements.length && charts.scatter.data.datasets[elements[0].datasetIndex].data[elements[0].index];
-        event.native.target.style.cursor = (d && d._link) ? 'pointer' : 'default';
+        event.native.target.style.cursor = elements.length ? 'pointer' : 'default';
       },
       plugins: {
         legend: { display: hasBlocked, labels: { color: '#475569', font: { size: 11 }, boxWidth: 10, filter: i => i.datasetIndex < (hasBlocked ? 2 : 1) } },
@@ -1175,7 +1275,7 @@ function renderScatter(data, p50, p70, p85, p95) {
             if (d._title)   parts.push(d._title.slice(0, 45) + (d._title.length > 45 ? '…' : ''));
             parts.push(`${d.y.toFixed(1)} days`);
             if (d._blocked) parts.push(`⚠ blocked ${d._blocked}d`);
-            if (d._link)    parts.push('↗ click to open');
+            if (d._link)    parts.push('↗ click for details');
             return parts.join('  ·  ');
           }
           return `${ctx.dataset.label}: ${ctx.raw.y.toFixed(1)}d`;
@@ -1286,8 +1386,9 @@ function renderWIPOverTime() {
 }
 
 // ── CFD ────────────────────────────────────────────────────────────────────
-let cfdDataCache = null;
-let cfdMarkers   = [null, null]; // each is a weekIndex into cfdDataCache.weeks
+let cfdDataCache   = null;
+let cfdMarkers     = [null, null]; // each is a weekIndex into cfdDataCache.weeks
+let cfdExportRange = null; // [date0, date1] for current two-marker range
 
 const CFD_COLORS = [
   'rgba(14,165,233,0.92)',  'rgba(34,197,94,0.92)',   'rgba(249,115,22,0.92)',
@@ -1324,13 +1425,15 @@ function buildCFDData() {
   const weekMs = weeks.map(w => w.getTime());
 
   // For each visible stage: pre-build a sorted array of the earliest date each item
-  // reached that stage OR any later stage. Binary search replaces O(rows) filter per week.
+  // reached that stage OR any later VISIBLE stage. Binary search replaces O(rows) filter per week.
+  // Limiting to visible stages ensures hidden terminal stages (e.g. "Not done") are excluded.
+  const lastVisibleIdx = Math.max(...visibleStages.map(col => workflowStages.indexOf(col)));
   const reachSorted = visibleStages.map(col => {
     const stageIdx = workflowStages.indexOf(col);
     const result = [];
     for (const dates of allStagesParsed) {
       let earliest = null;
-      for (let j = stageIdx; j < workflowStages.length; j++) {
+      for (let j = stageIdx; j <= lastVisibleIdx; j++) {
         if (dates[j] && (!earliest || dates[j] < earliest)) earliest = dates[j];
       }
       if (earliest) result.push(earliest.getTime());
@@ -1515,6 +1618,7 @@ function handleCFDClick(event, _els, chart) {
 
 function clearCFDMarkers() {
   cfdMarkers = [null, null];
+  cfdExportRange = null;
   if (charts.cfd) charts.cfd.update('none');
   document.getElementById('cfd-analysis').style.display = 'none';
 }
@@ -1602,13 +1706,46 @@ function updateCFDAnalysis() {
       rh += `<tr><td><span class="cfd-dot" style="background:${col}"></span>${stage}</td>`;
       rh += `<td>${w0}</td><td>${w1}</td><td style="color:${diffCol};font-weight:600">${diffStr}</td></tr>`;
     });
-    rh += `</tbody></table></div>`;
+    rh += `</tbody></table>`;
+    rh += `<button class="cfd-export-btn" onclick="exportCFDRangeItems()">Export ${completed} items as CSV</button>`;
+    rh += `</div>`;
 
+    cfdExportRange = [date0, date1];
     panels.className = 'cfd-panels two-up';
     panels.innerHTML = sliceTable(wi0, '#ef4444') + sliceTable(wi1, '#3b82f6') + rh;
     // Range card spans both columns
     panels.lastElementChild.style.gridColumn = '1 / -1';
   }
+}
+
+function exportCFDRangeItems() {
+  if (!cfdExportRange || !cfdDataCache) return;
+  const [date0, date1] = cfdExportRange;
+  const cfg = getConfig();
+  const { visibleStages } = cfdDataCache;
+  const lastVisibleStage = visibleStages[visibleStages.length - 1];
+  const lastStageIdx = workflowStages.indexOf(lastVisibleStage);
+
+  const rows = allRows.filter(row => rowMatchesFilters(row, cfg));
+  const exportRows = rows.filter(row => {
+    let earliest = null;
+    for (let j = lastStageIdx; j < workflowStages.length; j++) {
+      const d = getCachedDate(row, workflowStages[j]);
+      if (d && (!earliest || d < earliest)) earliest = d;
+    }
+    return earliest && earliest > date0 && earliest <= date1;
+  });
+
+  if (!exportRows.length) { alert('No items found in this range.'); return; }
+
+  const esc = v => { const s = String(v ?? ''); return (s.includes(',') || s.includes('"') || s.includes('\n')) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const csv = [columns.map(esc).join(','), ...exportRows.map(r => columns.map(c => esc(r[c] ?? '')).join(','))].join('\r\n');
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(new Blob([csv], { type: 'text/csv' })),
+    download: `flow-lens-${fmtDate(date0).replace(/ /g,'-')}-to-${fmtDate(date1).replace(/ /g,'-')}.csv`
+  });
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 // ── Histogram ──────────────────────────────────────────────────────────────
@@ -1665,6 +1802,111 @@ function renderHistogram(data, p50, p70, p85, p95) {
   });
 }
 
+// ── Flow Efficiency Distribution ────────────────────────────────────────────
+function renderFlowEff(completed) {
+  if (charts.floweff) { charts.floweff.destroy(); charts.floweff = null; }
+
+  const wrap = document.querySelector('#tab-floweff .chart-wrap');
+  if (!document.getElementById('chart-floweff')) {
+    wrap.innerHTML = '<canvas id="chart-floweff"></canvas>';
+  }
+
+  if (!completed.length) return;
+
+  const withFE = completed.filter(d => d.flowEfficiency !== null && d.flowEfficiency !== undefined);
+  if (!withFE.length) {
+    wrap.innerHTML = '<div class="empty-state">Flow efficiency requires workflow stages to be configured.<br>Set up stage columns and mark each as Process (P) or Queue (Q).</div>';
+    return;
+  }
+
+  const rawThreshold = parseFloat(document.getElementById('fe-threshold').value);
+  const threshold = isNaN(rawThreshold) ? Infinity : rawThreshold;
+  const hideZero = document.getElementById('fe-hide-zero').checked;
+  const hideCT1  = document.getElementById('fe-hide-ct1').checked;
+  const visible = withFE.filter(d =>
+    d.flowEfficiency < threshold &&
+    !(hideZero && d.flowEfficiency === 0) &&
+    !(hideCT1  && d.cycleTime <= 1)
+  );
+  const hiddenCount = withFE.length - visible.length;
+
+  const info = document.getElementById('fe-filter-info');
+  if (info) {
+    const parts = [];
+    if (hiddenCount > 0) parts.push(`${hiddenCount} item${hiddenCount !== 1 ? 's' : ''} hidden`);
+    info.textContent = parts.join(' · ');
+  }
+
+  if (!visible.length) {
+    wrap.innerHTML = `<div class="empty-state">All ${withFE.length} items are hidden by the current filters.<br>Adjust the filters or click Show all.</div>`;
+    return;
+  }
+  if (!document.getElementById('chart-floweff')) {
+    wrap.innerHTML = '<canvas id="chart-floweff"></canvas>';
+  }
+
+  // 10-percentage-point bins: 0–10, 10–20, …, 90–100
+  const bins = Array(10).fill(0);
+  visible.forEach(d => {
+    const b = Math.min(9, Math.floor(d.flowEfficiency / 10));
+    bins[b]++;
+  });
+  const labels = bins.map((_, i) => `${i * 10}–${(i + 1) * 10}%`);
+  const colors = bins.map((_, i) => {
+    if (i <= 2) return 'rgba(239,68,68,0.75)';   // 0–30% red
+    if (i <= 4) return 'rgba(249,115,22,0.75)';  // 30–50% orange
+    if (i <= 6) return 'rgba(234,179,8,0.75)';   // 50–70% yellow
+    return 'rgba(34,197,94,0.75)';               // 70–100% green
+  });
+
+  const avg = visible.reduce((s, d) => s + d.flowEfficiency, 0) / visible.length;
+
+  const ctx = document.getElementById('chart-floweff').getContext('2d');
+  charts.floweff = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ label: 'Items', data: bins, backgroundColor: colors, borderWidth: 0 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: items => items[0].label,
+            label: items => ` ${items.raw} item${items.raw !== 1 ? 's' : ''}`,
+          }
+        },
+      },
+      scales: {
+        x: { title: { display: true, text: 'Flow efficiency', color: '#94a3b8', font: { size: 11 } },
+             grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+        y: { title: { display: true, text: 'Number of items', color: '#94a3b8', font: { size: 11 } },
+             grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 11 }, stepSize: 1 }, min: 0 }
+      }
+    },
+    plugins: [{
+      id: 'feAvgLine',
+      afterDraw(chart) {
+        const { ctx: c, chartArea: { top, bottom }, scales: { x } } = chart;
+        const avgBin = avg / 10;
+        const xPos = x.getPixelForValue(avgBin - 0.5);
+        c.save();
+        c.beginPath();
+        c.moveTo(xPos, top);
+        c.lineTo(xPos, bottom);
+        c.strokeStyle = '#38bdf8';
+        c.lineWidth = 2;
+        c.setLineDash([5, 4]);
+        c.stroke();
+        c.fillStyle = '#38bdf8';
+        c.font = '11px system-ui';
+        c.textAlign = 'left';
+        c.fillText(`avg ${avg.toFixed(1)}% (${visible.length} shown, ${hiddenCount} hidden)`, xPos + 5, top + 14);
+        c.restore();
+      }
+    }]
+  });
+}
+
 // ── Aging WIP ──────────────────────────────────────────────────────────────
 function renderAging(wip, p50, p70, p85, p95) {
   const canvas   = document.getElementById('chart-aging');
@@ -1715,7 +1957,7 @@ function renderAging(wip, p50, p70, p85, p95) {
         points.push({ x: si + jitter, y: item.age, _id: item.id, _title: item.title, _link: item.link });
       });
     });
-    return { label: zone.label, data: points, backgroundColor: zone.color, pointRadius: 7, pointHoverRadius: 9 };
+    return { label: zone.label, data: points, backgroundColor: zone.color, pointRadius: 7, pointHoverRadius: 9, pointHitRadius: 14 };
   });
 
   const xLabels = displayStages.map(s => `${s} (${stageCounts[s]})`);
@@ -1752,13 +1994,19 @@ function renderAging(wip, p50, p70, p85, p95) {
     options: {
       responsive: true, maintainAspectRatio: false,
       onClick(event, elements) {
-        if (!elements.length) return;
-        const d = charts.aging.data.datasets[elements[0].datasetIndex].data[elements[0].index];
-        if (d._link) window.open(d._link, '_blank', 'noopener');
+        const items = elements.map(el => {
+          const d = charts.aging.data.datasets[el.datasetIndex].data[el.index];
+          if (!d || d.y === undefined) return null;
+          const parts = [];
+          if (d._id)    parts.push(d._id);
+          if (d._title) parts.push(d._title.slice(0, 55) + (d._title.length > 55 ? '…' : ''));
+          parts.push(`${d.y.toFixed(0)} days old`);
+          return { text: parts.join('  ·  '), link: d._link };
+        }).filter(Boolean);
+        showClickInfo('aging-click-info', items);
       },
       onHover(event, elements) {
-        const d = elements.length && charts.aging.data.datasets[elements[0].datasetIndex].data[elements[0].index];
-        event.native.target.style.cursor = (d && d._link) ? 'pointer' : 'default';
+        event.native.target.style.cursor = elements.length ? 'pointer' : 'default';
       },
       plugins: {
         legend: { position: 'bottom', labels: { color: '#475569', font: { size: 11 }, boxWidth: 14, padding: 14 } },
@@ -1768,7 +2016,7 @@ function renderAging(wip, p50, p70, p85, p95) {
           if (d._id)    parts.push(d._id);
           if (d._title) parts.push(d._title.slice(0, 40) + (d._title.length > 40 ? '…' : ''));
           parts.push(`${d.y.toFixed(0)} days`);
-          if (d._link)  parts.push('↗ click to open');
+          if (d._link)  parts.push('↗ click for details');
           return parts.join('  ·  ');
         }}}
       },
@@ -2132,33 +2380,23 @@ async function saveConfig() {
   }
 }
 
-async function loadConfig() {
-  if ('showOpenFilePicker' in window) {
-    try {
-      const [handle] = await window.showOpenFilePicker({
-        types: [{ description: 'Flow Lens config', accept: { 'application/json': ['.json'] } }],
-      });
-      const file = await handle.getFile();
-      applyConfig(JSON.parse(await file.text()));
-    } catch (e) {
-      if (e.name !== 'AbortError') showError('Load failed: ' + e.message);
-    }
-  } else {
-    // Safari / Firefox fallback — file input
-    const input = document.createElement('input');
-    input.type = 'file'; input.accept = '.json';
-    input.onchange = () => {
-      const file = input.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = e => {
-        try { applyConfig(JSON.parse(e.target.result)); }
-        catch { showError('Could not read config file — must be a Flow Lens config.'); }
-      };
-      reader.readAsText(file);
+function loadConfig() {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = '.json';
+  input.style.display = 'none';
+  document.body.appendChild(input);
+  input.addEventListener('change', () => {
+    document.body.removeChild(input);
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      try { applyConfig(JSON.parse(e.target.result)); }
+      catch { showError('Could not read config file — must be a Flow Lens config.'); }
     };
-    input.click();
-  }
+    reader.readAsText(file);
+  });
+  input.click();
 }
 
 function applyConfig(cfg) {

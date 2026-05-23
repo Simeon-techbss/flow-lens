@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flow Lens · Data Guide</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #f8fafc; color: #1e293b; line-height: 1.6; }
+
+    header {
+      background: #0f172a; color: white; padding: 1.25rem 2rem;
+      display: flex; align-items: center; gap: 1.5rem;
+    }
+    header h1 { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.02em; }
+    header span { font-size: 0.85rem; color: #94a3b8; }
+    header a { margin-left: auto; font-size: 0.8rem; color: #38bdf8; text-decoration: none; border: 1px solid #334155; border-radius: 4px; padding: 0.3rem 0.75rem; }
+    header a:hover { background: #1e293b; }
+
+    main { max-width: 820px; margin: 0 auto; padding: 2.5rem 1.5rem; }
+
+    h2 { font-size: 1.1rem; font-weight: 700; color: #0f172a; margin-bottom: 0.75rem; }
+    h3 { font-size: 0.9rem; font-weight: 600; color: #0f172a; margin: 1.25rem 0 0.4rem; }
+    p  { font-size: 0.88rem; color: #475569; margin-bottom: 0.6rem; }
+
+    .card {
+      background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+      padding: 1.5rem; margin-bottom: 1.5rem;
+    }
+
+    .badge {
+      display: inline-block; font-size: 0.68rem; font-weight: 700; border-radius: 4px;
+      padding: 0.15rem 0.45rem; margin-right: 0.35rem; vertical-align: middle;
+      text-transform: uppercase; letter-spacing: 0.03em;
+    }
+    .badge-req  { background: #fee2e2; color: #b91c1c; }
+    .badge-opt  { background: #f1f5f9; color: #64748b; }
+    .badge-stage { background: #bae6fd; color: #0369a1; }
+
+    code {
+      display: inline-block; background: white; border: 1px solid #e2e8f0;
+      border-radius: 4px; padding: 0.1rem 0.45rem;
+      font-family: monospace; font-size: 0.8rem; color: #0f172a;
+    }
+
+    .example-wrap { overflow-x: auto; margin: 1rem 0; }
+    table.example {
+      border-collapse: collapse; font-size: 0.78rem; white-space: nowrap; width: 100%;
+    }
+    table.example th {
+      background: #0f172a; color: #e2e8f0; font-weight: 600;
+      padding: 0.45rem 0.75rem; text-align: left;
+    }
+    table.example td {
+      padding: 0.35rem 0.75rem; border-bottom: 1px solid #f1f5f9; color: #475569;
+    }
+    table.example tr:last-child td { border-bottom: none; }
+    table.example td.empty { color: #cbd5e1; font-style: italic; }
+    table.example th.stage { background: #0369a1; }
+    table.example th.opt   { background: #334155; }
+
+    .steps { list-style: none; counter-reset: steps; }
+    .steps li {
+      counter-increment: steps; display: flex; gap: 1rem;
+      padding: 0.6rem 0; border-bottom: 1px solid #f1f5f9; font-size: 0.88rem; color: #475569;
+    }
+    .steps li:last-child { border-bottom: none; }
+    .steps li::before {
+      content: counter(steps); min-width: 1.5rem; height: 1.5rem;
+      background: #0f172a; color: white; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.72rem; font-weight: 700; flex-shrink: 0; margin-top: 0.1rem;
+    }
+
+    .callout {
+      background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px;
+      padding: 0.75rem 1rem; font-size: 0.83rem; color: #0369a1; margin: 0.75rem 0;
+    }
+    .callout.warn {
+      background: #fffbeb; border-color: #fcd34d; color: #92400e;
+    }
+
+    .col-list { display: flex; flex-direction: column; gap: 0.5rem; margin: 0.75rem 0; }
+    .col-row  { display: flex; align-items: flex-start; gap: 0.6rem; font-size: 0.85rem; }
+    .col-row p { margin: 0; }
+
+    footer { text-align: center; padding: 2rem; font-size: 0.78rem; color: #94a3b8; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Flow Lens</h1>
+    <span>Data guide</span>
+  </div>
+  <a href="flow-lens.html">Open tool →</a>
+</header>
+
+<main>
+
+  <div class="card">
+    <h2>What Flow Lens needs</h2>
+    <p>A CSV file where <strong>each row is one work item</strong> and each workflow stage has its own column containing the date the item entered that stage. Column names don't matter — you map them inside the tool.</p>
+    <p>The data stays entirely in your browser. Nothing is uploaded anywhere.</p>
+  </div>
+
+  <div class="card">
+    <h2>CSV structure</h2>
+    <p>The simplest possible file that works:</p>
+    <div class="example-wrap">
+      <table class="example">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Title</th>
+            <th class="stage">To do</th>
+            <th class="stage">Doing</th>
+            <th class="stage">Done</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>TKT-001</td><td>Fix login bug</td>
+            <td>2026-01-10</td><td>2026-01-13</td><td>2026-01-15</td>
+          </tr>
+          <tr>
+            <td>TKT-002</td><td>Add export button</td>
+            <td>2026-01-11</td><td>2026-01-14</td><td class="empty">—</td>
+          </tr>
+          <tr>
+            <td>TKT-003</td><td>Update docs</td>
+            <td>2026-01-12</td><td class="empty">—</td><td class="empty">—</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Empty cells mean the item hasn't reached that stage yet — that's expected and handled correctly.</p>
+
+    <h3>With more stages</h3>
+    <p>Add as many workflow stage columns as your process has. Items that skip stages just have an empty cell for that column.</p>
+    <div class="example-wrap">
+      <table class="example">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th class="opt">Title</th>
+            <th class="opt">Link</th>
+            <th class="opt">Blocked Days</th>
+            <th class="stage">To do</th>
+            <th class="stage">Doing</th>
+            <th class="stage">Ready for review</th>
+            <th class="stage">Review</th>
+            <th class="stage">Done</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>TKT-004</td><td>API changes</td><td>https://…</td><td>2</td>
+            <td>2026-02-01</td><td>2026-02-03</td><td>2026-02-07</td><td>2026-02-10</td><td>2026-02-12</td>
+          </tr>
+          <tr>
+            <td>TKT-005</td><td>Quick fix</td><td>https://…</td><td>0</td>
+            <td>2026-02-04</td><td>2026-02-04</td><td class="empty">—</td><td class="empty">—</td><td>2026-02-04</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>TKT-005 skipped review stages — that's fine, the tool handles it.</p>
+  </div>
+
+  <div class="card">
+    <h2>Column types</h2>
+    <div class="col-list">
+      <div class="col-row">
+        <span class="badge badge-req">Required</span>
+        <p><strong>Start stage</strong> — the first stage in your workflow (e.g. <code>To do</code>). Items without this date are ignored.</p>
+      </div>
+      <div class="col-row">
+        <span class="badge badge-req">Required</span>
+        <p><strong>End stage</strong> — the completion stage (e.g. <code>Done</code>). Items without this date are treated as work in progress.</p>
+      </div>
+      <div class="col-row">
+        <span class="badge badge-stage">Stage</span>
+        <p><strong>Workflow stage columns</strong> — one per stage, containing the date entered. You need at least two for the CFD. Add as many as your process has.</p>
+      </div>
+      <div class="col-row">
+        <span class="badge badge-opt">Optional</span>
+        <p><strong>ID</strong> — ticket reference. Shown in the data table and control chart tooltips.</p>
+      </div>
+      <div class="col-row">
+        <span class="badge badge-opt">Optional</span>
+        <p><strong>Title</strong> — item description. Shown in tooltips.</p>
+      </div>
+      <div class="col-row">
+        <span class="badge badge-opt">Optional</span>
+        <p><strong>Link</strong> — URL to the ticket in your system. Makes IDs clickable.</p>
+      </div>
+      <div class="col-row">
+        <span class="badge badge-opt">Optional</span>
+        <p><strong>Blocked Days</strong> — number of days the item was blocked. Used to calculate flow efficiency.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Date formats</h2>
+    <p>The tool detects dates automatically using strict matching. Supported formats:</p>
+    <div class="col-list" style="margin-top:0.5rem">
+      <div class="col-row"><code>2026-03-19</code><p style="margin-left:0.25rem">ISO 8601 — preferred</p></div>
+      <div class="col-row"><code>2026-03-19 14:34:53</code><p style="margin-left:0.25rem">ISO 8601 with time</p></div>
+      <div class="col-row"><code>19/03/2026</code><p style="margin-left:0.25rem">Day/Month/Year</p></div>
+      <div class="col-row"><code>03/19/2026</code><p style="margin-left:0.25rem">Month/Day/Year</p></div>
+    </div>
+    <div class="callout warn" style="margin-top:0.75rem">
+      All date columns must use the same format throughout the file.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Setting up the tool</h2>
+    <ol class="steps">
+      <li>Drop your CSV onto the tool. It will detect date columns automatically.</li>
+      <li>In the <strong>Config</strong> panel, map your columns: set Start, End, and optionally ID, Title, Link, Blocked Days.</li>
+      <li>Drag the workflow stage rows into the correct order — left to right, earliest to latest.</li>
+      <li>Hide any terminal stages you don't want counted as completions (e.g. a "Cancelled" or "Not done" column) using the <strong>×</strong> button next to each stage.</li>
+      <li>The charts update immediately. Use the date range filters to zoom in.</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h2>Tips and gotchas</h2>
+
+    <h3>Cancelled / rejected items</h3>
+    <p>If your data has a terminal stage for cancelled work (e.g. <code>Not done</code>, <code>Rejected</code>), hide it in the stage list. Items that only have a date in a hidden terminal stage are excluded from the CFD Done count. They will still appear as WIP in other charts until you filter them at source.</p>
+    <div class="callout">
+      Best practice: filter cancelled items out of the CSV before loading. Add a status column to your export and remove rows where status = Cancelled.
+    </div>
+
+    <h3>Items that skip stages</h3>
+    <p>Common and expected. Leave the cell empty — the tool handles this correctly in all charts including the CFD.</p>
+
+    <h3>Zero cycle time</h3>
+    <p>If many items show 0-day cycle time, your start and end date columns contain the same date in the source data. The histogram will show an empty state — this is correct, not a bug.</p>
+
+    <h3>Stage ordering matters for the CFD</h3>
+    <p>Drag stages into the correct process order in the Config panel. The CFD is built from that order — wrong order produces meaningless bands.</p>
+  </div>
+
+</main>
+
+<footer>Flow Lens · runs entirely in your browser · no data is uploaded</footer>
+
+</body>
+</html>

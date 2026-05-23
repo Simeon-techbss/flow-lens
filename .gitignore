@@ -1,0 +1,17 @@
+# Local data files
+*.csv
+*.xlsx
+
+# Screenshots and local images
+*.png
+*.jpg
+*.jpeg
+
+# Tool config (local preferences, not for sharing)
+flow-lens-config.json
+
+# macOS
+.DS_Store
+
+# Playwright MCP
+.playwright-mcp/
