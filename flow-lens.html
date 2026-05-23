@@ -605,7 +605,7 @@
           <div class="info-row"><strong>What this shows</strong> — key flow metrics for the selected period, compared to the same-length period before it. Each card shows the current value, the direction of change, and a traffic light signal.</div>
           <div class="info-row"><strong>Throughput</strong> — items completed per week. Higher is better. Declining throughput is the first sign of a flow problem.</div>
           <div class="info-row"><strong>Cycle time (p50)</strong> — median time from commitment to done. Lower is better. Rising cycle time usually follows rising WIP — Little's Law in action.</div>
-          <div class="info-row"><strong>System WIP</strong> — items committed but not yet done (from your Start column). Stable or declining is healthy. Growing WIP directly causes longer cycle times.</div>
+          <div class="info-row"><strong>System WIP (avg/wk)</strong> — average number of committed-but-not-done items per week across the period. This is a historical average, not today's live count — it will differ from the WIP number in the summary bar, which shows current items only.</div>
           <div class="info-row"><strong>Backlog size</strong> — items in pre-commitment stages (before your Start column). Only available if you have stages configured before your Start column. Growing backlog means demand is exceeding commitment rate.</div>
           <div class="info-row"><strong>FFE time (p50)</strong> — median time items spend in the backlog before commitment. Only available with pre-commitment stages. Rising FFE means decisions are taking longer — a prioritisation or capacity issue upstream of your flow.</div>
           <div class="info-row"><strong>Flow efficiency</strong> — percentage of cycle time spent in active work vs queues. Requires stages to be marked P (process) or Q (queue) in Config.</div>
@@ -620,6 +620,9 @@
             <option value="26">Last 26 weeks</option>
           </select>
           <span id="th-period-label" style="font-size:0.78rem;color:#94a3b8;"></span>
+        </div>
+        <div style="font-size:0.78rem;color:#94a3b8;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:0.5rem 0.85rem;margin-bottom:1.25rem;line-height:1.5;">
+          All metrics below cover the selected period only. The summary bar at the top uses your full date-filter range — numbers will differ.
         </div>
         <div id="th-cards" class="th-grid"></div>
         <div id="th-narrative" style="margin-top:1.25rem;padding:0.9rem 1.1rem;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;color:#475569;line-height:1.6;"></div>
@@ -2020,7 +2023,7 @@ function renderTeamHealth() {
   document.getElementById('th-cards').innerHTML = [
     card('Throughput',        curTP,       prevTP,       '/wk', true,  v => v.toFixed(1)),
     card('Cycle Time (p50)',  curCT,       prevCT,       'd',   false, v => Math.round(v)),
-    card('System WIP (avg)', curWIP,      prevWIP,      '',    false, v => Math.round(v)),
+    card('System WIP (avg/wk)', curWIP,   prevWIP,      '',    false, v => Math.round(v)),
     card('Backlog Size (avg)',curBacklog,  prevBacklog,  '',    false, v => Math.round(v)),
     card('FFE Time (p50)',   curFFE,      prevFFE,      'd',   false, v => Math.round(v)),
     card('Flow Efficiency',  curFE,       prevFE,       '%',   true,  v => v.toFixed(0)),
