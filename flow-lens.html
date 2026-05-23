@@ -1304,7 +1304,7 @@ function _doRenderAll() {
   const blockedEl = document.getElementById('stat-blocked');
   const blockedLbl = document.getElementById('stat-blocked-label');
   if (cfg.blockedFlagCol && cfg.blockedDaysCol) {
-    blockedEl.innerHTML = `<span>${currentlyBlockedCount} items</span><span style="font-size:0.75em;opacity:0.75"> · ${totalBlockedDays}d</span>`;
+    blockedEl.innerHTML = `<span style="display:block;line-height:1.1">${currentlyBlockedCount}</span><span style="display:block;font-size:0.62em;opacity:0.7;line-height:1.4">${totalBlockedDays}d total</span>`;
     blockedLbl.textContent = 'Blocked now · total days';
   } else if (cfg.blockedFlagCol) {
     blockedEl.textContent = currentlyBlockedCount;
