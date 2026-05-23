@@ -1048,7 +1048,7 @@ function loadExampleData() {
     const skipReview = Math.random() < 0.4;
     const reviewDate = skipReview ? null : addDays(doingDate, logn(0.8, 0.4, 1));
     const hasBlock  = Math.random() < 0.13;
-    const blockDays = hasBlock ? logn(2.2, 0.6, 1) : 0;
+    const blockDays = hasBlock ? Math.min(logn(2.2, 0.6, 1), Math.max(1, ct - 1)) : 0;
     const src = pick(sourceWeights);
     rows.push({
       ID: makeId(), Title: pick(titleMap[src]),
@@ -1068,7 +1068,7 @@ function loadExampleData() {
     const inReview  = readyAgo > 5 && Math.random() < 0.3;
     const reviewDate = inReview ? addDays(doingDate, logn(0.8, 0.4, 1)) : null;
     const hasBlock  = Math.random() < 0.28;
-    const blockDays = hasBlock ? logn(1.8, 0.5, 1) : 0;
+    const blockDays = hasBlock ? Math.min(logn(1.8, 0.5, 1), Math.max(1, readyAgo - 1)) : 0;
     const isNowBlocked = hasBlock && Math.random() < 0.55;
     const src = pick(sourceWeights);
     rows.push({
