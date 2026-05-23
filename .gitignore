@@ -10,6 +10,9 @@
 # Tool config (local preferences, not for sharing)
 flow-lens-config.json
 
+# AI assistant context (not for public consumption)
+CLAUDE.md
+
 # macOS
 .DS_Store
 
