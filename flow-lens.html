@@ -440,6 +440,81 @@ License: MIT
       .config-grid, .config-grid-2 { grid-template-columns: 1fr 1fr; }
       .chart-wrap { height: 300px; }
     }
+
+    /* ── Monte Carlo Forecast tab ─────────────────────────────────────────── */
+    .forecast-modes { display:flex; gap:0.5rem; margin-bottom:1.5rem; }
+    .fm-btn { padding:0.45rem 1.1rem; border:1.5px solid #e2e8f0; border-radius:6px; background:white; color:#475569; font-size:0.85rem; font-weight:500; cursor:pointer; transition:all 0.15s; }
+    .fm-btn:hover { border-color:#94a3b8; }
+    .fm-btn.active { background:#0f172a; color:white; border-color:#0f172a; }
+    .mc-controls { display:flex; gap:1rem; align-items:flex-end; flex-wrap:wrap; margin-bottom:1.5rem; padding:1rem 1.25rem; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; }
+    .mc-control-group { display:flex; flex-direction:column; gap:0.3rem; }
+    .mc-control-group label { font-size:0.78rem; color:#64748b; font-weight:500; }
+    .mc-control-group input, .mc-control-group select { border:1px solid #e2e8f0; border-radius:5px; padding:0.38rem 0.6rem; font-size:0.88rem; color:#1e293b; background:white; outline:none; }
+    .mc-control-group input:focus, .mc-control-group select:focus { border-color:#0ea5e9; }
+    .mc-run-btn { padding:0.42rem 1.2rem; background:#0f172a; color:white; border:none; border-radius:6px; font-size:0.85rem; font-weight:600; cursor:pointer; }
+    .mc-run-btn:hover { background:#1e293b; }
+    .mc-headlines { display:grid; grid-template-columns:repeat(4,1fr); gap:0.85rem; margin-bottom:1.25rem; }
+    .mc-stat { border-radius:10px; padding:1rem 1.1rem; }
+    .mc-stat-pct { font-size:0.75rem; font-weight:600; margin-bottom:0.35rem; }
+    .mc-stat-val { font-size:1.55rem; font-weight:700; line-height:1.1; }
+    .mc-stat-label { font-size:0.7rem; margin-top:0.25rem; opacity:0.75; }
+    .mc-s95 { background:#f0fdf4; color:#15803d; }
+    .mc-s85 { background:#ecfdf5; color:#047857; }
+    .mc-s70 { background:#fefce8; color:#854d0e; }
+    .mc-s50 { background:#fff7ed; color:#c2410c; }
+    .mc-spread-bar { margin:0 0 1.5rem; }
+    .mc-spread-track { position:relative; height:14px; background:#f1f5f9; border-radius:7px; overflow:visible; margin:0.5rem 0 1.8rem; }
+    .mc-spread-segment { position:absolute; top:0; height:100%; border-radius:0; }
+    .mc-spread-segment:first-child { border-radius:7px 0 0 7px; }
+    .mc-spread-segment:last-child { border-radius:0 7px 7px 0; }
+    .mc-spread-marker { position:absolute; top:16px; font-size:0.7rem; font-weight:600; transform:translateX(-50%); white-space:nowrap; }
+    .mc-spread-label { font-size:0.72rem; color:#64748b; margin-bottom:0.25rem; }
+    .mc-item-list { border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; font-size:0.8rem; }
+    .mc-item-row { display:grid; grid-template-columns:2.2rem 1fr repeat(4,7rem); gap:0; align-items:center; border-bottom:1px solid #f1f5f9; }
+    .mc-item-row:last-child { border-bottom:none; }
+    .mc-item-row > * { padding:0.48rem 0.6rem; }
+    .mc-item-row.mc-list-header { background:#f8fafc; font-weight:600; font-size:0.72rem; color:#64748b; border-bottom:1px solid #e2e8f0; }
+    .mc-item-pos { color:#94a3b8; font-size:0.72rem; text-align:right; }
+    .mc-item-name { color:#1e293b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .mc-date-cell { text-align:center; font-size:0.74rem; }
+    .mc-d50 { background:#fff7ed; color:#c2410c; }
+    .mc-d70 { background:#fefce8; color:#854d0e; }
+    .mc-d85 { background:#f0fdf4; color:#15803d; }
+    .mc-d95 { background:#f0f9ff; color:#0369a1; }
+    .mc-item-row.mc-wip-row { border-left:3px solid #38bdf8; }
+    .mc-item-row.mc-backlog-row { border-left:3px solid #cbd5e1; }
+    .mc-section-divider { padding:0.35rem 0.75rem; background:#f1f5f9; font-size:0.7rem; font-weight:600; color:#64748b; letter-spacing:0.05em; text-transform:uppercase; border-bottom:1px solid #e2e8f0; }
+    .mc-caveat { margin-top:1.5rem; padding:0.75rem 1rem; background:#fefce8; border:1px solid #fde68a; border-radius:7px; font-size:0.78rem; color:#78350f; line-height:1.55; }
+    .mc-zone-header { padding:0.38rem 0.75rem; font-size:0.72rem; font-weight:600; display:flex; align-items:center; gap:0.4rem; border-top:1px solid; border-bottom:1px solid; }
+    .mc-zh-95 { background:#f0fdf4; color:#15803d; border-color:#bbf7d0; }
+    .mc-zh-85 { background:#ecfdf5; color:#047857; border-color:#a7f3d0; }
+    .mc-zh-70 { background:#fefce8; color:#854d0e; border-color:#fde68a; }
+    .mc-zh-50 { background:#fff7ed; color:#c2410c; border-color:#fed7aa; }
+    .mc-zh-out { background:#fef2f2; color:#991b1b; border-color:#fecaca; }
+    .mc-row-95 { background:#f9fffe; }
+    .mc-row-70 { background:#fffef6; }
+    .mc-row-50 { background:#fffcf8; }
+    .mc-row-out { background:#fff8f8; color:#94a3b8; }
+    .mc-cutlist .mc-item-row { grid-template-columns:2.2rem 1fr 5.5rem; }
+    .mc-save-bar { display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap; margin-top:1.25rem; padding:0.75rem 1rem; background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; font-size:0.82rem; color:#0369a1; }
+    .mc-save-bar input[type="text"] { border:1px solid #bae6fd; border-radius:5px; padding:0.32rem 0.6rem; font-size:0.82rem; color:#1e293b; flex:1; min-width:10rem; max-width:22rem; background:white; outline:none; }
+    .mc-save-bar input[type="text"]:focus { border-color:#0ea5e9; }
+    .mc-save-btn { padding:0.35rem 0.85rem; background:#0ea5e9; color:white; border:none; border-radius:5px; font-size:0.8rem; font-weight:600; cursor:pointer; white-space:nowrap; }
+    .mc-save-btn:hover { background:#0284c7; }
+    .mc-compare-section { margin-bottom:2rem; }
+    .mc-compare-section h3 { font-size:0.85rem; font-weight:600; color:#374151; margin:0 0 0.75rem; display:flex; align-items:center; gap:0.5rem; }
+    .mc-compare-table { width:100%; border-collapse:collapse; font-size:0.8rem; }
+    .mc-compare-table th { background:#f8fafc; padding:0.42rem 0.65rem; text-align:left; font-weight:600; font-size:0.71rem; color:#64748b; border-bottom:2px solid #e2e8f0; white-space:nowrap; }
+    .mc-compare-table td { padding:0.42rem 0.65rem; border-bottom:1px solid #f1f5f9; vertical-align:middle; white-space:nowrap; }
+    .mc-compare-table tr.mc-cur-row td { background:#f0f9ff; }
+    .mc-compare-table tr:last-child td { border-bottom:none; }
+    .mc-delta-good { color:#15803d; font-weight:600; }
+    .mc-delta-bad  { color:#dc2626; font-weight:600; }
+    .mc-delta-flat { color:#94a3b8; }
+    .mc-snap-del { background:none; border:none; color:#cbd5e1; cursor:pointer; font-size:0.8rem; padding:0.1rem 0.35rem; border-radius:3px; line-height:1; }
+    .mc-snap-del:hover { background:#fef2f2; color:#dc2626; }
+    .mc-no-snaps { padding:2.5rem 1rem; text-align:center; color:#94a3b8; font-size:0.85rem; border:1.5px dashed #e2e8f0; border-radius:8px; line-height:1.7; }
+    @media(max-width:700px) { .mc-headlines { grid-template-columns:repeat(2,1fr); } .mc-item-row { grid-template-columns:2rem 1fr repeat(2,6rem); } }
   </style>
 </head>
 <body>
@@ -580,6 +655,7 @@ License: MIT
         <button class="tab-btn" data-tab="throughput">Throughput</button>
         <button class="tab-btn" data-tab="wiptime">WIP Over Time</button>
         <button class="tab-btn" data-tab="health">Team Health</button>
+        <button class="tab-btn" data-tab="forecast">Forecast</button>
       </div>
       <div class="tab-row-label">Detail</div>
       <div class="tab-row">
@@ -958,6 +1034,80 @@ License: MIT
         <textarea id="ai-prompt-output" readonly style="display:none;width:100%;min-height:420px;font-family:monospace;font-size:0.78rem;line-height:1.6;padding:1rem;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#1e293b;resize:vertical;white-space:pre"></textarea>
       </div>
     </div>
+
+    <div id="tab-forecast" class="tab-pane">
+      <div class="chart-card">
+        <h2>Monte Carlo Forecast</h2>
+        <div class="subtitle">Probability-based delivery ranges from your historical throughput. Not a commitment — a planning tool.</div>
+
+        <div class="forecast-modes">
+          <button class="fm-btn active" id="fm-btn-howmany" onclick="switchForecastMode('howmany')">How many by date?</button>
+          <button class="fm-btn" id="fm-btn-when" onclick="switchForecastMode('when')">When will we finish?</button>
+          <button class="fm-btn" id="fm-btn-compare" onclick="switchForecastMode('compare')">Compare to previous</button>
+        </div>
+
+        <!-- Mode 1: How many by date? -->
+        <div id="fm-howmany" class="fm-panel">
+          <div class="mc-controls">
+            <div class="mc-control-group">
+              <label>Target date</label>
+              <input type="date" id="mc-target-date">
+            </div>
+            <div class="mc-control-group">
+              <label>Throughput window</label>
+              <select id="mc-howmany-window">
+                <option value="8">Last 8 weeks</option>
+                <option value="12" selected>Last 12 weeks</option>
+                <option value="26">Last 26 weeks</option>
+                <option value="52">Last 52 weeks</option>
+                <option value="">All time</option>
+              </select>
+            </div>
+            <button class="mc-run-btn" onclick="runHowManySimulation()">Run simulation</button>
+          </div>
+          <div id="mc-howmany-results"></div>
+          <div id="mc-howmany-save" class="mc-save-bar" style="display:none"></div>
+        </div>
+
+        <!-- Mode 2: When will we finish? -->
+        <div id="fm-when" class="fm-panel" style="display:none">
+          <div class="mc-controls">
+            <div class="mc-control-group">
+              <label>Items to finish</label>
+              <input type="number" id="mc-item-count" min="1" max="500" value="20" style="width:5.5rem">
+            </div>
+            <div class="mc-control-group">
+              <label>Throughput window</label>
+              <select id="mc-when-window">
+                <option value="8">Last 8 weeks</option>
+                <option value="12" selected>Last 12 weeks</option>
+                <option value="26">Last 26 weeks</option>
+                <option value="52">Last 52 weeks</option>
+                <option value="">All time</option>
+              </select>
+            </div>
+            <button class="mc-run-btn" onclick="runWhenSimulation()">Run simulation</button>
+          </div>
+          <div id="mc-when-note" style="font-size:0.8rem;color:#64748b;margin:-0.5rem 0 1rem"></div>
+          <div id="mc-when-results"></div>
+          <div id="mc-when-save" class="mc-save-bar" style="display:none"></div>
+        </div>
+
+        <!-- Mode 3: Compare to previous -->
+        <div id="fm-compare" class="fm-panel" style="display:none">
+          <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;margin-bottom:1rem">
+            <button class="mc-run-btn" onclick="importSnapshots()">Import snapshots</button>
+            <button onclick="clearImportedSnapshots()" style="padding:0.45rem 0.9rem;background:#f1f5f9;color:#374151;border:1px solid #cbd5e1;border-radius:6px;font-size:0.82rem;cursor:pointer">Clear all</button>
+            <span id="mc-import-count" style="font-size:0.8rem;color:#64748b"></span>
+          </div>
+          <div id="mc-compare-results"></div>
+        </div>
+
+        <div class="mc-caveat">
+          <strong>These are probability ranges, not commitments.</strong> They assume throughput stays roughly consistent and scope stays fixed. Both will change. Use the <strong>85th percentile as your planning boundary</strong> — it's realistic without being reckless. The 50th percentile will be wrong half the time.
+        </div>
+      </div>
+    </div>
   </div>
 
   <div id="data-footer">
@@ -974,6 +1124,7 @@ License: MIT
 let allRows = [];
 let columns = [];
 let charts = {};
+let currentSourceFile = 'flowlens';
 let workflowStages = [];
 let stageTypes = {};
 let hiddenStages = new Set();
@@ -1089,6 +1240,7 @@ uploadZone.addEventListener('drop', e => {
 
 function processFile(file) {
   clearError();
+  currentSourceFile = file.name || 'flowlens';
   Papa.parse(file, {
     header: true, skipEmptyLines: true,
     complete(results) {
@@ -1646,7 +1798,7 @@ function _doRenderAll() {
 
 function renderActiveTab() {
   if (!lastRenderPayload) return;
-  const { completed, wip, p50, p70, p85, p95 } = lastRenderPayload;
+  const { completed, wip, backlog, p50, p70, p85, p95 } = lastRenderPayload;
   const tab = document.querySelector('.tab-btn.active')?.dataset.tab || 'insights';
   switch (tab) {
     case 'insights':   renderInsights(completed, wip, p50, p70, p85, p95); break;
@@ -1662,6 +1814,7 @@ function renderActiveTab() {
     case 'ffe':        renderFFE(completed); break;
     case 'data':       renderData(); break;
     case 'ai':         /* prompt generated on demand */ break;
+    case 'forecast':   renderForecast(completed, wip, backlog); break;
   }
 }
 
@@ -3918,6 +4071,586 @@ async function copySnapshot() {
     btn.textContent = 'Copy failed';
     setTimeout(() => { btn.textContent = 'Copy snapshot'; btn.disabled = false; }, 3000);
   }
+}
+
+// ── Monte Carlo Forecast ───────────────────────────────────────────────────
+
+function mcWeeklyRates(completed, weeksBack) {
+  const cutoff = weeksBack ? new Date(Date.now() - weeksBack * 7 * 86400000) : null;
+  const filtered = cutoff ? completed.filter(d => d.endDate >= cutoff) : completed;
+  const byWeek = {};
+  filtered.forEach(d => {
+    const k = weekStart(d.endDate).toISOString().slice(0, 10);
+    byWeek[k] = (byWeek[k] || 0) + 1;
+  });
+  const weeks = Object.keys(byWeek).sort();
+  return { rates: Object.values(byWeek), from: weeks[0] || null, to: weeks[weeks.length - 1] || null };
+}
+
+function mcAddDays(baseDate, days) {
+  const d = new Date(baseDate);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+function switchForecastMode(mode) {
+  ['howmany', 'when', 'compare'].forEach(m => {
+    document.getElementById('fm-btn-' + m).classList.toggle('active', m === mode);
+    document.getElementById('fm-' + m).style.display = m === mode ? '' : 'none';
+  });
+  if (mode === 'compare') renderCompare();
+}
+
+// ── Forecast snapshot export / import ─────────────────────────────────────
+let lastHowManyResult = null;
+let lastWhenResult    = null;
+let importedSnapshots = [];
+
+function snapFilename(snap) {
+  const slug = s => (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'flowlens';
+  const src  = slug(snap.sourceFile.replace(/\.[^.]+$/, ''));
+  const lbl  = slug(snap.label || 'forecast');
+  const sd   = s => { const d = new Date(s.length === 10 ? s + 'T00:00:00' : s); return d.getDate() + d.toLocaleDateString('en-GB', { month: 'short' }).replace(/ /g, '') + String(d.getFullYear()).slice(2); };
+  const range = snap.throughputFrom ? `_${sd(snap.throughputFrom)}-${sd(snap.throughputTo)}` : '';
+  if (snap.type === 'howmany') {
+    return `${src}_${lbl}_howmany_${snap.results.p85}at85_by${sd(snap.parameters.targetDate)}${range}.json`;
+  } else {
+    return `${src}_${lbl}_when_${snap.parameters.itemCount}items_85pct${sd(snap.results.p85Date)}${range}.json`;
+  }
+}
+
+function showSaveBar(type) {
+  const el = document.getElementById('mc-' + type + '-save');
+  if (!el) return;
+  el.style.display = '';
+  el.innerHTML = `
+    <span>Export this forecast as a file:</span>
+    <input type="text" id="mc-${type}-label" placeholder="Label (e.g. Sprint 42 planning)" maxlength="60"
+      oninput="if(${type === 'howmany' ? 'lastHowManyResult' : 'lastWhenResult'}) ${type === 'howmany' ? 'lastHowManyResult' : 'lastWhenResult'}.label = this.value">
+    <button class="mc-save-btn" onclick="doExportSnapshot('${type}')">Export snapshot</button>
+  `;
+}
+
+function doExportSnapshot(type) {
+  const snap = type === 'howmany' ? lastHowManyResult : lastWhenResult;
+  if (!snap) return;
+  snap.label = (document.getElementById('mc-' + type + '-label')?.value || '').trim();
+  snap.savedAt = new Date().toISOString().slice(0, 10);
+  snap.version = 1;
+  snap.type = type;
+  const filename = snapFilename(snap);
+  const blob = new Blob([JSON.stringify(snap, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+  const el = document.getElementById('mc-' + type + '-save');
+  if (el) {
+    el.innerHTML = `<span style="color:#15803d;font-weight:600">✓ Downloading <em>${filename}</em> — import it in the Compare tab to compare later.</span>`;
+    setTimeout(() => showSaveBar(type), 4000);
+  }
+}
+
+function importSnapshots() {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = '.json'; input.multiple = true;
+  input.onchange = e => {
+    const files = [...e.target.files];
+    let pending = files.length;
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        try {
+          const snap = JSON.parse(ev.target.result);
+          if (snap.version && snap.type && snap.results) {
+            snap._filename = file.name;
+            importedSnapshots.push(snap);
+          }
+        } catch {}
+        if (--pending === 0) { updateImportCount(); renderCompare(); }
+      };
+      reader.readAsText(file);
+    });
+  };
+  input.click();
+}
+
+function clearImportedSnapshots() {
+  importedSnapshots = [];
+  updateImportCount();
+  renderCompare();
+}
+
+function updateImportCount() {
+  const el = document.getElementById('mc-import-count');
+  if (!el) return;
+  el.textContent = importedSnapshots.length
+    ? `${importedSnapshots.length} snapshot${importedSnapshots.length !== 1 ? 's' : ''} loaded`
+    : '';
+}
+
+// ── Compare view ───────────────────────────────────────────────────────────
+function renderCompare() {
+  const el = document.getElementById('mc-compare-results');
+  if (!el) return;
+
+  const howSnaps = importedSnapshots.filter(s => s.type === 'howmany');
+  const whenSnaps = importedSnapshots.filter(s => s.type === 'when');
+
+  const hasAnything = howSnaps.length || whenSnaps.length || lastHowManyResult || lastWhenResult;
+  if (!hasAnything) {
+    el.innerHTML = `<div class="mc-no-snaps">No forecasts to compare yet.<br>Run <strong>How many by date?</strong> or <strong>When will we finish?</strong> and export a snapshot, then import it here.<br><br>You can import multiple snapshot files at once to compare across teams or time periods.</div>`;
+    return;
+  }
+
+  let html = '';
+
+  // ── How many section ────────────────────────────────────────────────────
+  if (howSnaps.length || lastHowManyResult) {
+    html += `<div class="mc-compare-section">
+      <h3>How many by date? <span style="font-weight:400;color:#94a3b8;font-size:0.75rem">— same target date comparisons are most meaningful</span></h3>
+      <table class="mc-compare-table">
+        <thead><tr>
+          <th>Source</th><th>Label</th><th>Saved</th><th>Target date</th>
+          <th>95%</th><th>85% ★</th><th>70%</th><th>50%</th>
+          <th>Δ 85%</th><th></th>
+        </tr></thead>
+        <tbody>`;
+
+    const rows = [];
+    if (lastHowManyResult) rows.push({ ...lastHowManyResult, _current: true });
+    rows.push(...howSnaps);
+
+    rows.forEach((row, i) => {
+      const prev = rows[i + 1];
+      let delta = '';
+      if (prev) {
+        const d = row.results.p85 - prev.results.p85;
+        if (d > 0)      delta = `<span class="mc-delta-good">▲ +${d}</span>`;
+        else if (d < 0) delta = `<span class="mc-delta-bad">▼ ${d}</span>`;
+        else            delta = `<span class="mc-delta-flat">─</span>`;
+      }
+      const srcLabel = (row.sourceFile || '').replace(/\.[^.]+$/, '') || 'unknown';
+      const savedLabel = row._current
+        ? `<em style="color:#0369a1">current session</em>`
+        : `<span style="color:#64748b">${row.savedAt || '—'}</span>`;
+      const snapIdx = importedSnapshots.indexOf(row);
+      const removeBtn = row._current ? '' : `<button class="mc-snap-del" onclick="removeImportedSnapshot(${snapIdx})" title="Remove">✕</button>`;
+      html += `<tr class="${row._current ? 'mc-cur-row' : ''}">
+        <td title="${row._filename || ''}">${srcLabel}</td>
+        <td style="color:#374151">${row.label || '<span style="color:#cbd5e1">—</span>'}</td>
+        <td>${savedLabel}</td>
+        <td>${row.parameters?.targetDate ? fmtDate(new Date(row.parameters.targetDate + 'T00:00:00')) : '—'}</td>
+        <td>${row.results.p95}+</td>
+        <td><strong>${row.results.p85}+</strong></td>
+        <td>${row.results.p70}+</td>
+        <td>${row.results.p50}+</td>
+        <td>${delta || '<span class="mc-delta-flat">─</span>'}</td>
+        <td>${removeBtn}</td>
+      </tr>`;
+    });
+
+    html += `</tbody></table>
+      <div style="font-size:0.75rem;color:#94a3b8;margin-top:0.4rem">Δ 85% = change in item count at 85% confidence vs row below. ▲ = more items = throughput improved.</div>
+    </div>`;
+  }
+
+  // ── When section ────────────────────────────────────────────────────────
+  if (whenSnaps.length || lastWhenResult) {
+    html += `<div class="mc-compare-section">
+      <h3>When will we finish? <span style="font-weight:400;color:#94a3b8;font-size:0.75rem">— same item count comparisons are most meaningful</span></h3>
+      <table class="mc-compare-table">
+        <thead><tr>
+          <th>Source</th><th>Label</th><th>Saved</th><th>Items</th>
+          <th>50%</th><th>70%</th><th>85% ★</th><th>95%</th>
+          <th>Δ 85%</th><th></th>
+        </tr></thead>
+        <tbody>`;
+
+    const rows = [];
+    if (lastWhenResult) rows.push({ ...lastWhenResult, _current: true });
+    rows.push(...whenSnaps);
+
+    rows.forEach((row, i) => {
+      const prev = rows[i + 1];
+      let delta = '';
+      if (prev) {
+        const dDays = Math.round((new Date(row.results.p85Date) - new Date(prev.results.p85Date)) / 86400000);
+        if (dDays < 0)      delta = `<span class="mc-delta-good">▲ ${Math.abs(dDays)}d earlier</span>`;
+        else if (dDays > 0) delta = `<span class="mc-delta-bad">▼ +${dDays}d later</span>`;
+        else                delta = `<span class="mc-delta-flat">─</span>`;
+      }
+      const srcLabel = (row.sourceFile || '').replace(/\.[^.]+$/, '') || 'unknown';
+      const savedLabel = row._current
+        ? `<em style="color:#0369a1">current session</em>`
+        : `<span style="color:#64748b">${row.savedAt || '—'}</span>`;
+      const snapIdx = importedSnapshots.indexOf(row);
+      const removeBtn = row._current ? '' : `<button class="mc-snap-del" onclick="removeImportedSnapshot(${snapIdx})" title="Remove">✕</button>`;
+      html += `<tr class="${row._current ? 'mc-cur-row' : ''}">
+        <td title="${row._filename || ''}">${srcLabel}</td>
+        <td style="color:#374151">${row.label || '<span style="color:#cbd5e1">—</span>'}</td>
+        <td>${savedLabel}</td>
+        <td>${row.parameters?.itemCount || '—'}</td>
+        <td>${row.results.p50Date ? fmtDate(new Date(row.results.p50Date)) : '—'}</td>
+        <td>${row.results.p70Date ? fmtDate(new Date(row.results.p70Date)) : '—'}</td>
+        <td><strong>${row.results.p85Date ? fmtDate(new Date(row.results.p85Date)) : '—'}</strong></td>
+        <td>${row.results.p95Date ? fmtDate(new Date(row.results.p95Date)) : '—'}</td>
+        <td>${delta || '<span class="mc-delta-flat">─</span>'}</td>
+        <td>${removeBtn}</td>
+      </tr>`;
+    });
+
+    html += `</tbody></table>
+      <div style="font-size:0.75rem;color:#94a3b8;margin-top:0.4rem">Δ 85% = days the 85% completion date has moved vs row below. ▲ earlier = forecast improved.</div>
+    </div>`;
+  }
+
+  el.innerHTML = html;
+}
+
+function removeImportedSnapshot(idx) {
+  importedSnapshots.splice(idx, 1);
+  updateImportCount();
+  renderCompare();
+}
+
+function renderForecast(completed, wip, backlog) {
+  // Set default target date to 30 days from now on first load
+  const targetEl = document.getElementById('mc-target-date');
+  if (!targetEl.value) {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    targetEl.value = d.toISOString().slice(0, 10);
+  }
+
+  // Auto-populate item count from live data
+  const countEl = document.getElementById('mc-item-count');
+  const autoCount = wip.length + backlog.length;
+  if (autoCount > 0 && !countEl._userEdited) countEl.value = autoCount;
+  countEl.addEventListener('input', () => { countEl._userEdited = true; }, { once: true });
+
+  const noteEl = document.getElementById('mc-when-note');
+  if (autoCount > 0) {
+    const parts = [];
+    if (wip.length)    parts.push(`${wip.length} in progress`);
+    if (backlog.length) parts.push(`${backlog.length} in backlog`);
+    noteEl.textContent = `Auto-filled from your data: ${parts.join(' + ')} = ${autoCount} items. Adjust to include items not yet written.`;
+  } else {
+    noteEl.textContent = 'No backlog items in your CSV — enter the number of items you need to finish.';
+  }
+}
+
+function runHowManySimulation() {
+  const payload = lastRenderPayload;
+  if (!payload) return;
+  const completed  = payload.completed;
+  const targetStr  = document.getElementById('mc-target-date').value;
+  const weeksBack  = parseInt(document.getElementById('mc-howmany-window').value) || null;
+  const resultsEl  = document.getElementById('mc-howmany-results');
+
+  if (!targetStr) { resultsEl.innerHTML = '<div style="color:#94a3b8;font-size:0.85rem">Pick a target date.</div>'; return; }
+
+  const targetDate = new Date(targetStr + 'T00:00:00');
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const daysAhead = Math.round((targetDate - today) / 86400000);
+
+  if (daysAhead <= 0) { resultsEl.innerHTML = '<div style="color:#ef4444;font-size:0.85rem">Target date must be in the future.</div>'; return; }
+
+  const { rates, from: tpFrom, to: tpTo } = mcWeeklyRates(completed, weeksBack);
+  if (rates.length < 2) { resultsEl.innerHTML = '<div style="color:#94a3b8;font-size:0.85rem">Need at least 2 weeks of throughput history.</div>'; return; }
+
+  const SIM = 10000;
+  const weeksAhead = daysAhead / 7;
+  const fullWeeks  = Math.floor(weeksAhead);
+  const frac       = weeksAhead - fullWeeks;
+  const results    = new Array(SIM);
+
+  for (let s = 0; s < SIM; s++) {
+    let done = 0;
+    for (let w = 0; w < fullWeeks; w++) done += rates[Math.floor(Math.random() * rates.length)];
+    if (frac > 0) done += rates[Math.floor(Math.random() * rates.length)] * frac;
+    results[s] = Math.floor(done);
+  }
+  results.sort((a, b) => a - b);
+
+  const p95 = results[Math.floor(0.05 * SIM)];
+  const p85 = results[Math.floor(0.15 * SIM)];
+  const p70 = results[Math.floor(0.30 * SIM)];
+  const p50 = results[Math.floor(0.50 * SIM)];
+
+  lastHowManyResult = {
+    sourceFile: currentSourceFile, label: '',
+    throughputFrom: tpFrom, throughputTo: tpTo,
+    parameters: { targetDate: targetStr },
+    results: { p95, p85, p70, p50 },
+    rates, weeksOfData: rates.length,
+  };
+
+  const maxVal = Math.max(p50, 1);
+  const pcts   = [p95, p85, p70, p50];
+  const pctPct = pcts.map(v => (v / maxVal * 100).toFixed(1));
+
+  resultsEl.innerHTML = `
+    <div style="font-size:0.82rem;color:#64748b;margin-bottom:1rem">
+      Items completable by <strong>${fmtDate(targetDate)}</strong> &nbsp;·&nbsp; ${daysAhead}d &nbsp;·&nbsp; ${rates.length} weeks of data &nbsp;·&nbsp; 10,000 trials
+    </div>
+    <div class="mc-headlines">
+      ${[
+        { pct: 95, val: p95, cls: 'mc-s95', label: 'Safe minimum — high confidence' },
+        { pct: 85, val: p85, cls: 'mc-s85', label: 'Recommended planning target' },
+        { pct: 70, val: p70, cls: 'mc-s70', label: 'Likely but not safe to commit' },
+        { pct: 50, val: p50, cls: 'mc-s50', label: 'Optimistic — wrong half the time' },
+      ].map(s => `
+        <div class="mc-stat ${s.cls}">
+          <div class="mc-stat-pct">${s.pct}% confidence</div>
+          <div class="mc-stat-val">${s.val}+ items</div>
+          <div class="mc-stat-label">${s.label}</div>
+        </div>`).join('')}
+    </div>
+    <div class="mc-spread-bar">
+      <div class="mc-spread-label">Uncertainty range — lower confidence = more items, higher uncertainty</div>
+      <div class="mc-spread-track">
+        ${[
+          { from: pctPct[0], to: pctPct[1], color: '#bbf7d0' },
+          { from: pctPct[1], to: pctPct[2], color: '#fde68a' },
+          { from: pctPct[2], to: pctPct[3], color: '#fed7aa' },
+        ].map(seg => `<div class="mc-spread-segment" style="left:${seg.from}%;width:${(parseFloat(seg.to)-parseFloat(seg.from)).toFixed(1)}%;background:${seg.color}"></div>`).join('')}
+        ${[
+          { pos: pctPct[0], val: p95, label: '95%' },
+          { pos: pctPct[1], val: p85, label: '85%' },
+          { pos: pctPct[2], val: p70, label: '70%' },
+          { pos: pctPct[3], val: p50, label: '50%' },
+        ].map(m => `<div class="mc-spread-marker" style="left:${m.pos}%">
+          <div style="font-size:0.68rem;color:#94a3b8">${m.label}</div>
+          <div style="font-size:0.78rem;font-weight:700;color:#1e293b">${m.val}</div>
+        </div>`).join('')}
+      </div>
+    </div>
+  `;
+
+  // ── Cut-line item list ────────────────────────────────────────────────────
+  const allItems = [
+    ...(payload.wip    || []).map(i => ({ ...i, _kind: 'wip' })),
+    ...(payload.backlog || []).map(i => ({ ...i, _kind: 'backlog' })),
+  ];
+  const hasItems = allItems.length > 0;
+  const dateLabel = fmtDate(targetDate);
+
+  // Build zones — skip zones where from > to (duplicate thresholds)
+  const zones = [
+    { label: 'Very likely',  sub: `95%+ confident done by ${dateLabel}`, hCls: 'mc-zh-95',  rCls: 'mc-row-95',  from: 1,         to: p95             },
+    { label: 'Likely',       sub: `85% confident done by ${dateLabel}`,  hCls: 'mc-zh-85',  rCls: 'mc-row-95',  from: p95 + 1,   to: p85             },
+    { label: 'Possible',     sub: `70% confident done by ${dateLabel}`,  hCls: 'mc-zh-70',  rCls: 'mc-row-70',  from: p85 + 1,   to: p70             },
+    { label: 'Optimistic',   sub: `50% confident done by ${dateLabel}`,  hCls: 'mc-zh-50',  rCls: 'mc-row-50',  from: p70 + 1,   to: p50             },
+    { label: 'Unlikely',     sub: `less than 50% chance by ${dateLabel}`,hCls: 'mc-zh-out', rCls: 'mc-row-out', from: p50 + 1,   to: Infinity        },
+  ].filter(z => z.from <= z.to);
+
+  const maxPos = hasItems ? Math.min(allItems.length, 100) : Math.min(p50 + 8, 60);
+
+  let listHTML = `
+    <div style="font-size:0.82rem;color:#64748b;margin:1.25rem 0 0.5rem">
+      ${hasItems
+        ? `${allItems.length} item${allItems.length !== 1 ? 's' : ''} ranked — cut lines show which ones make your deadline at each confidence level.`
+        : `Showing positions — load a CSV with backlog or in-progress items to see named items here.`}
+    </div>
+    <div class="mc-item-list mc-cutlist">
+      <div class="mc-item-row mc-list-header">
+        <div class="mc-item-pos">#</div>
+        <div>Item</div>
+        <div style="font-size:0.72rem;text-align:right;padding-right:0.5rem">Type</div>
+      </div>`;
+
+  zones.forEach(zone => {
+    const showTo = Math.min(zone.to === Infinity ? maxPos : zone.to, maxPos);
+    if (zone.from > maxPos) return;
+
+    listHTML += `<div class="mc-zone-header ${zone.hCls}"><strong>${zone.label}</strong>&ensp;—&ensp;${zone.sub}</div>`;
+
+    for (let pos = zone.from; pos <= showTo; pos++) {
+      if (hasItems) {
+        const item = allItems[pos - 1];
+        const name = [item.id, item.title].filter(Boolean).join(' — ') || `Item ${pos}`;
+        const kind = item._kind === 'wip' ? 'In progress' : 'Backlog';
+        listHTML += `<div class="mc-item-row ${zone.rCls}">
+          <div class="mc-item-pos">${pos}</div>
+          <div class="mc-item-name" title="${name.replace(/"/g,'&quot;')}">${name}</div>
+          <div style="font-size:0.72rem;color:#94a3b8;text-align:right;padding-right:0.5rem">${kind}</div>
+        </div>`;
+      } else {
+        listHTML += `<div class="mc-item-row ${zone.rCls}">
+          <div class="mc-item-pos">${pos}</div>
+          <div class="mc-item-name" style="color:#94a3b8">Item ${pos}</div>
+          <div style="font-size:0.72rem;color:#bdc6d0;text-align:right;padding-right:0.5rem">—</div>
+        </div>`;
+      }
+    }
+
+    if (zone.to !== Infinity && showTo < zone.to) {
+      listHTML += `<div style="padding:0.4rem 0.75rem;font-size:0.74rem;color:#94a3b8;font-style:italic">…${zone.to - showTo} more in this zone</div>`;
+    }
+  });
+
+  if (hasItems && allItems.length > maxPos) {
+    listHTML += `<div style="padding:0.55rem 0.75rem;font-size:0.75rem;color:#94a3b8;font-style:italic">…${allItems.length - maxPos} more items not shown. Headlines above cover all ${allItems.length}.</div>`;
+  }
+
+  listHTML += '</div>';
+  resultsEl.innerHTML += listHTML;
+  showSaveBar('howmany');
+}
+
+function runWhenSimulation() {
+  const payload = lastRenderPayload;
+  if (!payload) return;
+  const { completed, wip, backlog } = payload;
+  const N         = Math.min(parseInt(document.getElementById('mc-item-count').value) || 20, 500);
+  const weeksBack = parseInt(document.getElementById('mc-when-window').value) || null;
+  const resultsEl = document.getElementById('mc-when-results');
+
+  const { rates, from: tpFrom, to: tpTo } = mcWeeklyRates(completed, weeksBack);
+  if (rates.length < 2) { resultsEl.innerHTML = '<div style="color:#94a3b8;font-size:0.85rem">Need at least 2 weeks of throughput history.</div>'; return; }
+
+  const SIM = 10000;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+
+  // For each item position 1..N, track days-until-done across all trials
+  const compDays = Array.from({ length: N }, () => new Int32Array(SIM));
+
+  for (let s = 0; s < SIM; s++) {
+    let done = 0, days = 0;
+    while (done < N) {
+      const rate = rates[Math.floor(Math.random() * rates.length)];
+      days += 7;
+      const newDone = Math.min(done + rate, N);
+      for (let k = done; k < newDone; k++) compDays[k][s] = days;
+      done = newDone;
+    }
+  }
+
+  // Percentiles for each position (sorted ascending = p50 is earlier = optimistic)
+  const posResults = compDays.map(arr => {
+    const sorted = [...arr].sort((a, b) => a - b);
+    return {
+      p50: sorted[Math.floor(0.50 * SIM)],
+      p70: sorted[Math.floor(0.70 * SIM)],
+      p85: sorted[Math.floor(0.85 * SIM)],
+      p95: sorted[Math.floor(0.95 * SIM)],
+    };
+  });
+
+  const headline = posResults[N - 1];
+
+  lastWhenResult = {
+    sourceFile: currentSourceFile, label: '',
+    throughputFrom: tpFrom, throughputTo: tpTo,
+    parameters: { itemCount: N },
+    results: {
+      p50Date: mcAddDays(today, headline.p50).toISOString().slice(0, 10),
+      p70Date: mcAddDays(today, headline.p70).toISOString().slice(0, 10),
+      p85Date: mcAddDays(today, headline.p85).toISOString().slice(0, 10),
+      p95Date: mcAddDays(today, headline.p95).toISOString().slice(0, 10),
+    },
+    rates, weeksOfData: rates.length,
+  };
+
+  // Build named item list (WIP first, then backlog, cap display at 100 rows)
+  const allItems = [
+    ...wip.map(i => ({ ...i, _kind: 'wip' })),
+    ...backlog.map(i => ({ ...i, _kind: 'backlog' })),
+  ];
+  const hasItems = allItems.length > 0;
+  const showCount = Math.min(N, 100);
+
+  let listHTML = '';
+  if (hasItems) {
+    const renderRow = (item, pos, pr, rowCls) => {
+      const name = [item.id, item.title].filter(Boolean).join(' — ') || `Item ${pos}`;
+      return `<div class="mc-item-row ${rowCls}">
+        <div class="mc-item-pos">${pos}</div>
+        <div class="mc-item-name" title="${name.replace(/"/g, '&quot;')}">${name}</div>
+        <div class="mc-date-cell mc-d50">${fmtDate(mcAddDays(today, pr.p50))}</div>
+        <div class="mc-date-cell mc-d70">${fmtDate(mcAddDays(today, pr.p70))}</div>
+        <div class="mc-date-cell mc-d85">${fmtDate(mcAddDays(today, pr.p85))}</div>
+        <div class="mc-date-cell mc-d95">${fmtDate(mcAddDays(today, pr.p95))}</div>
+      </div>`;
+    };
+
+    listHTML = `<div class="mc-item-list">
+      <div class="mc-item-row mc-list-header">
+        <div class="mc-item-pos">#</div>
+        <div>Item</div>
+        <div class="mc-date-cell mc-d50">50%</div>
+        <div class="mc-date-cell mc-d70">70%</div>
+        <div class="mc-date-cell mc-d85">85% ★</div>
+        <div class="mc-date-cell mc-d95">95%</div>
+      </div>`;
+
+    let pos = 0;
+    if (wip.length) {
+      listHTML += `<div class="mc-section-divider">In progress · ${wip.length} items</div>`;
+      wip.slice(0, showCount).forEach(item => {
+        listHTML += renderRow(item, ++pos, posResults[pos - 1], 'mc-wip-row');
+      });
+    }
+    if (backlog.length && pos < showCount) {
+      listHTML += `<div class="mc-section-divider">Backlog · ${backlog.length} items</div>`;
+      backlog.slice(0, showCount - pos).forEach(item => {
+        listHTML += renderRow(item, ++pos, posResults[pos - 1], 'mc-backlog-row');
+      });
+    }
+    if (N > showCount) {
+      listHTML += `<div style="padding:0.55rem 0.75rem;font-size:0.75rem;color:#94a3b8;font-style:italic">…and ${N - showCount} more items not shown. Headlines above cover all ${N}.</div>`;
+    }
+    listHTML += '</div>';
+  } else {
+    // No named items — show key milestones
+    const milestones = [...new Set([1, Math.ceil(N*0.25), Math.ceil(N*0.5), Math.ceil(N*0.75), N])];
+    listHTML = `
+      <div style="font-size:0.78rem;color:#64748b;margin-bottom:0.6rem">No named items in your data — showing milestone positions:</div>
+      <div class="mc-item-list">
+        <div class="mc-item-row mc-list-header">
+          <div class="mc-item-pos">#</div>
+          <div>Milestone</div>
+          <div class="mc-date-cell mc-d50">50%</div>
+          <div class="mc-date-cell mc-d70">70%</div>
+          <div class="mc-date-cell mc-d85">85% ★</div>
+          <div class="mc-date-cell mc-d95">95%</div>
+        </div>
+        ${milestones.map(pos => {
+          const pr = posResults[pos - 1];
+          const lbl = pos === 1 ? 'First item done' : pos === N ? `All ${N} done` : `${pos} of ${N} done`;
+          return `<div class="mc-item-row">
+            <div class="mc-item-pos">${pos}</div>
+            <div class="mc-item-name">${lbl}</div>
+            <div class="mc-date-cell mc-d50">${fmtDate(mcAddDays(today, pr.p50))}</div>
+            <div class="mc-date-cell mc-d70">${fmtDate(mcAddDays(today, pr.p70))}</div>
+            <div class="mc-date-cell mc-d85">${fmtDate(mcAddDays(today, pr.p85))}</div>
+            <div class="mc-date-cell mc-d95">${fmtDate(mcAddDays(today, pr.p95))}</div>
+          </div>`;
+        }).join('')}
+      </div>`;
+  }
+
+  resultsEl.innerHTML = `
+    <div style="font-size:0.82rem;color:#64748b;margin-bottom:1rem">
+      Finishing <strong>${N} items</strong> &nbsp;·&nbsp; ${rates.length} weeks of data &nbsp;·&nbsp; 10,000 simulations
+    </div>
+    <div class="mc-headlines">
+      ${[
+        { pct: 50, date: mcAddDays(today, headline.p50), cls: 'mc-s50', label: 'Optimistic — wrong half the time' },
+        { pct: 70, date: mcAddDays(today, headline.p70), cls: 'mc-s70', label: 'Likely but not safe to commit' },
+        { pct: 85, date: mcAddDays(today, headline.p85), cls: 'mc-s85', label: 'Recommended plan date' },
+        { pct: 95, date: mcAddDays(today, headline.p95), cls: 'mc-s95', label: 'Conservative — very safe' },
+      ].map(s => `
+        <div class="mc-stat ${s.cls}">
+          <div class="mc-stat-pct">${s.pct}% confidence</div>
+          <div class="mc-stat-val" style="font-size:1.05rem;letter-spacing:-0.02em">${fmtDate(s.date)}</div>
+          <div class="mc-stat-label">${s.label}</div>
+        </div>`).join('')}
+    </div>
+    ${listHTML}
+  `;
+  showSaveBar('when');
 }
 
 // ── Tab switching ──────────────────────────────────────────────────────────
