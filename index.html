@@ -64,7 +64,7 @@
     <h2>Kanban flow metrics,<br>entirely in your browser</h2>
     <p>Drop in a CSV from any work management system. Get instant cycle time, throughput, WIP, aging work, and a Cumulative Flow Diagram. No login. No server. No data leaving your machine.</p>
     <a class="download-btn" href="flow-lens.html" download="flow-lens.html">Download Flow Lens</a>
-    <div class="download-note">Single HTML file · open in any modern browser · free</div>
+    <div class="download-note">Single HTML file · open in any modern browser · free · <strong id="dl-version"></strong></div>
   </div>
 
   <div class="privacy">
@@ -109,5 +109,11 @@
 
 <footer>Flow Lens · MIT licence · built by <a href="https://simeonherbert.com" target="_blank" rel="noopener" style="color:#94a3b8;text-decoration:none;border-bottom:1px solid #cbd5e1">Simeon Herbert</a></footer>
 
+<script>
+fetch('flow-lens.html').then(r => r.text()).then(html => {
+  const m = html.match(/const VERSION\s*=\s*'([^']+)'/);
+  if (m) document.getElementById('dl-version').textContent = 'v' + m[1];
+});
+</script>
 </body>
 </html>
