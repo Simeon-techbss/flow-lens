@@ -1037,7 +1037,14 @@ License: MIT
 
     <div id="tab-forecast" class="tab-pane">
       <div class="chart-card">
-        <h2>Monte Carlo Forecast</h2>
+        <h2>Monte Carlo Forecast <button class="info-btn" data-info="info-forecast-tab" onclick="toggleInfo('info-forecast-tab')" title="How to read this">ℹ</button></h2>
+        <div class="info-panel" id="info-forecast-tab">
+          <strong>Monte Carlo simulation</strong> runs 10,000 trials by randomly sampling your actual weekly throughput history. Because it uses real delivery patterns — including slow weeks, fast weeks, and everything in between — the ranges reflect genuine variability, not a straight-line average.<br><br>
+          <strong>Reading the confidence levels</strong> — higher confidence means a more conservative (smaller) guarantee. "95% confidence: 37 items" means the team completed at least 37 items in 95 out of 100 simulated futures — very likely, but a cautious number to commit to. "85% confidence: 42 items" means at least 42 items in 85 out of 100 — the recommended planning number. "50% confidence: 49 items" means the team hit that in only half of futures — optimistic, not a commitment. So: the higher the confidence %, the lower the item count. Use <strong>85% as your planning target</strong> — realistic without underselling your team or overpromising to stakeholders.<br><br>
+          <strong>How many by date?</strong> — Pick a target date. The simulation tells you how many items you can realistically deliver by then. The backlog list below shows a cut-line at each confidence band so you can see which specific items are inside the commitment.<br><br>
+          <strong>When will we finish?</strong> — Pick an item count (defaults to your current WIP + backlog). The simulation tells you the likely completion date at each confidence level. Higher confidence = later (safer) date. Lower confidence = earlier date but higher risk of missing.<br><br>
+          <strong>Compare to previous</strong> — Import snapshot files exported from earlier runs to track how your forecast has shifted. A later 85% date or fewer 85% items means scope grew or throughput dropped. You can compare snapshots without running a new simulation — just import two or more files directly.
+        </div>
         <div class="subtitle">Probability-based delivery ranges from your historical throughput. Not a commitment — a planning tool.</div>
 
         <div class="forecast-modes">
@@ -4154,9 +4161,15 @@ function doExportSnapshot(type) {
 function importSnapshots() {
   const input = document.createElement('input');
   input.type = 'file'; input.accept = '.json'; input.multiple = true;
+  input.style.cssText = 'position:fixed;top:-100px;left:-100px;opacity:0';
+  document.body.appendChild(input);
   input.onchange = e => {
+    document.body.removeChild(input);
     const files = [...e.target.files];
+    if (!files.length) return;
     let pending = files.length;
+    let imported = 0;
+    let rejected = 0;
     files.forEach(file => {
       const reader = new FileReader();
       reader.onload = ev => {
@@ -4165,9 +4178,15 @@ function importSnapshots() {
           if (snap.version && snap.type && snap.results) {
             snap._filename = file.name;
             importedSnapshots.push(snap);
+            imported++;
+          } else {
+            rejected++;
           }
-        } catch {}
-        if (--pending === 0) { updateImportCount(); renderCompare(); }
+        } catch { rejected++; }
+        if (--pending === 0) {
+          updateImportCount(imported, rejected);
+          renderCompare();
+        }
       };
       reader.readAsText(file);
     });
@@ -4177,16 +4196,31 @@ function importSnapshots() {
 
 function clearImportedSnapshots() {
   importedSnapshots = [];
-  updateImportCount();
+  updateImportCount(0, 0);
   renderCompare();
 }
 
-function updateImportCount() {
+function updateImportCount(imported, rejected) {
   const el = document.getElementById('mc-import-count');
   if (!el) return;
-  el.textContent = importedSnapshots.length
-    ? `${importedSnapshots.length} snapshot${importedSnapshots.length !== 1 ? 's' : ''} loaded`
-    : '';
+  if (imported === undefined) {
+    el.textContent = importedSnapshots.length
+      ? `${importedSnapshots.length} snapshot${importedSnapshots.length !== 1 ? 's' : ''} loaded`
+      : '';
+    return;
+  }
+  if (imported === 0 && rejected > 0) {
+    el.innerHTML = `<span style="color:#dc2626">✗ Not a valid Flow Lens snapshot file</span>`;
+    setTimeout(() => updateImportCount(), 4000);
+    return;
+  }
+  const parts = [];
+  if (imported) parts.push(`${imported} added`);
+  if (rejected) parts.push(`<span style="color:#f59e0b">${rejected} skipped (not a valid snapshot)</span>`);
+  const total = importedSnapshots.length;
+  el.innerHTML = `${total} snapshot${total !== 1 ? 's' : ''} loaded` + (parts.length ? ` · ${parts.join(' · ')}` : '');
+  if (rejected) setTimeout(() => updateImportCount(), 5000);
+  else el.textContent = `${total} snapshot${total !== 1 ? 's' : ''} loaded`;
 }
 
 // ── Compare view ───────────────────────────────────────────────────────────
@@ -4199,7 +4233,7 @@ function renderCompare() {
 
   const hasAnything = howSnaps.length || whenSnaps.length || lastHowManyResult || lastWhenResult;
   if (!hasAnything) {
-    el.innerHTML = `<div class="mc-no-snaps">No forecasts to compare yet.<br>Run <strong>How many by date?</strong> or <strong>When will we finish?</strong> and export a snapshot, then import it here.<br><br>You can import multiple snapshot files at once to compare across teams or time periods.</div>`;
+    el.innerHTML = `<div class="mc-no-snaps">Nothing to compare yet.<br><br><strong>Option 1:</strong> Import two or more saved snapshot files using the button above — no need to run a new simulation.<br><strong>Option 2:</strong> Run a simulation in <em>How many by date?</em> or <em>When will we finish?</em>, then import older snapshots here to see how the forecast has drifted.</div>`;
     return;
   }
 
@@ -4219,7 +4253,7 @@ function renderCompare() {
 
     const rows = [];
     if (lastHowManyResult) rows.push({ ...lastHowManyResult, _current: true });
-    rows.push(...howSnaps);
+    rows.push(...[...howSnaps].sort((a, b) => (b.savedAt || '').localeCompare(a.savedAt || '')));
 
     rows.forEach((row, i) => {
       const prev = rows[i + 1];
@@ -4269,7 +4303,7 @@ function renderCompare() {
 
     const rows = [];
     if (lastWhenResult) rows.push({ ...lastWhenResult, _current: true });
-    rows.push(...whenSnaps);
+    rows.push(...[...whenSnaps].sort((a, b) => (b.savedAt || '').localeCompare(a.savedAt || '')));
 
     rows.forEach((row, i) => {
       const prev = rows[i + 1];
@@ -4396,8 +4430,8 @@ function runHowManySimulation() {
     </div>
     <div class="mc-headlines">
       ${[
-        { pct: 95, val: p95, cls: 'mc-s95', label: 'Safe minimum — high confidence' },
-        { pct: 85, val: p85, cls: 'mc-s85', label: 'Recommended planning target' },
+        { pct: 95, val: p95, cls: 'mc-s95', label: 'Very safe — lower number, high certainty' },
+        { pct: 85, val: p85, cls: 'mc-s85', label: 'Recommended planning target ★' },
         { pct: 70, val: p70, cls: 'mc-s70', label: 'Likely but not safe to commit' },
         { pct: 50, val: p50, cls: 'mc-s50', label: 'Optimistic — wrong half the time' },
       ].map(s => `
@@ -4660,6 +4694,8 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    const copyBtn = document.querySelector('#data-footer .copy-btn');
+    if (copyBtn) copyBtn.style.visibility = btn.dataset.tab === 'ai' ? 'hidden' : '';
     renderActiveTab();
   });
 });
