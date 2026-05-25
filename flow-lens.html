@@ -256,6 +256,13 @@ License: MIT
     .cfd-range-stat .val { font-size: 1.2rem; font-weight: 700; color: #0f172a; line-height: 1.1; }
     .cfd-range-stat .lbl { font-size: 0.68rem; color: #94a3b8; margin-top: 0.1rem; }
     .cfd-hint { font-size: 0.72rem; color: #94a3b8; margin-top: 0.5rem; }
+    .cfd-snapshot-wrap { margin-top: 0.5rem; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; overflow: hidden; }
+    .cfd-snapshot-header { display: flex; align-items: center; justify-content: space-between; padding: 0.35rem 0.75rem; gap: 1rem; }
+    .cfd-snapshot-date { font-size: 0.78rem; font-weight: 600; color: #0f172a; min-width: 90px; }
+    .cfd-snapshot-stages { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; font-size: 0.78rem; color: #475569; flex: 1; }
+    .cfd-snapshot-stage { white-space: nowrap; }
+    .cfd-snapshot-stage b { color: #0f172a; }
+.cfd-snapshot-note { font-size: 0.68rem; color: #94a3b8; padding: 0 0.75rem 0.3rem; }
     @media (max-width: 640px) { .cfd-panels.two-up { grid-template-columns: 1fr; } }
     .chart-wrap { position: relative; height: 420px; }
 
@@ -756,7 +763,7 @@ License: MIT
         <div class="info-panel" id="info-cfd">
           <div class="info-row"><strong>How to read the bands</strong>Each coloured band is a workflow stage. The height of the band at any point = WIP in that stage. A band that widens over time = work is accumulating there — a bottleneck. A flat or shrinking band = flow is moving through.</div>
           <div class="info-row"><strong>Slopes and lines</strong>The slope of any line = its throughput rate (items per day). Two lines with the same slope = balanced flow between those stages. The horizontal distance between any two lines at a point = approximate cycle time between those stages.</div>
-          <div class="info-row"><strong>Tooltip: cycle time per stage</strong>The <em>~Xd</em> shown in the tooltip is an approximate average cycle time for that stage, calculated using <strong>Little's Law</strong>: <span class="info-formula">CT ≈ WIP in stage ÷ recent throughput rate</span> It reflects the current state of flow at that point on the chart — if WIP is high and throughput is low, it estimates a longer cycle time. It is not the same as the historical average time individual items spent in the stage.</div>
+          <div class="info-row"><strong>Stage snapshot panel</strong>Hover over the chart to see WIP per stage for that week. The <em>~Xd</em> is an approximate cycle time for that stage using <strong>Little's Law</strong>: <span class="info-formula">CT ≈ WIP ÷ throughput rate</span> Use "Hide details" to collapse the panel when placing analysis markers.</div>
           <div class="info-row"><strong>What to look for:</strong> Parallel lines with equal slope = smooth, predictable flow. Diverging lines = WIP growing. Flat bottom (Done) line = throughput has stalled. A big orange or red band = your bottleneck.</div>
         </div>
         <div style="display:flex;gap:2rem;flex-wrap:wrap;margin-bottom:1rem;font-size:0.78rem;color:#475569">
@@ -773,6 +780,13 @@ License: MIT
           <button onclick="resetCFDZoom()">Reset</button>
         </div>
         <div class="chart-wrap" style="cursor:crosshair"><canvas id="chart-cfd"></canvas></div>
+        <div class="cfd-snapshot-wrap" id="cfd-snapshot-wrap">
+          <div class="cfd-snapshot-header">
+            <span class="cfd-snapshot-date" id="cfd-snapshot-date">—</span>
+            <span class="cfd-snapshot-stages" id="cfd-snapshot-stages" style="color:#94a3b8">Hover over the chart to see stage breakdown</span>
+          </div>
+          <div id="cfd-snapshot-note" class="cfd-snapshot-note" style="display:none">* Cycle time approximated using Little's Law (WIP ÷ recent throughput)</div>
+        </div>
         <div class="cfd-analysis" id="cfd-analysis">
           <div class="cfd-analysis-header">
             <span id="cfd-analysis-hint">Click chart to place a marker · click again to add a second</span>
@@ -819,6 +833,7 @@ License: MIT
           <label style="font-size:0.83rem;color:#374151;font-weight:600;">Hide items &ge;</label>
           <input type="number" id="fe-threshold" value="100" min="0" max="100" step="0.1"
                  style="width:80px;padding:0.3rem 0.55rem;border:1px solid #d1d5db;border-radius:6px;font-size:0.83rem;color:#1e293b;"
+                 onchange="renderFlowEff(lastRenderPayload&&lastRenderPayload.completed||[])"
                  onkeydown="if(event.key==='Enter')renderFlowEff(lastRenderPayload&&lastRenderPayload.completed||[])">
           <span style="font-size:0.83rem;color:#374151;">%</span>
           <label style="display:flex;align-items:center;gap:0.3rem;font-size:0.83rem;color:#374151;cursor:pointer;margin-left:0.5rem;">
@@ -827,8 +842,6 @@ License: MIT
           <label style="display:flex;align-items:center;gap:0.3rem;font-size:0.83rem;color:#374151;cursor:pointer;">
             <input type="checkbox" id="fe-hide-ct1" onchange="renderFlowEff(lastRenderPayload&&lastRenderPayload.completed||[])"> Hide CT &le; 1d
           </label>
-          <button onclick="renderFlowEff(lastRenderPayload&&lastRenderPayload.completed||[])"
-                  style="padding:0.3rem 0.8rem;background:#0ea5e9;color:white;border:none;border-radius:6px;font-size:0.82rem;cursor:pointer;font-weight:600;">Apply</button>
           <button onclick="document.getElementById('fe-threshold').value=100;document.getElementById('fe-hide-zero').checked=false;document.getElementById('fe-hide-ct1').checked=false;renderFlowEff(lastRenderPayload&&lastRenderPayload.completed||[])"
                   style="padding:0.3rem 0.75rem;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem;cursor:pointer;">Show all</button>
           <span id="fe-filter-info" style="font-size:0.8rem;color:#94a3b8;"></span>
@@ -1160,37 +1173,42 @@ function loadExampleData() {
 
   // Completed items (~300, spread over last 26 weeks)
   for (let i = 0; i < 300; i++) {
-    const doneAgo   = Math.floor(Math.random() * 178) + 5;
-    const doneDate  = addDays(today, -doneAgo);
-    const ct        = logn(1.9, 0.65, 1);       // median ~7d
-    const ffe       = logn(2.1, 0.65, 2);       // median ~8d
-    const readyDate = addDays(doneDate, -ct);
-    const backlog   = addDays(readyDate, -ffe);
-    const doingDate = addDays(readyDate, logn(0.3, 0.4, 1));
-    const skipReview = Math.random() < 0.4;
-    const reviewDate = skipReview ? null : addDays(doingDate, logn(0.8, 0.4, 1));
-    const hasBlock  = Math.random() < 0.13;
-    const blockDays = hasBlock ? Math.min(logn(2.2, 0.6, 1), Math.max(1, ct - 1)) : 0;
+    const doneAgo    = Math.floor(Math.random() * 178) + 5;
+    const doneDate   = addDays(today, -doneAgo);
+    const ct         = logn(1.9, 0.65, 1);       // median ~7d
+    const ffe        = logn(2.1, 0.65, 2);       // median ~8d
+    const readyDate  = addDays(doneDate, -ct);
+    const backlog    = addDays(readyDate, -ffe);
+    const devDate    = addDays(readyDate, logn(0.3, 0.4, 1));
+    const devDoneDate = addDays(devDate, logn(0.9, 0.45, 1));
+    const skipReview  = Math.random() < 0.2;
+    const rawReview   = skipReview ? null : addDays(devDoneDate, logn(0.5, 0.4, 1));
+    const reviewDate  = rawReview && rawReview < doneDate ? rawReview : null;
+    const hasBlock   = Math.random() < 0.13;
+    const blockDays  = hasBlock ? Math.min(logn(2.2, 0.6, 1), Math.max(1, ct - 1)) : 0;
     const src = pick(sourceWeights);
     rows.push({
       ID: makeId(), Title: pick(titleMap[src]),
       'Demand Source': src, 'Demand Type': pick(typeMap[src]),
       'Blocked Days': blockDays, 'Currently Blocked': 'No',
       Backlog: fmt(backlog), Ready: fmt(readyDate),
-      Doing: fmt(doingDate), Review: reviewDate ? fmt(reviewDate) : '', Done: fmt(doneDate),
+      Dev: fmt(devDate), 'Dev Done': fmt(devDoneDate),
+      Review: reviewDate ? fmt(reviewDate) : '', Done: fmt(doneDate),
     });
   }
 
   // WIP items (~35)
   for (let i = 0; i < 35; i++) {
-    const readyAgo  = logn(1.6, 1.0, 1);
-    const readyDate = addDays(today, -readyAgo);
-    const backlog   = addDays(readyDate, -logn(2.0, 0.6, 2));
-    const doingDate = addDays(readyDate, logn(0.3, 0.4, 1));
-    const inReview  = readyAgo > 5 && Math.random() < 0.3;
-    const reviewDate = inReview ? addDays(doingDate, logn(0.8, 0.4, 1)) : null;
-    const hasBlock  = Math.random() < 0.28;
-    const blockDays = hasBlock ? Math.min(logn(1.8, 0.5, 1), Math.max(1, readyAgo - 1)) : 0;
+    const readyAgo   = logn(1.6, 1.0, 1);
+    const readyDate  = addDays(today, -readyAgo);
+    const backlog    = addDays(readyDate, -logn(2.0, 0.6, 2));
+    const devDate    = addDays(readyDate, logn(0.3, 0.4, 1));
+    const inDevDone  = readyAgo > 3 && Math.random() < 0.65;
+    const devDoneDate = inDevDone ? addDays(devDate, logn(0.9, 0.45, 1)) : null;
+    const inReview   = devDoneDate && readyAgo > 6 && Math.random() < 0.4;
+    const reviewDate = inReview ? addDays(devDoneDate, logn(0.5, 0.4, 1)) : null;
+    const hasBlock   = Math.random() < 0.28;
+    const blockDays  = hasBlock ? Math.min(logn(1.8, 0.5, 1), Math.max(1, readyAgo - 1)) : 0;
     const isNowBlocked = hasBlock && Math.random() < 0.55;
     const src = pick(sourceWeights);
     rows.push({
@@ -1198,7 +1216,8 @@ function loadExampleData() {
       'Demand Source': src, 'Demand Type': pick(typeMap[src]),
       'Blocked Days': blockDays, 'Currently Blocked': isNowBlocked ? 'Yes' : 'No',
       Backlog: fmt(backlog), Ready: fmt(readyDate),
-      Doing: fmt(doingDate), Review: reviewDate ? fmt(reviewDate) : '', Done: '',
+      Dev: fmt(devDate), 'Dev Done': devDoneDate ? fmt(devDoneDate) : '',
+      Review: reviewDate ? fmt(reviewDate) : '', Done: '',
     });
   }
 
@@ -1210,13 +1229,13 @@ function loadExampleData() {
       'Demand Source': src, 'Demand Type': pick(typeMap[src]),
       'Blocked Days': 0, 'Currently Blocked': 'No',
       Backlog: fmt(addDays(today, -(logn(2.2, 0.7, 2)))),
-      Ready: '', Doing: '', Review: '', Done: '',
+      Ready: '', Dev: '', 'Dev Done': '', Review: '', Done: '',
     });
   }
 
   rows.sort(() => Math.random() - 0.5);
 
-  const fields = ['ID','Title','Demand Source','Demand Type','Blocked Days','Currently Blocked','Backlog','Ready','Doing','Review','Done'];
+  const fields = ['ID','Title','Demand Source','Demand Type','Blocked Days','Currently Blocked','Backlog','Ready','Dev','Dev Done','Review','Done'];
   const csv = [
     fields.join(','),
     ...rows.map(r => fields.map(f => { const v = String(r[f] ?? ''); return v.includes(',') ? `"${v}"` : v; }).join(','))
@@ -1234,8 +1253,8 @@ function loadExampleData() {
         version: 1,
         fields: { startCol:'Ready', endCol:'Done', idCol:'ID', titleCol:'Title', blockedDaysCol:'Blocked Days', blockedFlagCol:'Currently Blocked' },
         workflow: {
-          stages: ['Backlog','Ready','Doing','Review','Done'],
-          types:  { Backlog:'Q', Ready:'Q', Doing:'P', Review:'P', Done:'P' },
+          stages: ['Backlog','Ready','Dev','Dev Done','Review','Done'],
+          types:  { Backlog:'queue', Ready:'queue', Dev:'process', 'Dev Done':'queue', Review:'process', Done:'queue' },
           hidden: [],
         },
         filters:   [{ col:'Demand Source', val:'' }, { col:'Demand Type', val:'' }, { col:'', val:'' }],
@@ -1247,6 +1266,7 @@ function loadExampleData() {
 
 // ── Column config ──────────────────────────────────────────────────────────
 function setupConfig() {
+  stageTypes = {};
   document.getElementById('config-panel').style.display = 'block';
 
   ['col-start','col-end','col-id','col-title','col-link','col-blocked','col-blocked-flag',
@@ -2182,27 +2202,7 @@ function renderCFD() {
       onClick: handleCFDClick,
       plugins: {
         legend: { position: 'bottom', reverse: true, labels: { color: '#475569', font: { size: 11 }, boxWidth: 14, padding: 14 } },
-        tooltip: {
-          mode: 'index', intersect: false,
-          itemSort(a, b) { return b.datasetIndex - a.datasetIndex; },
-          callbacks: {
-            title(items) {
-              const d = new Date(items[0].parsed.x);
-              return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-            },
-            label(ctx) {
-              const wip = ctx.datasetIndex === 0
-                ? ctx.parsed.y
-                : ctx.parsed.y - ctx.chart.data.datasets[ctx.datasetIndex - 1].data[ctx.dataIndex];
-              const stage = ctx.dataset.label;
-              const si = data.visibleStages.indexOf(stage);
-              const llCt = data.llCtPerStage[si] ? data.llCtPerStage[si][ctx.dataIndex] : null;
-              const ctPart = llCt !== null ? `  ·  ~${llCt}d` : '';
-              return `${stage}: ${wip} ${wip === 1 ? 'item' : 'items'}${ctPart}`;
-            },
-            footer() { return '* Approximate — Little\'s Law (WIP ÷ throughput)'; }
-          }
-        }
+        tooltip: { enabled: false }
       },
       interaction: { mode: 'index' },
       scales: {
@@ -2215,7 +2215,54 @@ function renderCFD() {
     },
     plugins: [cfdMarkerPlugin]
   });
+
+  const canvas = document.getElementById('chart-cfd');
+  if (!canvas._cfdHoverBound) {
+    canvas._cfdHoverBound = true;
+    canvas.addEventListener('mousemove', e => {
+      if (!charts.cfd || !cfdDataCache) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const dateMs = charts.cfd.scales.x.getValueForPixel(x);
+      const weeks = cfdDataCache.weeks;
+      let best = 0;
+      weeks.forEach((wk, i) => {
+        if (Math.abs(wk.getTime() - dateMs) < Math.abs(weeks[best].getTime() - dateMs)) best = i;
+      });
+      updateCFDSnapshot(best);
+    });
+  }
 }
+
+function updateCFDSnapshot(weekIdx) {
+  if (!charts.cfd || !cfdDataCache) return;
+  const { weeks, visibleStages, llCtPerStage } = cfdDataCache;
+  if (weekIdx < 0 || weekIdx >= weeks.length) return;
+
+  const date = weeks[weekIdx];
+  const dateStr = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  const datasets = charts.cfd.data.datasets; // reversed: Done first
+  const reversedStages = [...visibleStages].reverse();
+
+  const parts = reversedStages.map((stage, di) => {
+    const wip = di === 0
+      ? (datasets[di].data[weekIdx] || 0)
+      : (datasets[di].data[weekIdx] || 0) - (datasets[di - 1].data[weekIdx] || 0);
+    const si = visibleStages.indexOf(stage);
+    const llCt = llCtPerStage[si] ? llCtPerStage[si][weekIdx] : null;
+    const ctStr = llCt !== null ? ` <span style="color:#94a3b8">~${llCt}d</span>` : '';
+    return `<span class="cfd-snapshot-stage"><b>${stage}</b> ${wip}${ctStr}</span>`;
+  });
+  parts.reverse(); // back to natural stage order
+
+  const hasLLCt = visibleStages.some((_, i) => llCtPerStage[i] && llCtPerStage[i][weekIdx] !== null);
+
+  document.getElementById('cfd-snapshot-date').textContent = dateStr;
+  document.getElementById('cfd-snapshot-stages').innerHTML = parts.join('');
+  const noteEl = document.getElementById('cfd-snapshot-note');
+  if (noteEl) noteEl.style.display = hasLLCt ? 'block' : 'none';
+}
+
 
 function resetCFDZoom() {
   document.getElementById('cfd-from').value = '';
@@ -3562,7 +3609,12 @@ function applyConfig(cfg) {
 
   if (cfg.workflow) {
     if (cfg.workflow.stages) workflowStages = cfg.workflow.stages.filter(s => columns.includes(s));
-    if (cfg.workflow.types)  stageTypes     = cfg.workflow.types;
+    if (cfg.workflow.types) {
+      stageTypes = {};
+      Object.entries(cfg.workflow.types).forEach(([k, v]) => {
+        stageTypes[k] = (v === 'P' || v === 'process') ? 'process' : 'queue';
+      });
+    }
     if (cfg.workflow.hidden) hiddenStages   = new Set(cfg.workflow.hidden);
   }
 
