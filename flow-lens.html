@@ -503,6 +503,16 @@ License: MIT
     .mc-save-btn:hover { background:#0284c7; }
     .mc-compare-section { margin-bottom:2rem; }
     .mc-compare-section h3 { font-size:0.85rem; font-weight:600; color:#374151; margin:0 0 0.75rem; display:flex; align-items:center; gap:0.5rem; }
+    .dq-section { margin-bottom:2rem; }
+    .dq-section h3 { font-size:0.85rem; font-weight:600; color:#374151; margin:0 0 0.25rem; }
+    .dq-section .dq-desc { font-size:0.78rem; color:#64748b; margin:0 0 0.6rem; line-height:1.5; }
+    .dq-table { width:100%; border-collapse:collapse; font-size:0.8rem; }
+    .dq-table th { background:#f8fafc; padding:0.4rem 0.65rem; text-align:left; font-weight:600; font-size:0.71rem; color:#64748b; border-bottom:2px solid #e2e8f0; white-space:nowrap; }
+    .dq-table td { padding:0.38rem 0.65rem; border-bottom:1px solid #f1f5f9; vertical-align:middle; font-size:0.79rem; }
+    .dq-table tr:last-child td { border-bottom:none; }
+    .dq-badge { display:inline-block; padding:0.12rem 0.5rem; border-radius:99px; font-size:0.71rem; font-weight:600; }
+    .dq-badge-amber { background:#fef3c7; color:#92400e; }
+    .dq-badge-red   { background:#fee2e2; color:#991b1b; }
     .mc-compare-table { width:100%; border-collapse:collapse; font-size:0.8rem; }
     .mc-compare-table th { background:#f8fafc; padding:0.42rem 0.65rem; text-align:left; font-weight:600; font-size:0.71rem; color:#64748b; border-bottom:2px solid #e2e8f0; white-space:nowrap; }
     .mc-compare-table td { padding:0.42rem 0.65rem; border-bottom:1px solid #f1f5f9; vertical-align:middle; white-space:nowrap; }
@@ -637,7 +647,7 @@ License: MIT
   </div>
 
   <div id="stats-bar">
-    <div class="stat"><div class="value" id="stat-count">—</div><div class="label">Items completed</div></div>
+    <div class="stat"><div class="value" id="stat-count">—</div><div class="label">Items completed <a id="stat-dq-link" href="#" onclick="switchToTab('dq');return false;" style="display:none;font-size:0.7rem;font-weight:500;color:#f59e0b;text-decoration:none;margin-left:0.3rem" title="Data quality issues found">⚠</a></div></div>
     <div class="stat"><div class="value" id="stat-median">—</div><div class="label">Cycle time p50</div></div>
     <div class="stat"><div class="value" id="stat-p85">—</div><div class="label">Cycle time p85</div></div>
     <div class="stat"><div class="value" id="stat-throughput">—</div><div class="label">Throughput avg/wk</div></div>
@@ -667,6 +677,7 @@ License: MIT
         <button class="tab-btn" data-tab="ffe">Fuzzy Front End</button>
         <button class="tab-btn" data-tab="data">Data</button>
         <button class="tab-btn" data-tab="ai">AI <span style="font-size:0.65em;font-weight:400;opacity:0.55;vertical-align:middle">(beta)</span></button>
+        <button class="tab-btn" data-tab="dq" id="tab-btn-dq">Data Quality</button>
       </div>
     </div>
 
@@ -922,6 +933,7 @@ License: MIT
                   style="padding:0.3rem 0.75rem;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem;cursor:pointer;">Show all</button>
           <span id="fe-filter-info" style="font-size:0.8rem;color:#94a3b8;"></span>
         </div>
+        <div id="fe-config-warning" style="display:none;background:#fefce8;border:1px solid #fde68a;border-radius:8px;padding:0.75rem 1rem;margin-bottom:0.75rem;font-size:0.83rem;color:#78350f;line-height:1.55"></div>
         <div class="chart-wrap"><canvas id="chart-floweff"></canvas></div>
       </div>
     </div>
@@ -1032,6 +1044,14 @@ License: MIT
         </div>
 
         <textarea id="ai-prompt-output" readonly style="display:none;width:100%;min-height:420px;font-family:monospace;font-size:0.78rem;line-height:1.6;padding:1rem;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#1e293b;resize:vertical;white-space:pre"></textarea>
+      </div>
+    </div>
+
+    <div id="tab-dq" class="tab-pane">
+      <div class="chart-card">
+        <h2>Data Quality</h2>
+        <div class="subtitle">Rows with data that can't be measured accurately. These don't affect your metrics — but knowing they exist helps you coach better data hygiene.</div>
+        <div id="dq-content"><div class="empty-state">No data quality issues found.</div></div>
       </div>
     </div>
 
@@ -1338,8 +1358,10 @@ function loadExampleData() {
     const ffe        = logn(2.1, 0.65, 2);       // median ~8d
     const readyDate  = addDays(doneDate, -ct);
     const backlog    = addDays(readyDate, -ffe);
-    const devDate    = addDays(readyDate, logn(0.3, 0.4, 1));
-    const devDoneDate = addDays(devDate, logn(0.9, 0.45, 1));
+    const rawDev      = addDays(readyDate, logn(0.3, 0.4, 1));
+    const devDate     = rawDev < doneDate ? rawDev : readyDate;
+    const rawDevDone  = addDays(devDate, logn(0.9, 0.45, 1));
+    const devDoneDate = rawDevDone < doneDate ? rawDevDone : addDays(doneDate, -1);
     const skipReview  = Math.random() < 0.2;
     const rawReview   = skipReview ? null : addDays(devDoneDate, logn(0.5, 0.4, 1));
     const reviewDate  = rawReview && rawReview < doneDate ? rawReview : null;
@@ -1391,6 +1413,13 @@ function loadExampleData() {
       Ready: '', Dev: '', 'Dev Done': '', Review: '', Done: '',
     });
   }
+
+  // Data quality examples (deliberately bad data for the DQ tab demo)
+  const dqBase = addDays(today, -60);
+  rows.push({ ID: makeId(), Title: 'Migrate legacy billing module', 'Demand Source': 'Feature', 'Demand Type': 'Value Demand', 'Blocked Days': 0, 'Currently Blocked': 'No', Backlog: '', Ready: '', Dev: '', 'Dev Done': '', Review: '', Done: fmt(addDays(dqBase, 10)) }); // no start
+  rows.push({ ID: makeId(), Title: 'Fix session token expiry', 'Demand Source': 'Bug', 'Demand Type': 'Failure Demand', 'Blocked Days': 0, 'Currently Blocked': 'No', Backlog: '', Ready: fmt(addDays(dqBase, 15)), Dev: '', 'Dev Done': '', Review: '', Done: fmt(addDays(dqBase, 8)) }); // done before start
+  rows.push({ ID: makeId(), Title: 'Update GDPR consent flow', 'Demand Source': 'Maintenance', 'Demand Type': 'Improvement Demand', 'Blocked Days': 18, 'Currently Blocked': 'No', Backlog: '', Ready: fmt(addDays(dqBase, 20)), Dev: fmt(addDays(dqBase, 21)), 'Dev Done': fmt(addDays(dqBase, 22)), Review: '', Done: fmt(addDays(dqBase, 30)) }); // blocked > ct (10d ct, 18d blocked)
+  rows.push({ ID: makeId(), Title: 'Patch XSS vulnerability in search', 'Demand Source': 'Bug', 'Demand Type': 'Failure Demand', 'Blocked Days': 0, 'Currently Blocked': 'No', Backlog: '', Ready: fmt(addDays(dqBase, 5)), Dev: fmt(addDays(dqBase, 12)), 'Dev Done': fmt(addDays(dqBase, 9)), Review: '', Done: fmt(addDays(dqBase, 20)) }); // Dev Done before Dev
 
   rows.sort(() => Math.random() - 0.5);
 
@@ -1665,9 +1694,9 @@ function getPreStartStages(cfg) {
 }
 
 function processData(cfg) {
-  if (!cfg.startCol || !cfg.endCol) return { completed: [], wip: [] };
+  if (!cfg.startCol || !cfg.endCol) return { completed: [], wip: [], backlog: [], dqIssues: [] };
   const cutoff = cfg.filterDays ? new Date(Date.now() - cfg.filterDays * 86400000) : null;
-  const completed = [], wip = [], backlog = [];
+  const completed = [], wip = [], backlog = [], dqIssues = [];
 
   allRows.forEach(row => {
     if (!rowMatchesFilters(row, cfg)) return;
@@ -1682,10 +1711,46 @@ function processData(cfg) {
       ? preStart.reduce((earliest, col) => { const d = getCachedDate(row, col); return d && (!earliest || d < earliest) ? d : earliest; }, null)
       : null;
 
+    // ── Data quality checks ─────────────────────────────────────────────
+    const rawEnd   = cfg.endCol   ? (row[cfg.endCol]   || '').trim() : '';
+    const rawStart = cfg.startCol ? (row[cfg.startCol] || '').trim() : '';
+    if (rawEnd && !endDate)   dqIssues.push({ type: 'bad-date', id, title, link, detail: `"${rawEnd}" in ${cfg.endCol} could not be read as a date` });
+    if (rawStart && !startDate) dqIssues.push({ type: 'bad-date', id, title, link, detail: `"${rawStart}" in ${cfg.startCol} could not be read as a date` });
+
+    if (!startDate && endDate) {
+      dqIssues.push({ type: 'no-start', id, title, link, endDate });
+    }
+    if (startDate && endDate && endDate < startDate) {
+      dqIssues.push({ type: 'negative-ct', id, title, link, startDate, endDate, ct: daysBetween(startDate, endDate) });
+    }
+
+    if (workflowStages.length >= 2) {
+      const stageDatesRaw = workflowStages.map(col => ({ col, date: getCachedDate(row, col) })).filter(s => s.date);
+      for (let i = 1; i < stageDatesRaw.length; i++) {
+        if (stageDatesRaw[i].date < stageDatesRaw[i - 1].date) {
+          dqIssues.push({ type: 'backwards', id, title, link, fromStage: stageDatesRaw[i - 1].col, toStage: stageDatesRaw[i].col, fromDate: stageDatesRaw[i - 1].date, toDate: stageDatesRaw[i].date });
+          break;
+        }
+      }
+    }
+    // ────────────────────────────────────────────────────────────────────
+
     if (startDate && endDate && endDate >= startDate) {
       const ct = daysBetween(startDate, endDate);
       if (ct < 0) return;
       if (cutoff && endDate < cutoff) return;
+      if (cfg.blockedDaysCol && blockedDays > 0) {
+        // Blocked time is bounded by lead time (earliest stage date → done), not cycle time
+        const stageDatesAll = workflowStages.filter(c => c !== cfg.endCol)
+          .map(col => getCachedDate(row, col)).filter(Boolean);
+        const earliestDate = stageDatesAll.length > 0
+          ? stageDatesAll.reduce((min, d) => d < min ? d : min)
+          : startDate;
+        const leadTimeForBlock = daysBetween(earliestDate, endDate);
+        if (blockedDays > leadTimeForBlock + 0.5 && leadTimeForBlock > 0) {
+          dqIssues.push({ type: 'blocked-exceeds-ct', id, title, link, blockedDays, leadTime: leadTimeForBlock, ct });
+        }
+      }
       const ffeTime  = (backlogDate && backlogDate <= startDate) ? daysBetween(backlogDate, startDate) : null;
       const leadTime = (backlogDate && backlogDate <= endDate)   ? daysBetween(backlogDate, endDate)   : null;
       let flowEfficiency = null;
@@ -1729,7 +1794,7 @@ function processData(cfg) {
   completed.sort((a, b) => a.endDate - b.endDate);
   wip.sort((a, b) => b.age - a.age);
   backlog.sort((a, b) => b.ffeAge - a.ffeAge);
-  return { completed, wip, backlog };
+  return { completed, wip, backlog, dqIssues };
 }
 
 // ── Render all ─────────────────────────────────────────────────────────────
@@ -1744,7 +1809,7 @@ function _doRenderAll() {
   const cfg = getConfig();
   if (!cfg.startCol || !cfg.endCol) return;
 
-  const { completed, wip, backlog } = processData(cfg);
+  const { completed, wip, backlog, dqIssues } = processData(cfg);
 
   if (!completed.length && !wip.length) {
     showError('No usable rows found. Check your start and end date column selection.');
@@ -1759,7 +1824,16 @@ function _doRenderAll() {
   const p95 = percentile(sortedCT, 95);
 
   document.getElementById('stats-bar').style.display = 'grid';
-  document.getElementById('stat-count').textContent    = completed.length.toLocaleString();
+  const noStartCount = dqIssues.filter(i => i.type === 'no-start').length;
+  const totalCompleted = completed.length + noStartCount;
+  document.getElementById('stat-count').textContent = totalCompleted.toLocaleString();
+  const dqLink = document.getElementById('stat-dq-link');
+  if (dqLink) {
+    if (dqIssues.length) { dqLink.style.display = 'inline'; dqLink.title = `${dqIssues.length} data quality issue${dqIssues.length !== 1 ? 's' : ''} — click to view`; }
+    else dqLink.style.display = 'none';
+  }
+  const dqBtn = document.getElementById('tab-btn-dq');
+  if (dqBtn) dqBtn.textContent = dqIssues.length ? `Data Quality ⚠ ${dqIssues.length}` : 'Data Quality';
   document.getElementById('stat-median').textContent   = completed.length ? p50.toFixed(1) + 'd' : '—';
   document.getElementById('stat-p85').textContent      = completed.length ? p85.toFixed(1) + 'd' : '—';
   document.getElementById('stat-wip').textContent      = wip.length;
@@ -1799,7 +1873,7 @@ function _doRenderAll() {
   document.getElementById('btn-save-config').style.display = 'inline-block';
 
   updateFooter();
-  lastRenderPayload = { completed, wip, backlog, p50, p70, p85, p95 };
+  lastRenderPayload = { completed, wip, backlog, dqIssues, p50, p70, p85, p95 };
   renderActiveTab();
 }
 
@@ -1821,6 +1895,7 @@ function renderActiveTab() {
     case 'ffe':        renderFFE(completed); break;
     case 'data':       renderData(); break;
     case 'ai':         /* prompt generated on demand */ break;
+    case 'dq':         renderDataQuality(); break;
     case 'forecast':   renderForecast(completed, wip, backlog); break;
   }
 }
@@ -3026,12 +3101,34 @@ function renderFlowEff(completed) {
     wrap.innerHTML = '<canvas id="chart-floweff"></canvas>';
   }
 
+  const warning = document.getElementById('fe-config-warning');
+  if (warning) { warning.style.display = 'none'; warning.innerHTML = ''; }
+
   if (!completed.length) return;
 
   const withFE = completed.filter(d => d.flowEfficiency !== null && d.flowEfficiency !== undefined);
   if (!withFE.length) {
-    wrap.innerHTML = '<div class="empty-state">Flow efficiency requires workflow stages to be configured.<br>Set up stage columns and mark each as Process (P) or Queue (Q).</div>';
+    const hasStages = workflowStages.length >= 2;
+    const msg = hasStages
+      ? 'Flow efficiency could not be calculated — all items have the same date for consecutive stages, so there is no time to measure. Check that your stage date columns contain real progression data.'
+      : 'No workflow stages are configured. Add your stage columns in the <strong>Column mapping</strong> section and mark each one as <strong>Process (P)</strong> or <strong>Queue (Q)</strong>.';
+    wrap.innerHTML = `<div class="empty-state">${msg}</div>`;
     return;
+  }
+
+  const hasProcessStages = workflowStages.some(col => stageTypes[col] === 'process');
+  const cfg = getConfig();
+  const hasBlockedDays = !!cfg.blockedDaysCol;
+  const allZero = withFE.every(d => d.flowEfficiency === 0);
+
+  if (warning) {
+    if (allZero && !hasProcessStages && !hasBlockedDays) {
+      warning.innerHTML = '<strong>Flow efficiency is 0% for all items.</strong> This happens when no stages are marked as Process (P) and no Blocked Days column is mapped — there is no active work time to measure against.<br>Fix: in the <strong>Column mapping</strong> section, mark your active work stages as <strong>P</strong> (e.g. Dev, Review), and leave waiting stages as <strong>Q</strong>.';
+      warning.style.display = '';
+    } else if (allZero && !hasProcessStages) {
+      warning.innerHTML = '<strong>Flow efficiency is 0% for all items.</strong> No stages are marked as Process (P), so all time is counted as queue/wait time.<br>Fix: in <strong>Column mapping</strong>, mark your active work stages as <strong>P</strong> (e.g. Dev, Review).';
+      warning.style.display = '';
+    }
   }
 
   const rawThreshold = parseFloat(document.getElementById('fe-threshold').value);
@@ -3053,7 +3150,13 @@ function renderFlowEff(completed) {
   }
 
   if (!visible.length) {
-    wrap.innerHTML = `<div class="empty-state">All ${withFE.length} items are hidden by the current filters.<br>Adjust the filters or click Show all.</div>`;
+    const allHundred = withFE.every(d => d.flowEfficiency === 100);
+    const allProcess = workflowStages.length >= 2 && workflowStages.every(col => stageTypes[col] === 'process') && !hasBlockedDays;
+    if (allHundred && allProcess) {
+      wrap.innerHTML = `<div class="empty-state"><strong>All items show 100% flow efficiency</strong> — hidden by the default filter.<br><br>This happens when every stage is marked as <strong>Process (P)</strong> and no <strong>Blocked Days</strong> column is mapped, so there is no queue or wait time in the calculation.<br><br>Fix: in <strong>Column mapping</strong>, mark your waiting stages (e.g. Ready, Dev Done) as <strong>Queue (Q)</strong>. Or click <strong>Show all</strong> to see the 100% items.</div>`;
+    } else {
+      wrap.innerHTML = `<div class="empty-state">All ${withFE.length} items are hidden by the current filters.<br>Adjust the filters or click Show all.</div>`;
+    }
     return;
   }
   if (!document.getElementById('chart-floweff')) {
@@ -4688,6 +4791,97 @@ function runWhenSimulation() {
 }
 
 // ── Tab switching ──────────────────────────────────────────────────────────
+function switchToTab(tab) {
+  const btn = document.querySelector(`.tab-btn[data-tab="${tab}"]`);
+  if (!btn) return;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+  renderActiveTab();
+}
+
+function renderDataQuality() {
+  const el = document.getElementById('dq-content');
+  if (!el) return;
+  const issues = (lastRenderPayload && lastRenderPayload.dqIssues) || [];
+  if (!issues.length) {
+    el.innerHTML = '<div class="empty-state">No data quality issues found.</div>';
+    return;
+  }
+
+  function fmtD(d) { return d ? fmtDate(d) : '—'; }
+  function fmtDays(d) { return Number.isInteger(d) ? d : +d.toFixed(2); }
+  function itemCell(id, title, link) {
+    const label = [id, title].filter(Boolean).join(' — ') || '(no ID/title)';
+    const safe = label.replace(/"/g,'&quot;');
+    const inner = link
+      ? `<a href="${link.replace(/"/g,'&quot;')}" target="_blank" rel="noopener" style="color:#2563eb;text-decoration:none" title="${safe}">${label}</a>`
+      : label;
+    return `<td style="max-width:340px;overflow:hidden;text-overflow:ellipsis" title="${safe}">${inner}</td>`;
+  }
+
+  const sections = [
+    {
+      type: 'no-start',
+      title: 'End Date with no Start Date',
+      badge: 'amber',
+      desc: 'These items reached Done but have no date in your Start column. They\'re included in the completed count but excluded from cycle time and throughput charts. Common cause: stages were skipped or dates were never recorded.',
+      headers: ['Item', 'Done'],
+      row: i => `${itemCell(i.id, i.title, i.link)}<td>${fmtD(i.endDate)}</td>`,
+    },
+    {
+      type: 'negative-ct',
+      title: 'End Date before Start Date',
+      badge: 'red',
+      desc: 'The Done date is earlier than the Start date — impossible in real flow. These items are excluded from all metrics. Likely cause: wrong column mapped, or dates were entered in the wrong fields.',
+      headers: ['Item', 'Start', 'Done', 'Difference'],
+      row: i => `${itemCell(i.id, i.title, i.link)}<td>${fmtD(i.startDate)}</td><td>${fmtD(i.endDate)}</td><td style="color:#dc2626">${fmtDays(Math.abs(i.ct))}d early</td>`,
+    },
+    {
+      type: 'blocked-exceeds-ct',
+      title: 'Blocked Days exceed Lead Time',
+      badge: 'red',
+      desc: 'The recorded blocked days are greater than the item\'s lead time (first recorded date to Done). An item cannot be blocked for longer than it existed in the system — even if blocked while still in a queue stage. Usually a data entry error in the Blocked Days column.',
+      headers: ['Item', 'Lead time', 'Blocked days'],
+      row: i => `${itemCell(i.id, i.title, i.link)}<td>${fmtDays(i.leadTime)}d</td><td style="color:#dc2626">${fmtDays(i.blockedDays)}d</td>`,
+    },
+    {
+      type: 'backwards',
+      title: 'Stage dates out of order',
+      badge: 'amber',
+      desc: 'A later workflow stage has an earlier date than the stage before it — suggesting backdating or data entry errors. The CFD and flow efficiency calculations may be affected.',
+      headers: ['Item', 'Earlier stage', 'Later stage', 'Date jump'],
+      row: i => `${itemCell(i.id, i.title, i.link)}<td>${i.fromStage} (${fmtD(i.fromDate)})</td><td>${i.toStage} (${fmtD(i.toDate)})</td><td style="color:#dc2626">${fmtDays(Math.abs(daysBetween(i.fromDate, i.toDate)))}d back</td>`,
+    },
+    {
+      type: 'bad-date',
+      title: 'Unreadable date values',
+      badge: 'red',
+      desc: 'These cells contain a value in a date column that couldn\'t be parsed as a date. The item is treated as if no date exists for that column. Common cause: wrong date format (e.g. DD/MM/YYYY instead of YYYY-MM-DD), or free text accidentally entered in a date field.',
+      headers: ['Item', 'Problem'],
+      row: i => `${itemCell(i.id, i.title, i.link)}<td style="color:#dc2626;max-width:400px">${i.detail}</td>`,
+    },
+  ];
+
+  let html = '';
+  sections.forEach(sec => {
+    const rows = issues.filter(i => i.type === sec.type);
+    if (!rows.length) return;
+    const badgeCls = sec.badge === 'red' ? 'dq-badge-red' : 'dq-badge-amber';
+    html += `<div class="dq-section">
+      <h3><span class="dq-badge ${badgeCls}">${rows.length}</span> &nbsp;${sec.title}</h3>
+      <p class="dq-desc">${sec.desc}</p>
+      <table class="dq-table">
+        <thead><tr>${sec.headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+        <tbody>${rows.map(i => `<tr>${sec.row(i)}</tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+  });
+
+  el.innerHTML = html;
+}
+
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
