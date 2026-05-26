@@ -1852,7 +1852,7 @@ function processData(cfg) {
           wip.push({ id, title, link, startDate, age, ffeTime: wipFFE, backlogDate, currentStage, blockedDays, currentlyBlocked, _row: row });
         }
       }
-    } else if (!startDate && backlogDate) {
+    } else if (!startDate && backlogDate && !endDate) {
       const ffeAge = daysBetween(backlogDate, new Date());
       if (ffeAge >= 0) backlog.push({ id, title, link, backlogDate, ffeAge, _row: row });
     }
@@ -3031,7 +3031,7 @@ function renderFFE(completed) {
       layout: { padding: { right: 68 } },
       scales: {
         x: { type:'time', time:{ unit:'month' }, ticks:{ color:'#94a3b8', font:{size:10} }, grid:{ color:'#f1f5f9' } },
-        y: { title:{ display:true, text:'Days in backlog', color:'#94a3b8', font:{size:10} }, ticks:{ color:'#94a3b8' }, grid:{ color:'#f1f5f9' } }
+        y: { min: 0, title:{ display:true, text:'Days in backlog', color:'#94a3b8', font:{size:10} }, ticks:{ color:'#94a3b8' }, grid:{ color:'#f1f5f9' } }
       }
     }
   });
