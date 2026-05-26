@@ -3950,7 +3950,7 @@ function toggleConfigPanel() {
 function buildConfigPayload() {
   const cfg = getConfig();
   return {
-    version:  1,
+    version:  2,
     fields:   { startCol: cfg.startCol, endCol: cfg.endCol, activeCol: cfg.activeCol, idCol: cfg.idCol, titleCol: cfg.titleCol, linkCol: cfg.linkCol, blockedDaysCol: cfg.blockedDaysCol, blockedFlagCol: cfg.blockedFlagCol },
     workflow: { stages: workflowStages, types: stageTypes, hidden: [...hiddenStages] },
     filters:  cfg.filters,
@@ -4026,7 +4026,15 @@ function applyConfig(cfg) {
         stageTypes[k] = (v === 'P' || v === 'process') ? 'process' : 'queue';
       });
     }
-    if (cfg.workflow.hidden) hiddenStages   = new Set(cfg.workflow.hidden);
+    if (cfg.workflow.hidden) hiddenStages = new Set(cfg.workflow.hidden);
+    // Old configs (version < 2) don't encode pre-startCol visibility — apply default auto-hide
+    if (!cfg.version || cfg.version < 2) {
+      const startColVal = document.getElementById('col-start').value;
+      if (startColVal) {
+        const startIdx = workflowStages.indexOf(startColVal);
+        if (startIdx > 0) workflowStages.slice(0, startIdx).forEach(col => hiddenStages.add(col));
+      }
+    }
   }
 
   if (cfg.filters) {
