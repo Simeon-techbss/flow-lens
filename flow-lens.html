@@ -3745,12 +3745,13 @@ function renderInsights(completed, wip, committedQueue, backlog, p50, p70, p85, 
 function renderPipeline(completed, wip, committedQueue, backlog, cfg) {
   const el = document.getElementById('ic-pipeline');
   if (!el) return;
-  const startIdx  = workflowStages.indexOf(cfg.startCol);
-  const endIdx    = workflowStages.indexOf(cfg.endCol);
-  const activeIdx = cfg.activeCol ? workflowStages.indexOf(cfg.activeCol) : startIdx;
-  if (startIdx < 0 || endIdx < 0 || workflowStages.length === 0) { el.style.display = 'none'; return; }
+  const visStages = workflowStages.filter(col => !hiddenStages.has(col));
+  const startIdx  = visStages.indexOf(cfg.startCol);
+  const endIdx    = visStages.indexOf(cfg.endCol);
+  const activeIdx = cfg.activeCol ? visStages.indexOf(cfg.activeCol) : startIdx;
+  if (startIdx < 0 || endIdx < 0 || visStages.length === 0) { el.style.display = 'none'; return; }
 
-  const n = workflowStages.length;
+  const n = visStages.length;
   const hasFfe    = startIdx > 0;
   const hasQueue  = cfg.activeCol && activeIdx > startIdx && activeIdx >= 0;
 
@@ -3761,7 +3762,7 @@ function renderPipeline(completed, wip, committedQueue, backlog, cfg) {
     return 'pl-ffe';
   }
 
-  const stagesHtml = workflowStages.map((s, i) => {
+  const stagesHtml = visStages.map((s, i) => {
     const extra = i === startIdx && hasQueue ? `<span style="display:block;font-size:0.58rem;opacity:0.65;letter-spacing:0.05em">COMMIT</span>` : '';
     return `<div class="pl-stage ${stageClass(i)}" style="grid-column:${i+1}" title="${s}">${extra}${s}</div>`;
   }).join('');
@@ -3789,7 +3790,7 @@ function renderPipeline(completed, wip, committedQueue, backlog, cfg) {
 
   const stats = [
     hasFfe            ? { label:'In FFE',       val: backlog.length.toLocaleString()        } : null,
-    hasQueue          ? { label:'Committed',     val: committedQueue.length.toLocaleString() } : null,
+    hasQueue          ? { label:'Committed, not started', val: committedQueue.length.toLocaleString() } : null,
                         { label:'WIP',           val: wip.length.toLocaleString()            },
     avgCT  !== null   ? { label:'Avg cycle time',val: Math.round(avgCT)  + 'd'              } : null,
     avgLT  !== null   ? { label:'Avg lead time', val: Math.round(avgLT)  + 'd'              } : null,
