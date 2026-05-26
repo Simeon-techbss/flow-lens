@@ -1020,6 +1020,7 @@ License: MIT
         <div id="ffe-content" style="display:none">
           <div class="ffe-section-label">Fuzzy Front End — time from backlog to commitment</div>
           <div class="ffe-summary" id="ffe-pct-cards"></div>
+          <div id="ffe-data-warning" style="display:none;margin:0.5rem 0 1rem;padding:0.75rem 1rem;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;font-size:0.82rem;color:#78350f;line-height:1.6"></div>
           <div class="ffe-section-label">Lead Time — total time from backlog to done</div>
           <div class="ffe-summary" id="ffe-lead-cards"></div>
           <div class="ffe-slice-row">
@@ -2937,6 +2938,26 @@ function renderFFE(completed) {
 
   pctCards(ffeTimes,  'ffe-pct-cards',  '');
   pctCards(leadTimes, 'ffe-lead-cards', 'lead');
+
+  // Warn if most FFE values are 0 — indicates Backlog and commitment date are the same
+  const ffeWarn = document.getElementById('ffe-data-warning');
+  if (ffeTimes.length > 0) {
+    const zeroCount = ffeTimes.filter(v => v < 1).length;
+    const zeroPct   = Math.round(zeroCount / ffeTimes.length * 100);
+    if (zeroPct >= 70) {
+      ffeWarn.style.display = 'block';
+      ffeWarn.innerHTML = `<strong>⚠ FFE data quality issue — ${zeroPct}% of items show 0 days in backlog.</strong><br>
+This usually means the Backlog date and the commitment date (${cfg.startCol || 'Start'}) are being set to the same timestamp. Common causes in ServiceNow:<br>
+• Items were bulk-imported or migrated and all stage dates were stamped at the same time<br>
+• The Backlog field is auto-populated when an item is moved to "${cfg.startCol || 'Start'}", not when it was first created<br>
+• Items were committed immediately on creation with no time spent in the backlog<br>
+The FFE percentiles above will read 0d until the underlying data is corrected.`;
+    } else {
+      ffeWarn.style.display = 'none';
+    }
+  } else {
+    ffeWarn.style.display = 'none';
+  }
 
   // ── Scatter chart: FFE time per item ──
   if (charts.ffeScatter) { charts.ffeScatter.destroy(); charts.ffeScatter = null; }
