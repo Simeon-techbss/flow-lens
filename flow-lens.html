@@ -1557,6 +1557,15 @@ function autoDetect() {
   if (id)    document.getElementById('col-id').value    = id;
   if (title) document.getElementById('col-title').value = title;
 
+  // Auto-hide pre-start (backlog/FFE) stages in CFD by default
+  if (start) {
+    const startIdx = workflowStages.indexOf(start);
+    if (startIdx > 0) {
+      workflowStages.slice(0, startIdx).forEach(col => hiddenStages.add(col));
+      buildWorkflowUI();
+    }
+  }
+
   renderAll(true);
 }
 
