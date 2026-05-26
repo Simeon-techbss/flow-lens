@@ -3919,7 +3919,7 @@ function buildConfigPayload() {
   const cfg = getConfig();
   return {
     version:  1,
-    fields:   { startCol: cfg.startCol, endCol: cfg.endCol, idCol: cfg.idCol, titleCol: cfg.titleCol, linkCol: cfg.linkCol, blockedDaysCol: cfg.blockedDaysCol, blockedFlagCol: cfg.blockedFlagCol },
+    fields:   { startCol: cfg.startCol, endCol: cfg.endCol, activeCol: cfg.activeCol, idCol: cfg.idCol, titleCol: cfg.titleCol, linkCol: cfg.linkCol, blockedDaysCol: cfg.blockedDaysCol, blockedFlagCol: cfg.blockedFlagCol },
     workflow: { stages: workflowStages, types: stageTypes, hidden: [...hiddenStages] },
     filters:  cfg.filters,
     dateRange: document.getElementById('filter-range').value,
