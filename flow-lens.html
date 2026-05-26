@@ -1156,7 +1156,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-05-25';
+const VERSION = '2026-05-26';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -1726,6 +1726,11 @@ function processData(cfg) {
     const rawStart = cfg.startCol ? (row[cfg.startCol] || '').trim() : '';
     if (rawEnd && !endDate)   dqIssues.push({ type: 'bad-date', id, title, link, detail: `"${rawEnd}" in ${cfg.endCol} could not be read as a date` });
     if (rawStart && !startDate) dqIssues.push({ type: 'bad-date', id, title, link, detail: `"${rawStart}" in ${cfg.startCol} could not be read as a date` });
+
+    const hasAnyStageDate = workflowStages.some(col => getCachedDate(row, col));
+    if (!hasAnyStageDate && !backlogDate) {
+      dqIssues.push({ type: 'no-dates', id, title, link });
+    }
 
     if (!startDate && endDate) {
       dqIssues.push({ type: 'no-start', id, title, link, endDate });
@@ -4868,20 +4873,34 @@ function renderDataQuality() {
       type: 'bad-date',
       title: 'Unreadable date values',
       badge: 'red',
-      desc: 'These cells contain a value in a date column that couldn\'t be parsed as a date. The item is treated as if no date exists for that column. Common cause: wrong date format (e.g. DD/MM/YYYY instead of YYYY-MM-DD), or free text accidentally entered in a date field.',
+      desc: 'These cells contain a value in a date column that couldn\'t be parsed as a date. The item is treated as if no date exists for that column. Common cause: wrong date format or free text accidentally entered in a date field.',
       headers: ['Item', 'Problem'],
       row: i => `${itemCell(i.id, i.title, i.link)}<td style="color:#dc2626;max-width:400px">${i.detail}</td>`,
     },
+    {
+      type: 'no-dates',
+      title: 'No workflow dates recorded',
+      badge: 'amber',
+      desc: 'These items have no dates in any workflow column and are completely invisible to all metrics — they don\'t appear in throughput, cycle time, WIP, or any chart. Common cause: records migrated from another system without historical date data, or items created but never progressed through the workflow.',
+      headers: ['Item'],
+      row: i => `${itemCell(i.id, i.title, i.link)}`,
+    },
   ];
 
+  const ROW_CAP = 100;
   let html = '<div class="dq-toolbar"><button class="dq-toggle-all" onclick="dqToggleAll(this)">Expand all</button></div>';
   sections.forEach(sec => {
     const rows = issues.filter(i => i.type === sec.type);
     if (!rows.length) return;
     const badgeCls = sec.badge === 'red' ? 'dq-badge-red' : 'dq-badge-amber';
+    const capped = rows.slice(0, ROW_CAP);
+    const overflow = rows.length - capped.length;
+    const overflowRow = overflow > 0
+      ? `<tr><td colspan="${sec.headers.length}" style="color:#94a3b8;font-style:italic;padding:0.5rem 0.65rem">…and ${overflow.toLocaleString()} more not shown</td></tr>`
+      : '';
     html += `<div class="dq-section">
       <div class="dq-section-header" onclick="this.closest('.dq-section').classList.toggle('open');dqUpdateToggleAll()">
-        <span class="dq-badge ${badgeCls}">${rows.length}</span>
+        <span class="dq-badge ${badgeCls}">${rows.length.toLocaleString()}</span>
         <span class="dq-section-title">${sec.title}</span>
         <span class="dq-chevron">▶</span>
       </div>
@@ -4889,7 +4908,7 @@ function renderDataQuality() {
         <p class="dq-desc">${sec.desc}</p>
         <table class="dq-table">
           <thead><tr>${sec.headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
-          <tbody>${rows.map(i => `<tr>${sec.row(i)}</tr>`).join('')}</tbody>
+          <tbody>${capped.map(i => `<tr>${sec.row(i)}</tr>`).join('')}${overflowRow}</tbody>
         </table>
       </div>
     </div>`;
