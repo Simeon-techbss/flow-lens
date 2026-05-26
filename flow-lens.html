@@ -105,6 +105,9 @@ License: MIT
     .config-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 1rem; }
     .config-header h3 { font-size: 0.78rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; }
     .config-header small { font-size: 0.78rem; color: #38bdf8; }
+    #config-body.config-collapsed { display: none; }
+    #btn-toggle-config { font-size: 0.75rem; color: #64748b; background: none; border: 1px solid #e2e8f0; border-radius: 4px; padding: 0.2rem 0.6rem; cursor: pointer; white-space: nowrap; }
+    #btn-toggle-config:hover { border-color: #94a3b8; color: #374151; }
     .config-section-label { font-size: 0.72rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.5rem; }
     .config-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
     .config-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
@@ -583,8 +586,10 @@ License: MIT
         <small>Change these anytime — charts update instantly</small>
         <button class="config-action-btn" id="btn-save-config" onclick="saveConfig()" style="display:none">Save config</button>
         <button class="config-action-btn" id="btn-load-config" onclick="loadConfig()">Load config</button>
+        <button id="btn-toggle-config" onclick="toggleConfigPanel()">Collapse Config and Filters</button>
       </div>
     </div>
+    <div id="config-body">
     <div class="config-section-label">Required</div>
     <div class="config-grid-2">
       <div class="config-field">
@@ -674,7 +679,8 @@ License: MIT
         </select>
       </div>
     </div>
-  </div>
+  </div><!-- /#config-body -->
+  </div><!-- /#config-panel -->
 
   <div id="stats-bar">
     <div class="stat"><div class="value" id="stat-count">—</div><div class="label">Items completed <a id="stat-dq-link" href="#" onclick="switchToTab('dq');return false;" style="display:none;font-size:0.7rem;font-weight:500;color:#f59e0b;text-decoration:none;margin-left:0.3rem" title="Data quality issues found">⚠</a></div></div>
@@ -3915,6 +3921,14 @@ function renderWIPAgeChart() {
 }
 
 // ── Config save / load (File System Access API, Safari fallback) ───────────
+function toggleConfigPanel() {
+  const body = document.getElementById('config-body');
+  const btn  = document.getElementById('btn-toggle-config');
+  if (!body) return;
+  const collapsed = body.classList.toggle('config-collapsed');
+  btn.textContent = collapsed ? 'Expand Config and Filters' : 'Collapse Config and Filters';
+}
+
 function buildConfigPayload() {
   const cfg = getConfig();
   return {
@@ -4013,6 +4027,10 @@ function applyConfig(cfg) {
 
   buildWorkflowUI();
   renderAll(true);
+
+  const body = document.getElementById('config-body');
+  const btn  = document.getElementById('btn-toggle-config');
+  if (body) { body.classList.add('config-collapsed'); btn.textContent = 'Expand Config and Filters'; }
 }
 
 // ── AI Prompt Generator ────────────────────────────────────────────────────
