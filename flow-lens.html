@@ -503,9 +503,15 @@ License: MIT
     .mc-save-btn:hover { background:#0284c7; }
     .mc-compare-section { margin-bottom:2rem; }
     .mc-compare-section h3 { font-size:0.85rem; font-weight:600; color:#374151; margin:0 0 0.75rem; display:flex; align-items:center; gap:0.5rem; }
-    .dq-section { margin-bottom:2rem; }
-    .dq-section h3 { font-size:0.85rem; font-weight:600; color:#374151; margin:0 0 0.25rem; }
-    .dq-section .dq-desc { font-size:0.78rem; color:#64748b; margin:0 0 0.6rem; line-height:1.5; }
+    .dq-section { margin-bottom:0.5rem; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; }
+    .dq-section-header { display:flex; align-items:center; gap:0.5rem; padding:0.65rem 0.85rem; cursor:pointer; user-select:none; background:#fff; }
+    .dq-section-header:hover { background:#f8fafc; }
+    .dq-section-title { font-size:0.85rem; font-weight:600; color:#374151; flex:1; }
+    .dq-chevron { font-size:0.7rem; color:#94a3b8; transition:transform 0.15s; }
+    .dq-section.open .dq-chevron { transform:rotate(90deg); }
+    .dq-section-body { display:none; padding:0 0.85rem 0.85rem; border-top:1px solid #f1f5f9; }
+    .dq-section.open .dq-section-body { display:block; }
+    .dq-section .dq-desc { font-size:0.78rem; color:#64748b; margin:0.6rem 0; line-height:1.5; }
     .dq-table { width:100%; border-collapse:collapse; font-size:0.8rem; }
     .dq-table th { background:#f8fafc; padding:0.4rem 0.65rem; text-align:left; font-weight:600; font-size:0.71rem; color:#64748b; border-bottom:2px solid #e2e8f0; white-space:nowrap; }
     .dq-table td { padding:0.38rem 0.65rem; border-bottom:1px solid #f1f5f9; vertical-align:middle; font-size:0.79rem; }
@@ -513,6 +519,9 @@ License: MIT
     .dq-badge { display:inline-block; padding:0.12rem 0.5rem; border-radius:99px; font-size:0.71rem; font-weight:600; }
     .dq-badge-amber { background:#fef3c7; color:#92400e; }
     .dq-badge-red   { background:#fee2e2; color:#991b1b; }
+    .dq-toolbar { display:flex; justify-content:flex-end; margin-bottom:0.75rem; }
+    .dq-toggle-all { font-size:0.78rem; color:#2563eb; background:none; border:none; cursor:pointer; padding:0; }
+    .dq-toggle-all:hover { text-decoration:underline; }
     .mc-compare-table { width:100%; border-collapse:collapse; font-size:0.8rem; }
     .mc-compare-table th { background:#f8fafc; padding:0.42rem 0.65rem; text-align:left; font-weight:600; font-size:0.71rem; color:#64748b; border-bottom:2px solid #e2e8f0; white-space:nowrap; }
     .mc-compare-table td { padding:0.42rem 0.65rem; border-bottom:1px solid #f1f5f9; vertical-align:middle; white-space:nowrap; }
@@ -4865,22 +4874,43 @@ function renderDataQuality() {
     },
   ];
 
-  let html = '';
+  let html = '<div class="dq-toolbar"><button class="dq-toggle-all" onclick="dqToggleAll(this)">Expand all</button></div>';
   sections.forEach(sec => {
     const rows = issues.filter(i => i.type === sec.type);
     if (!rows.length) return;
     const badgeCls = sec.badge === 'red' ? 'dq-badge-red' : 'dq-badge-amber';
     html += `<div class="dq-section">
-      <h3><span class="dq-badge ${badgeCls}">${rows.length}</span> &nbsp;${sec.title}</h3>
-      <p class="dq-desc">${sec.desc}</p>
-      <table class="dq-table">
-        <thead><tr>${sec.headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
-        <tbody>${rows.map(i => `<tr>${sec.row(i)}</tr>`).join('')}</tbody>
-      </table>
+      <div class="dq-section-header" onclick="this.closest('.dq-section').classList.toggle('open');dqUpdateToggleAll()">
+        <span class="dq-badge ${badgeCls}">${rows.length}</span>
+        <span class="dq-section-title">${sec.title}</span>
+        <span class="dq-chevron">▶</span>
+      </div>
+      <div class="dq-section-body">
+        <p class="dq-desc">${sec.desc}</p>
+        <table class="dq-table">
+          <thead><tr>${sec.headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+          <tbody>${rows.map(i => `<tr>${sec.row(i)}</tr>`).join('')}</tbody>
+        </table>
+      </div>
     </div>`;
   });
 
   el.innerHTML = html;
+}
+
+function dqToggleAll(btn) {
+  const sections = document.querySelectorAll('#dq-content .dq-section');
+  const anyCollapsed = [...sections].some(s => !s.classList.contains('open'));
+  sections.forEach(s => s.classList.toggle('open', anyCollapsed));
+  btn.textContent = anyCollapsed ? 'Collapse all' : 'Expand all';
+}
+
+function dqUpdateToggleAll() {
+  const btn = document.querySelector('#dq-content .dq-toggle-all');
+  if (!btn) return;
+  const sections = document.querySelectorAll('#dq-content .dq-section');
+  const allOpen = [...sections].every(s => s.classList.contains('open'));
+  btn.textContent = allOpen ? 'Collapse all' : 'Expand all';
 }
 
 document.querySelectorAll('.tab-btn').forEach(btn => {
