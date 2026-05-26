@@ -2987,9 +2987,8 @@ function renderFFE(completed) {
         },
         {
           label: 'Not started', order: 8,
-          data: backlogFFEItems.map(d => ({ x: new Date(), y: d.ffeAge, _id: d.id, _title: d.title, _link: d.link, _item: d, _isBacklog: true })),
-          backgroundColor: backlogFFEItems.map(d => d.ffeAge > fp85 ? 'rgba(239,68,68,0.65)' : d.ffeAge > fp50 ? 'rgba(249,115,22,0.6)' : 'rgba(56,189,248,0.6)'),
-          pointRadius: 4, pointHoverRadius: 7, pointStyle: 'rect',
+          data: [],
+          pointRadius: 0,
         },
         { type:'line', label:'50th', _lineLabel:`p50 — ${Math.round(fp50)}d`, data:[{x:minD,y:fp50},{x:maxD,y:fp50}], borderColor:'#22c55e', borderWidth:1.5, borderDash:[6,4], pointRadius:0, fill:false, order:1 },
         { type:'line', label:'85th', _lineLabel:`p85 — ${Math.round(fp85)}d`, data:[{x:minD,y:fp85},{x:maxD,y:fp85}], borderColor:'#f97316', borderWidth:1.5, borderDash:[6,4], pointRadius:0, fill:false, order:2 },
