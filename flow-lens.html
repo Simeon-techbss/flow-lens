@@ -106,6 +106,8 @@ License: MIT
     .config-header h3 { font-size: 0.78rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; }
     .config-header small { font-size: 0.78rem; color: #38bdf8; }
     #config-body.config-collapsed { display: none; }
+    #filter-panel { display: none; background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.25rem 1.5rem; margin-top: 0.75rem; }
+    #filter-body.filter-collapsed { display: none; }
     #btn-toggle-config { font-size: 0.75rem; color: #64748b; background: none; border: 1px solid #e2e8f0; border-radius: 4px; padding: 0.2rem 0.6rem; cursor: pointer; white-space: nowrap; }
     #btn-toggle-config:hover { border-color: #94a3b8; color: #374151; }
     .config-section-label { font-size: 0.72rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.5rem; }
@@ -158,7 +160,7 @@ License: MIT
     .stage-item.stage-hidden .stage-vis-btn { color: #94a3b8; }
     .stage-item.stage-hidden .stage-vis-btn:hover { color: #22c55e; }
 
-    .filter-section { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #f1f5f9; }
+    .filter-section { margin-top: 0; padding-top: 0; border-top: none; }
     .filter-rows { display: flex; flex-direction: column; gap: 0.55rem; margin-bottom: 0.6rem; }
     .filter-row  { display: flex; gap: 0.5rem; align-items: flex-start; flex-wrap: wrap; }
     .filter-row .fcol { flex: 1; min-width: 130px; padding: 0.35rem 0.6rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.82rem; background: white; color: #1e293b; }
@@ -604,7 +606,7 @@ License: MIT
         <small>Change these anytime — charts update instantly</small>
         <button class="config-action-btn" id="btn-save-config" onclick="saveConfig()" style="display:none">Save config</button>
         <button class="config-action-btn" id="btn-load-config" onclick="loadConfig()">Load config</button>
-        <button id="btn-toggle-config" onclick="toggleConfigPanel()">Collapse Config and Filters</button>
+        <button id="btn-toggle-config" onclick="toggleConfigPanel()">Collapse Config</button>
       </div>
     </div>
     <div id="config-body">
@@ -665,11 +667,18 @@ License: MIT
       <div class="stage-list" id="stage-list"></div>
     </div>
 
-    <div class="filter-section">
-      <div class="workflow-section-header" style="margin-bottom:0.55rem">
-        <span>Filters</span>
-        <small>Any column &mdash; rows combine (AND); hold Cmd/Ctrl to select multiple values (OR)</small>
+  </div><!-- /#config-body -->
+  </div><!-- /#config-panel -->
+
+  <div id="filter-panel">
+    <div class="config-header">
+      <div>
+        <h3>Filters</h3>
+        <small style="color:#94a3b8">Rows combine (AND) &nbsp;·&nbsp; hold Cmd/Ctrl to select multiple values in one row (OR)</small>
       </div>
+      <button id="btn-toggle-filters" onclick="toggleFilterPanel()">Collapse Filters</button>
+    </div>
+    <div id="filter-body">
       <div id="filter-rows-container" class="filter-rows"></div>
       <button class="filter-add" onclick="addFilterRow()">+ Add filter</button>
       <div class="filter-date">
@@ -682,8 +691,7 @@ License: MIT
         </select>
       </div>
     </div>
-  </div><!-- /#config-body -->
-  </div><!-- /#config-panel -->
+  </div><!-- /#filter-panel -->
 
   <div id="stats-bar">
     <div class="stat"><div class="value" id="stat-count">—</div><div class="label">Items completed <a id="stat-dq-link" href="#" onclick="switchToTab('dq');return false;" style="display:none;font-size:0.7rem;font-weight:500;color:#f59e0b;text-decoration:none;margin-left:0.3rem" title="Data quality issues found">⚠</a></div></div>
@@ -1194,7 +1202,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-05-27h';
+const VERSION = '2026-05-27i';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -1339,6 +1347,7 @@ function resetTool() {
   Object.values(charts).forEach(c => c.destroy());
   charts = {};
   document.getElementById('config-panel').style.display = 'none';
+  document.getElementById('filter-panel').style.display = 'none';
   document.getElementById('workflow-section').style.display = 'none';
   document.getElementById('stats-bar').style.display = '';
   document.getElementById('tabs').style.display = 'none';
@@ -1506,6 +1515,7 @@ function loadExampleData() {
 function setupConfig() {
   stageTypes = {};
   document.getElementById('config-panel').style.display = 'block';
+  document.getElementById('filter-panel').style.display = 'block';
 
   ['col-start','col-end','col-active','col-id','col-title','col-link','col-blocked','col-blocked-flag'].forEach(id => {
     const sel = document.getElementById(id);
@@ -4037,7 +4047,15 @@ function toggleConfigPanel() {
   const btn  = document.getElementById('btn-toggle-config');
   if (!body) return;
   const collapsed = body.classList.toggle('config-collapsed');
-  btn.textContent = collapsed ? 'Expand Config and Filters' : 'Collapse Config and Filters';
+  btn.textContent = collapsed ? 'Expand Config' : 'Collapse Config';
+}
+
+function toggleFilterPanel() {
+  const body = document.getElementById('filter-body');
+  const btn  = document.getElementById('btn-toggle-filters');
+  if (!body) return;
+  const collapsed = body.classList.toggle('filter-collapsed');
+  btn.textContent = collapsed ? 'Expand Filters' : 'Collapse Filters';
 }
 
 function buildConfigPayload() {
@@ -4153,7 +4171,7 @@ function applyConfig(cfg) {
 
   const body = document.getElementById('config-body');
   const btn  = document.getElementById('btn-toggle-config');
-  if (body) { body.classList.add('config-collapsed'); btn.textContent = 'Expand Config and Filters'; }
+  if (body) { body.classList.add('config-collapsed'); btn.textContent = 'Expand Config'; }
 }
 
 // ── AI Prompt Generator ────────────────────────────────────────────────────
