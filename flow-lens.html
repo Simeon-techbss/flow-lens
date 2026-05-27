@@ -1202,7 +1202,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-05-27i';
+const VERSION = '2026-05-27j';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -1515,7 +1515,10 @@ function loadExampleData() {
 function setupConfig() {
   stageTypes = {};
   document.getElementById('config-panel').style.display = 'block';
-  document.getElementById('filter-panel').style.display = 'block';
+  const fp = document.getElementById('filter-panel');
+  fp.style.display = 'block';
+  document.getElementById('filter-body').classList.add('filter-collapsed');
+  document.getElementById('btn-toggle-filters').textContent = 'Expand Filters';
 
   ['col-start','col-end','col-active','col-id','col-title','col-link','col-blocked','col-blocked-flag'].forEach(id => {
     const sel = document.getElementById(id);
