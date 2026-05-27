@@ -1182,7 +1182,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-05-27b';
+const VERSION = '2026-05-27c';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -1959,7 +1959,7 @@ function _doRenderAll() {
   if (dqBtn) dqBtn.textContent = dqIssues.length ? `Data Quality ⚠ ${dqIssues.length}` : 'Data Quality';
   document.getElementById('stat-median').textContent   = completed.length ? p50.toFixed(1) + 'd' : '—';
   document.getElementById('stat-p85').textContent      = completed.length ? p85.toFixed(1) + 'd' : '—';
-  document.getElementById('stat-wip').textContent      = wip.length + committedQueue.length;
+  document.getElementById('stat-wip').textContent      = wip.length;
   const fe = calculateFlowEfficiency(completed);
   document.getElementById('stat-fe').textContent = fe !== null ? fe.toFixed(0) + '%' : '—';
 
@@ -2012,7 +2012,7 @@ function renderActiveTab() {
     case 'cfd':        renderCFD(); break;
     case 'histogram':  renderHistogram(completed, p50, p70, p85, p95); break;
     case 'floweff':    renderFlowEff(completed); break;
-    case 'aging':      renderAging([...wip, ...committedQueue], p50, p70, p85, p95); break;
+    case 'aging':      renderAging(wip, p50, p70, p85, p95); break;
     case 'blocked':    renderBlocked(completed, wip, p85); break;
     case 'health':     renderTeamHealth(); break;
     case 'ffe':        renderFFE(completed); break;
@@ -3769,7 +3769,7 @@ function renderInsights(completed, wip, committedQueue, backlog, p50, p70, p85, 
   }
 
   // WIP card
-  document.getElementById('ic-wip-num').textContent = (wip.length + committedQueue.length) || '—';
+  document.getElementById('ic-wip-num').textContent = wip.length || '—';
   const smellyItems = wip.filter(i => i.age > p85);
   const hasBlockedCfg = !!(cfg.blockedDaysCol || cfg.blockedFlagCol);
   const blockedNowCount = hasBlockedCfg ? wip.filter(i => i.currentlyBlocked).length : 0;
