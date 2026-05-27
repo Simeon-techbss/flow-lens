@@ -1194,7 +1194,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-05-27g';
+const VERSION = '2026-05-27h';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -3893,12 +3893,9 @@ function renderPipeline(completed, wip, committedQueue, backlog, cfg) {
     wipHtml += `<div style="grid-column:${endIdx+1}/${n+1}"></div>`;
   }
 
-  // Span row 3: Lead Time (only if FFE stages exist)
-  let ltHtml = '';
-  if (hasFfe) {
-    ltHtml = `<div class="pl-span pl-span-lt" style="grid-column:1/${endIdx+2}">Lead Time</div>`;
-    if (endIdx < n-1) ltHtml += `<div style="grid-column:${endIdx+2}/${n+1}"></div>`;
-  }
+  // Span row 3: Lead Time — always shown, always spans from first visible stage to Done
+  let ltHtml = `<div class="pl-span pl-span-lt" style="grid-column:1/${endIdx+2}">Lead Time</div>`;
+  if (endIdx < n-1) ltHtml += `<div style="grid-column:${endIdx+2}/${n+1}"></div>`;
 
   document.getElementById('pipeline-diagram').innerHTML =
     `<div class="pl-grid" style="grid-template-columns:repeat(${n},1fr)">${stagesHtml}${spansHtml}${wipHtml}${ltHtml}</div>`;
@@ -3913,7 +3910,7 @@ function renderPipeline(completed, wip, committedQueue, backlog, cfg) {
     hasQueue          ? { label:'Committed, not started', val: committedQueue.length.toLocaleString() } : null,
                         { label:'WIP',           val: wip.length.toLocaleString()            },
     avgCT  !== null   ? { label:'Avg cycle time',val: Math.round(avgCT)  + 'd'              } : null,
-    avgLT  !== null   ? { label:'Avg lead time', val: Math.round(avgLT)  + 'd'              } : null,
+                        { label:'Avg lead time', val: avgLT !== null ? Math.round(avgLT) + 'd' : '—' },
   ].filter(Boolean);
 
   document.getElementById('pipeline-stats').innerHTML =
