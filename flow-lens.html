@@ -949,11 +949,17 @@ License: MIT
           <div class="info-row"><strong>Long right tail</strong> means some items take much longer than most. This makes forecasting harder and erodes stakeholder trust. Usually caused by: items being too large, blockers, context switching, or items sitting in queues.</div>
           <div class="info-row"><strong>Two peaks (bimodal)</strong> suggests two different types of work with different natural cycle times — consider whether they should be tracked separately.</div>
         </div>
-        <div style="margin:1rem 0 0.5rem; display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
+        <div style="margin:1rem 0 0.5rem; display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
           <label style="display:flex;align-items:center;gap:0.3rem;font-size:0.83rem;color:#374151;cursor:pointer;">
-            <input type="checkbox" id="hist-hide-zero" onchange="renderHistogram(lastRenderPayload&&lastRenderPayload.completed||[],lastRenderPayload&&lastRenderPayload.p50,lastRenderPayload&&lastRenderPayload.p70,lastRenderPayload&&lastRenderPayload.p85,lastRenderPayload&&lastRenderPayload.p95)"> Hide CT = 0 (automated / same-day closures)
+            <input type="checkbox" id="hist-hide-zero" onchange="reRenderHistogram()"> Hide CT = 0 (automated / same-day closures)
           </label>
-          <span id="hist-filter-info" style="font-size:0.8rem;color:#94a3b8;margin-left:0.5rem;"></span>
+          <label style="display:flex;align-items:center;gap:0.3rem;font-size:0.83rem;color:#374151;">
+            Min CT (days): <input type="number" id="hist-min-ct" min="0" style="width:4rem;padding:0.1rem 0.3rem;border:1px solid #d1d5db;border-radius:4px;font-size:0.83rem;" placeholder="—" onchange="reRenderHistogram()">
+          </label>
+          <label style="display:flex;align-items:center;gap:0.3rem;font-size:0.83rem;color:#374151;">
+            Max CT (days): <input type="number" id="hist-max-ct" min="0" style="width:4rem;padding:0.1rem 0.3rem;border:1px solid #d1d5db;border-radius:4px;font-size:0.83rem;" placeholder="—" onchange="reRenderHistogram()">
+          </label>
+          <span id="hist-filter-info" style="font-size:0.8rem;color:#94a3b8;"></span>
         </div>
         <div class="chart-wrap"><canvas id="chart-histogram"></canvas></div>
         <div id="hist-stats" style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid #f1f5f9;font-size:0.8rem;color:#64748b;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
@@ -1638,9 +1644,16 @@ function populateFilterValuesById(id) {
   const sel = document.getElementById(`fval-${id}`);
   sel.innerHTML = '';
   if (!col) { sel.innerHTML = '<option value="" disabled>select a field first</option>'; return; }
-  const unique = [...new Set(allRows.map(r => r[col]).filter(Boolean))].sort();
+  const allVals = allRows.map(r => r[col]);
+  const hasBlank = allVals.some(v => !v || !String(v).trim());
+  const unique = [...new Set(allVals.filter(Boolean))].sort();
   const capped = unique.length > 500 ? unique.slice(0, 500) : unique;
   const frag = document.createDocumentFragment();
+  if (hasBlank) {
+    const opt = document.createElement('option');
+    opt.value = '__BLANK__'; opt.textContent = '(blank)';
+    frag.appendChild(opt);
+  }
   capped.forEach(v => {
     const opt = document.createElement('option');
     opt.value = v; opt.textContent = v;
@@ -1811,7 +1824,9 @@ function rowMatchesFilters(row, cfg) {
     if (!f.col) return true;
     const vals = f.vals && f.vals.length ? f.vals : (f.val ? [f.val] : []);
     if (!vals.length) return true;
-    const matches = vals.includes(row[f.col]);
+    const cellVal = row[f.col];
+    const isBlank = !cellVal || !String(cellVal).trim();
+    const matches = vals.includes('__BLANK__') ? (isBlank || vals.filter(v => v !== '__BLANK__').includes(cellVal)) : vals.includes(cellVal);
     return f.exclude ? !matches : matches;
   });
 }
@@ -1851,6 +1866,14 @@ function processData(cfg) {
     const hasAnyStageDate = workflowStages.some(col => getCachedDate(row, col));
     if (!hasAnyStageDate && !backlogDate) {
       dqIssues.push({ type: 'no-dates', id, title, link });
+    }
+
+    if (startDate && !endDate) {
+      const startIdx = workflowStages.indexOf(cfg.startCol);
+      const hasProgress = startIdx >= 0 && workflowStages.slice(startIdx + 1).some(col => getCachedDate(row, col));
+      if (!hasProgress) {
+        dqIssues.push({ type: 'no-progress', id, title, link, startDate });
+      }
     }
 
     if (!startDate && endDate) {
@@ -3195,6 +3218,11 @@ The FFE percentiles above will read 0d until the underlying data is corrected.`;
 }
 
 // ── Histogram ──────────────────────────────────────────────────────────────
+function reRenderHistogram() {
+  const p = lastRenderPayload;
+  if (p) renderHistogram(p.completed || [], p.p50, p.p70, p.p85, p.p95);
+}
+
 function renderHistogram(data, p50, p70, p85, p95) {
   if (charts.histogram) { charts.histogram.destroy(); charts.histogram = null; }
 
@@ -3206,11 +3234,23 @@ function renderHistogram(data, p50, p70, p85, p95) {
 
   if (!data.length) return;
 
-  const hideZero = document.getElementById('hist-hide-zero')?.checked;
-  const filtered = hideZero ? data.filter(d => d.cycleTime > 0) : data;
-  const hidden   = data.length - filtered.length;
+  const hideZero  = document.getElementById('hist-hide-zero')?.checked;
+  const minCTcap  = document.getElementById('hist-min-ct')?.value !== '' ? +document.getElementById('hist-min-ct').value : null;
+  const maxCTcap  = document.getElementById('hist-max-ct')?.value !== '' ? +document.getElementById('hist-max-ct').value : null;
+
+  const filtered  = data.filter(d => {
+    if (hideZero && d.cycleTime === 0) return false;
+    if (minCTcap !== null && d.cycleTime < minCTcap) return false;
+    if (maxCTcap !== null && d.cycleTime > maxCTcap) return false;
+    return true;
+  });
+  const hidden    = data.length - filtered.length;
+  const hiddenParts = [];
+  if (hideZero) { const n = data.filter(d => d.cycleTime === 0).length; if (n) hiddenParts.push(`${n} zero-CT`); }
+  if (minCTcap !== null) { const n = data.filter(d => d.cycleTime > 0 && d.cycleTime < minCTcap).length; if (n) hiddenParts.push(`${n} below min`); }
+  if (maxCTcap !== null) { const n = data.filter(d => d.cycleTime > maxCTcap).length; if (n) hiddenParts.push(`${n} above max`); }
   const infoEl   = document.getElementById('hist-filter-info');
-  if (infoEl) infoEl.textContent = hidden > 0 ? `${hidden} zero-CT items hidden` : '';
+  if (infoEl) infoEl.textContent = hiddenParts.length ? `${hidden} hidden (${hiddenParts.join(', ')})` : '';
 
   const cycleTimes = filtered.map(d => d.cycleTime);
   const maxCT = Math.ceil(Math.max(...cycleTimes));
@@ -3263,7 +3303,7 @@ function renderHistogram(data, p50, p70, p85, p95) {
       `<span><strong>p50:</strong> ${p50.toFixed(1)}d</span>`,
       `<span><strong>p85:</strong> ${p85.toFixed(1)}d</span>`,
       `<span><strong>p95:</strong> ${p95.toFixed(1)}d</span>`,
-      `<span><strong>Items:</strong> ${cycleTimes.length}${hideZero && hidden > 0 ? ` (${hidden} zero-CT hidden)` : ''}</span>`,
+      `<span><strong>Items:</strong> ${cycleTimes.length}${hidden > 0 ? ` (${hidden} hidden)` : ''}</span>`,
     ].join('');
   }
 }
@@ -5133,6 +5173,14 @@ function renderDataQuality() {
   }
 
   const sections = [
+    {
+      type: 'no-progress',
+      title: 'Started but never progressed',
+      badge: 'amber',
+      desc: 'These items have a start date but no dates in any later workflow stage — they show as permanent WIP and inflate your WIP count and aging chart indefinitely. Common causes: bulk imports, items cancelled without being closed, or records created speculatively and abandoned. If these are not real in-progress work, add a filter to exclude them.',
+      headers: ['Item', 'Started'],
+      row: i => `${itemCell(i.id, i.title, i.link)}<td>${fmtD(i.startDate)}</td>`,
+    },
     {
       type: 'no-start',
       title: 'End Date with no Start Date',
