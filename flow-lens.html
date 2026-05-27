@@ -1194,7 +1194,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-05-27f';
+const VERSION = '2026-05-27g';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -5086,8 +5086,15 @@ function renderDataQuality() {
     </div>`;
   }
 
+  const rawTotal = allRows.length;
+  const filteredOut = rawTotal - total;
+  const filterNote = filteredOut > 0
+    ? `<div style="font-size:0.78rem;color:#64748b;margin-bottom:0.7rem">Your CSV has <strong>${rawTotal.toLocaleString()}</strong> rows total — <strong>${filteredOut.toLocaleString()}</strong> are excluded by your current filters and don't appear below.</div>`
+    : '';
+
   let breakdownHtml = `<div class="dq-breakdown">
-    <div class="dq-breakdown-title">Where did all ${total.toLocaleString()} rows go?</div>
+    <div class="dq-breakdown-title">Where did all ${total.toLocaleString()} ${filteredOut > 0 ? 'filtered ' : ''}rows go?</div>
+    ${filterNote}
     ${brow('#2563eb', completed.length, 'Completed', 'Has start and end date — feeds cycle time, throughput, CFD and all percentile stats.')}
     ${noStartCount ? brow('#93c5fd', noStartCount, 'Done, no start date', 'Reached Done but no Start Date recorded — counted in completions, excluded from cycle time.') : ''}
     ${brow('#059669', wip.length, 'Active WIP', 'Has Active Work Starts date, not yet done — drives WIP count and aging chart.')}
