@@ -1194,7 +1194,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-05-27e';
+const VERSION = '2026-05-27f';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -3884,12 +3884,13 @@ function renderPipeline(completed, wip, committedQueue, backlog, cfg) {
   spansHtml += `<div class="pl-span pl-span-ct" style="grid-column:${startIdx+1}/${endIdx+2}">Cycle Time</div>`;
   if (endIdx < n-1) spansHtml += `<div style="grid-column:${endIdx+2}/${n+1}"></div>`;
 
-  // Span row 2: WIP (only if activeCol is different from startCol)
+  // Span row 2: WIP — always shown; starts from activeCol (or startCol when same/unset)
+  const wipStart = (cfg.activeCol && activeIdx >= 0) ? activeIdx : startIdx;
   let wipHtml = '';
-  if (hasQueue) {
-    if (activeIdx > 0) wipHtml += `<div style="grid-column:1/${activeIdx+1}"></div>`;
-    wipHtml += `<div class="pl-span pl-span-wip" style="grid-column:${activeIdx+1}/${endIdx+1}">WIP</div>`;
-    if (endIdx < n) wipHtml += `<div style="grid-column:${endIdx+1}/${n+1}"></div>`;
+  if (endIdx > wipStart) {
+    if (wipStart > 0) wipHtml += `<div style="grid-column:1/${wipStart+1}"></div>`;
+    wipHtml += `<div class="pl-span pl-span-wip" style="grid-column:${wipStart+1}/${endIdx+1}">WIP</div>`;
+    wipHtml += `<div style="grid-column:${endIdx+1}/${n+1}"></div>`;
   }
 
   // Span row 3: Lead Time (only if FFE stages exist)
