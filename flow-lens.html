@@ -3700,9 +3700,9 @@ function renderBlocked(completed, wip, p85) {
       { label: 'ID',           render: d => idCell(d) },
       { label: 'Title',        render: d => d.title || '—', style: 'style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"' },
       { label: 'Done',         render: d => fmtDate(d.endDate), style: 'style="white-space:nowrap"' },
-      { label: 'Cycle time',   render: d => d.cycleTime.toFixed(1) + 'd' },
+      { label: 'Lead time',    render: d => d.cycleTime.toFixed(1) + 'd' },
       { label: 'Blocked days', render: d => `<span style="color:#dc2626;font-weight:600">${d.blockedDays.toFixed(1)}d</span>` },
-      { label: '% of CT',      render: d => {
+      { label: '% of LT',      render: d => {
           if (!d.cycleTime) return '—';
           const p = Math.round(d.blockedDays / d.cycleTime * 100);
           const c = p > 100 ? '#7c2d12' : p > 50 ? '#dc2626' : p > 25 ? '#d97706' : '#475569';
