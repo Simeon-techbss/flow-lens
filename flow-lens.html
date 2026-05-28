@@ -711,6 +711,7 @@ License: MIT
         <button class="tab-btn" data-tab="cfd">CFD</button>
         <button class="tab-btn" data-tab="throughput">Throughput</button>
         <button class="tab-btn" data-tab="wiptime">WIP Over Time</button>
+        <button class="tab-btn" data-tab="cttime">CT Over Time</button>
         <button class="tab-btn" data-tab="health">Team Health</button>
         <button class="tab-btn" data-tab="forecast">Forecast</button>
       </div>
@@ -894,6 +895,25 @@ License: MIT
           <div class="info-row"><strong>What to do:</strong> Set a WIP limit. Stop starting, start finishing. Even a soft limit ("flag it if WIP goes above X") creates useful conversation.</div>
         </div>
         <div class="chart-wrap"><canvas id="chart-wiptime"></canvas></div>
+      </div>
+    </div>
+
+    <div id="tab-cttime" class="tab-pane">
+      <div class="chart-card">
+        <h2>Cycle Time Over Time <button class="info-btn" data-info="info-cttime" onclick="toggleInfo('info-cttime')" title="How to read this">ℹ</button></h2>
+        <div class="subtitle">Weekly median cycle time — rising means delivery is slowing down, falling means it's improving.</div>
+        <div class="info-panel" id="info-cttime">
+          <div class="info-row"><strong>What to look for:</strong> A flat or falling median line = your system is stable or improving. A rising line = work is taking longer — check WIP Over Time to see if rising WIP is the cause (Little's Law: CT = WIP ÷ Throughput).</div>
+          <div class="info-row"><strong>p85 line</strong> — the cycle time 85% of items beat that week. Watch the gap between median and p85: if it widens, outliers are getting worse even if the median looks fine.</div>
+          <div class="info-row"><strong>Sparse weeks</strong> — weeks with very few completions produce noisy CT values. The 4-week rolling median smooths this out; trust the trend line more than any single week.</div>
+          <div class="info-row"><strong>Weeks with no completions</strong> are shown as gaps — this is normal for quiet periods or holidays.</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.75rem;font-size:0.83rem;color:#475569">
+          <label for="cttime-min-ct">Hide CT ≤</label>
+          <input type="number" id="cttime-min-ct" min="0" style="width:4rem;padding:0.1rem 0.3rem;border:1px solid #d1d5db;border-radius:4px;font-size:0.83rem" placeholder="—" onchange="renderCTOverTime()">
+          <span>days</span>
+        </div>
+        <div class="chart-wrap"><canvas id="chart-cttime"></canvas></div>
       </div>
     </div>
 
@@ -1208,7 +1228,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-05-27j';
+const VERSION = '2026-05-28a';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -1870,7 +1890,7 @@ function processData(cfg) {
 
     if (startDate && !endDate) {
       const startIdx = workflowStages.indexOf(cfg.startCol);
-      const hasProgress = startIdx >= 0 && workflowStages.slice(startIdx + 1).some(col => getCachedDate(row, col));
+      const hasProgress = startIdx >= 0 && workflowStages.slice(startIdx + 1).filter(col => !hiddenStages.has(col)).some(col => getCachedDate(row, col));
       if (!hasProgress) {
         dqIssues.push({ type: 'no-progress', id, title, link, startDate });
       }
@@ -1884,7 +1904,7 @@ function processData(cfg) {
     }
 
     if (workflowStages.length >= 2) {
-      const stageDatesRaw = workflowStages.map(col => ({ col, date: getCachedDate(row, col) })).filter(s => s.date);
+      const stageDatesRaw = workflowStages.filter(col => !hiddenStages.has(col)).map(col => ({ col, date: getCachedDate(row, col) })).filter(s => s.date);
       for (let i = 1; i < stageDatesRaw.length; i++) {
         if (stageDatesRaw[i].date < stageDatesRaw[i - 1].date) {
           dqIssues.push({ type: 'backwards', id, title, link, fromStage: stageDatesRaw[i - 1].col, toStage: stageDatesRaw[i].col, fromDate: stageDatesRaw[i - 1].date, toDate: stageDatesRaw[i].date });
@@ -2066,6 +2086,7 @@ function renderActiveTab() {
     case 'scatter':    renderScatter(completed, p50, p70, p85, p95); break;
     case 'throughput': renderThroughput(completed); break;
     case 'wiptime':    renderWIPOverTime(); break;
+    case 'cttime':     renderCTOverTime(); break;
     case 'cfd':        renderCFD(); break;
     case 'histogram':  renderHistogram(completed, p50, p70, p85, p95); break;
     case 'floweff':    renderFlowEff(completed); break;
@@ -2457,6 +2478,103 @@ function renderWIPOverTime() {
   });
 }
 
+// ── CT Over Time ───────────────────────────────────────────────────────────
+function renderCTOverTime() {
+  const ctx = document.getElementById('chart-cttime').getContext('2d');
+  if (charts.cttime) charts.cttime.destroy();
+
+  const cfg = getConfig();
+  if (!cfg.startCol || !cfg.endCol) return;
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const minCTraw = document.getElementById('cttime-min-ct')?.value;
+  const minCT = minCTraw !== '' && minCTraw !== undefined ? +minCTraw : null;
+
+  const completed = allRows
+    .filter(row => rowMatchesFilters(row, cfg))
+    .map(row => {
+      const s = getCachedDate(row, cfg.startCol), e = getCachedDate(row, cfg.endCol);
+      if (!s || !e || e < s) return null;
+      return { endDate: e, ct: daysBetween(s, e) };
+    })
+    .filter(Boolean)
+    .filter(r => minCT === null || r.ct > minCT);
+
+  if (!completed.length) return;
+
+  const minDate = completed.reduce((m, r) => r.endDate < m ? r.endDate : m, completed[0].endDate);
+  const weeks = [];
+  const cur = new Date(weekStart(minDate));
+  while (cur <= today) { weeks.push(new Date(cur)); cur.setDate(cur.getDate() + 7); }
+
+  // Group CTs by week of completion
+  const ctByWeek = weeks.map(wk => {
+    const wkEnd = new Date(wk); wkEnd.setDate(wkEnd.getDate() + 7);
+    return completed.filter(r => r.endDate >= wk && r.endDate < wkEnd).map(r => r.ct);
+  });
+
+  const medians = ctByWeek.map(cts => {
+    if (!cts.length) return null;
+    return percentile([...cts].sort((a, b) => a - b), 50);
+  });
+  const p85s = ctByWeek.map(cts => {
+    if (!cts.length) return null;
+    return percentile([...cts].sort((a, b) => a - b), 85);
+  });
+
+  // 4-week rolling median (of the per-week medians)
+  const rolling = medians.map((_, i) => {
+    const slice = medians.slice(Math.max(0, i - 3), i + 1).filter(v => v !== null);
+    if (!slice.length) return null;
+    return +percentile([...slice].sort((a, b) => a - b), 50).toFixed(1);
+  });
+
+  const counts = ctByWeek.map(cts => cts.length);
+
+  charts.cttime = new Chart(ctx, {
+    data: {
+      labels: weeks,
+      datasets: [
+        { type: 'line', label: 'p85 CT', data: p85s,
+          borderColor: 'rgba(251,146,60,0.7)', backgroundColor: 'transparent',
+          borderWidth: 1.5, borderDash: [4, 3], pointRadius: 2, pointHoverRadius: 5,
+          tension: 0.3, spanGaps: true, order: 3 },
+        { type: 'line', label: 'Median CT', data: medians,
+          borderColor: 'rgba(56,189,248,0.9)', backgroundColor: 'rgba(56,189,248,0.08)',
+          borderWidth: 2, fill: true, pointRadius: 2, pointHoverRadius: 5,
+          tension: 0.3, spanGaps: true, order: 2 },
+        { type: 'line', label: '4-week trend', data: rolling,
+          borderColor: '#f97316', borderWidth: 2, pointRadius: 0,
+          fill: false, tension: 0.35, spanGaps: true, order: 1 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#475569', font: { size: 11 }, boxWidth: 16 } },
+        tooltip: {
+          mode: 'index', intersect: false,
+          callbacks: {
+            label: ctx => ctx.parsed.y !== null ? `${ctx.dataset.label}: ${Math.round(ctx.parsed.y)}d` : null,
+            afterBody: items => {
+              const i = items[0]?.dataIndex;
+              if (i === undefined) return [];
+              const n = counts[i];
+              return n > 0 ? [`${n} item${n !== 1 ? 's' : ''} completed this week`] : ['No completions this week'];
+            }
+          }
+        }
+      },
+      scales: {
+        x: { type: 'time', time: { unit: 'week', displayFormats: { week: 'd MMM yy' } },
+             grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 11 } } },
+        y: { title: { display: true, text: 'Cycle time (days)', color: '#94a3b8', font: { size: 11 } },
+             grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 11 } }, min: 0 }
+      }
+    }
+  });
+}
+
 // ── CFD ────────────────────────────────────────────────────────────────────
 let cfdDataCache   = null;
 let cfdMarkers     = [null, null]; // each is a weekIndex into cfdDataCache.weeks
@@ -2492,13 +2610,13 @@ function buildCFDData() {
   if (!minDate) return null;
 
   const weeks = [];
-  const cur = new Date(weekStart(minDate));
-  while (cur <= today) { weeks.push(new Date(cur)); cur.setDate(cur.getDate() + 7); }
+  const cur = new Date(minDate); cur.setHours(0, 0, 0, 0);
+  while (cur <= today) { weeks.push(new Date(cur)); cur.setDate(cur.getDate() + 1); }
   const weekMs = weeks.map(w => w.getTime());
 
   // For each visible stage: pre-build a sorted array of the earliest date each item
-  // reached that stage OR any later VISIBLE stage. Binary search replaces O(rows) filter per week.
-  // Limiting to visible stages ensures hidden terminal stages (e.g. "Not done") are excluded.
+  // reached that stage OR any later VISIBLE stage. Hidden stages are skipped so that
+  // e.g. a "To do" date doesn't count as having "reached First Next".
   const lastVisibleIdx = Math.max(...visibleStages.map(col => workflowStages.indexOf(col)));
   const reachSorted = visibleStages.map(col => {
     const stageIdx = workflowStages.indexOf(col);
@@ -2506,6 +2624,7 @@ function buildCFDData() {
     for (const dates of allStagesParsed) {
       let earliest = null;
       for (let j = stageIdx; j <= lastVisibleIdx; j++) {
+        if (hiddenStages.has(workflowStages[j])) continue;
         if (dates[j] && (!earliest || dates[j] < earliest)) earliest = dates[j];
       }
       if (earliest) result.push(earliest.getTime());
@@ -2527,6 +2646,7 @@ function buildCFDData() {
     for (const dates of allStagesParsed) {
       if (!dates[stageIdx]) continue; // never entered this stage
       for (let j = stageIdx + 1; j < workflowStages.length; j++) {
+        if (hiddenStages.has(workflowStages[j])) continue;
         if (dates[j]) { exits.push(dates[j].getTime()); break; }
       }
     }
@@ -3057,7 +3177,8 @@ function renderFFE(completed) {
     const zeroPct   = Math.round(zeroCount / ffeTimes.length * 100);
     if (zeroPct >= 70) {
       ffeWarn.style.display = 'block';
-      ffeWarn.innerHTML = `<strong>⚠ FFE data quality issue — ${zeroPct}% of items show 0 days in backlog.</strong><br>
+      ffeWarn.innerHTML = `<strong>⚠ FFE data quality issue — ${zeroPct}% of items show 0 days in backlog.</strong>
+<button onclick="document.getElementById('ffe-min-days').value=1;renderFFE(lastRenderPayload&&lastRenderPayload.completed||[])" style="margin-left:0.75rem;padding:0.2rem 0.7rem;border-radius:6px;border:1px solid #b45309;background:#fef3c7;color:#92400e;font-size:0.78rem;font-weight:600;cursor:pointer">Hide 0d items</button><br>
 This usually means the Backlog date and the commitment date (${cfg.startCol || 'Start'}) are being set to the same timestamp. Common causes in ServiceNow:<br>
 • Items were bulk-imported or migrated and all stage dates were stamped at the same time<br>
 • The Backlog field is auto-populated when an item is moved to "${cfg.startCol || 'Start'}", not when it was first created<br>
@@ -3605,7 +3726,12 @@ function renderBlocked(completed, wip, p85) {
 
   const blockedDone  = completed.filter(d => d.blockedDays > 0).sort((a, b) => b.blockedDays - a.blockedDays);
   const cleanDone    = completed.filter(d => !d.blockedDays);
-  const nowBlocked   = cfg.blockedFlagCol ? wip.filter(i => i.currentlyBlocked).sort((a, b) => b.age - a.age) : null;
+  const nowBlocked   = cfg.blockedFlagCol
+    ? wip.filter(i => i.currentlyBlocked).sort((a, b) => b.age - a.age)
+    : cfg.blockedDaysCol
+      ? wip.filter(i => i.blockedDays > 0).sort((a, b) => b.blockedDays - a.blockedDays)
+      : null;
+  const nowBlockedIsProxy = !cfg.blockedFlagCol && cfg.blockedDaysCol;
 
   function stats(items) {
     if (!items.length) return null;
@@ -3679,7 +3805,12 @@ function renderBlocked(completed, wip, p85) {
 
   // ── Section 2: Currently blocked WIP ──
   if (nowBlocked !== null) {
-    html += `<div class="blocked-section-title">Currently blocked — needs action today</div>`;
+    if (nowBlockedIsProxy) {
+      html += `<div class="blocked-section-title">In progress with blocking time recorded</div>`;
+      if (nowBlocked.length) html += `<div style="font-size:0.8rem;color:#92400e;background:#fef3c7;border-radius:6px;padding:0.4rem 0.75rem;margin-bottom:0.5rem">No "Currently Blocked" flag column is mapped — showing WIP items with recorded blocked days. Map a blocked flag column in Config to see only items blocked right now.</div>`;
+    } else {
+      html += `<div class="blocked-section-title">Currently blocked — needs action today</div>`;
+    }
     if (!nowBlocked.length) {
       html += `<div style="font-size:0.85rem;color:#16a34a;padding:0.6rem 0">✓ No items currently blocked</div>`;
     } else {
@@ -4785,11 +4916,22 @@ function renderForecast(completed, wip, backlog) {
   countEl.addEventListener('input', () => { countEl._userEdited = true; }, { once: true });
 
   const noteEl = document.getElementById('mc-when-note');
+  const cfg = getConfig();
+  const blockedNowWhen = cfg.blockedFlagCol
+    ? wip.filter(i => i.currentlyBlocked).length
+    : cfg.blockedDaysCol ? wip.filter(i => i.blockedDays > 0).length : 0;
   if (autoCount > 0) {
     const parts = [];
-    if (wip.length)    parts.push(`${wip.length} in progress`);
+    if (wip.length)     parts.push(`${wip.length} in progress`);
     if (backlog.length) parts.push(`${backlog.length} in backlog`);
-    noteEl.textContent = `Auto-filled from your data: ${parts.join(' + ')} = ${autoCount} items. Adjust to include items not yet written.`;
+    let note = `Auto-filled from your data: ${parts.join(' + ')} = ${autoCount} items.`;
+    if (blockedNowWhen > 0) {
+      const adjustedCount = autoCount - blockedNowWhen;
+      note += ` <span style="color:#dc2626;font-weight:600">${blockedNowWhen} currently blocked</span> — these are included but may not complete on their normal schedule.`;
+      note += ` <button onclick="document.getElementById('mc-item-count').value=${adjustedCount};document.getElementById('mc-item-count')._userEdited=true" style="margin-left:0.4rem;padding:0.15rem 0.55rem;border-radius:5px;border:1px solid #dc2626;background:#fef2f2;color:#dc2626;font-size:0.75rem;font-weight:600;cursor:pointer">Exclude ${blockedNowWhen} blocked</button>`;
+    }
+    note += ' Adjust to include items not yet written.';
+    noteEl.innerHTML = note;
   } else {
     noteEl.textContent = 'No backlog items in your CSV — enter the number of items you need to finish.';
   }
