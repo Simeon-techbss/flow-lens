@@ -974,7 +974,16 @@ License: MIT
           <label>From <input type="date" id="cfd-from" onchange="renderCFD()"></label>
           <label>To <input type="date" id="cfd-to" onchange="renderCFD()"></label>
           <button onclick="resetCFDZoom()">Reset</button>
+          <button id="cfd-focus-btn" onclick="toggleCFDFocus()" title="Smart Y-axis floor: zooms in on in-progress bands">Focus: Off</button>
+          <select id="cfd-focus-weeks" onchange="cfdFocusWeeks=+this.value;renderCFD()" style="display:none">
+            <option value="1">1 week</option>
+            <option value="2">2 weeks</option>
+            <option value="4" selected>4 weeks</option>
+            <option value="8">8 weeks</option>
+            <option value="16">16 weeks</option>
+          </select>
         </div>
+        <div id="cfd-focus-note" style="display:none;font-size:11px;color:#64748b;margin:4px 0 2px;"></div>
         <div class="chart-wrap" style="cursor:crosshair"><canvas id="chart-cfd"></canvas></div>
         <div class="cfd-snapshot-wrap" id="cfd-snapshot-wrap">
           <div class="cfd-snapshot-header">
@@ -2854,6 +2863,8 @@ function renderCTOverTime() {
 let cfdDataCache   = null;
 let cfdMarkers     = [null, null]; // each is a weekIndex into cfdDataCache.weeks
 let cfdExportRange = null; // [date0, date1] for current two-marker range
+let cfdFocusMode   = false; // smart Y-axis floor: zooms in on in-progress bands
+let cfdFocusWeeks  = 4;    // minimum visible window when focus is on
 
 const CFD_COLORS = [
   'rgba(14,165,233,0.92)',  'rgba(34,197,94,0.92)',   'rgba(249,115,22,0.92)',
@@ -2990,6 +3001,64 @@ function renderCFD() {
   // Reversed so last stage (Done) = dataset[0] at bottom, first stage (To do) = top
   const reversedStages = [...visibleStages].reverse();
 
+  // Focus mode: zoom Y to show bands clearly, clip X to where the data is visible.
+  // Minimum 4-week window so there's enough history to read trends.
+  // Y floor is recalculated from the actual visible window, not just the last point.
+  const MIN_FOCUS_WEEKS = cfdFocusWeeks;
+  let yFloor = 0;
+  let xEffectiveMin = xMin;
+  const focusNoteEl = document.getElementById('cfd-focus-note');
+  if (cfdFocusMode && stageCounts.length >= 2) {
+    const bottomVals = stageCounts[visibleStages.length - 1];
+    const maxTotal = Math.max(...stageCounts[0]);
+    const lastBottom = bottomVals[bottomVals.length - 1];
+
+    if (lastBottom > 0 && maxTotal > 0) {
+      const margin = Math.max(10, Math.round(maxTotal * 0.05));
+
+      // Step 1: find where bottom first crosses (lastBottom - margin)
+      const initialFloor = Math.max(0, lastBottom - margin);
+      let focusStart = weeks[0];
+      if (initialFloor > 0) {
+        const firstVisibleIdx = bottomVals.findIndex(v => v >= initialFloor);
+        if (firstVisibleIdx > 0) focusStart = weeks[firstVisibleIdx];
+      }
+
+      // Step 2: enforce minimum 4-week window from end of data
+      const minWindowStart = new Date(weeks[weeks.length - 1].getTime() - MIN_FOCUS_WEEKS * 7 * 86400000);
+      if (focusStart > minWindowStart) focusStart = minWindowStart;
+
+      // Step 3: respect user's existing date filter (never go earlier than their From)
+      xEffectiveMin = (!xMin || focusStart > xMin) ? focusStart : xMin;
+
+      // Step 4: recalculate Y floor based on the actual visible window
+      const visibleBottomVals = bottomVals.filter((_, i) => weeks[i] >= xEffectiveMin && bottomVals[i] > 0);
+      if (visibleBottomVals.length > 0) {
+        yFloor = Math.max(0, Math.min(...visibleBottomVals) - margin);
+      }
+
+      // Build focus note
+      if (xEffectiveMin > weeks[0]) {
+        const hiddenFrom = weeks[0];
+        const hiddenDays = Math.round((xEffectiveMin - hiddenFrom) / 86400000);
+        const hiddenWeeks = Math.round(hiddenDays / 7);
+        const period = hiddenWeeks >= 8
+          ? `${Math.round(hiddenWeeks / 4.3)} months`
+          : `${hiddenWeeks} week${hiddenWeeks !== 1 ? 's' : ''}`;
+        const fromStr = hiddenFrom.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
+        const toStr = xEffectiveMin.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
+        focusNoteEl.textContent = `Focus has hidden ${period} of history (${fromStr} – ${toStr}). As such it's easier to see recent flow.`;
+        focusNoteEl.style.display = '';
+      } else {
+        focusNoteEl.style.display = 'none';
+      }
+    } else {
+      focusNoteEl.style.display = 'none';
+    }
+  } else {
+    focusNoteEl.style.display = 'none';
+  }
+
   charts.cfd = new Chart(ctx, {
     type: 'line',
     data: {
@@ -3018,9 +3087,9 @@ function renderCFD() {
       scales: {
         x: { type: 'time', time: { unit: 'week', displayFormats: { week: 'd MMM yy' } },
              grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 11 } },
-             min: xMin, max: xMax },
+             min: xEffectiveMin, max: xMax },
         y: { title: { display: true, text: 'Items', color: '#94a3b8', font: { size: 11 } },
-             grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 11 } }, min: 0 }
+             grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 11 } }, min: yFloor }
       }
     },
     plugins: [cfdMarkerPlugin]
@@ -3081,6 +3150,14 @@ function resetCFDZoom() {
   document.getElementById('cfd-analysis').style.display = 'none';
   renderCFD();
 }
+
+function toggleCFDFocus() {
+  cfdFocusMode = !cfdFocusMode;
+  document.getElementById('cfd-focus-btn').textContent = cfdFocusMode ? 'Focus: On' : 'Focus: Off';
+  document.getElementById('cfd-focus-weeks').style.display = cfdFocusMode ? '' : 'none';
+  renderCFD();
+}
+
 
 function handleCFDClick(event, _els, chart) {
   if (!cfdDataCache) return;
