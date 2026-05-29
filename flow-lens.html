@@ -873,6 +873,7 @@ License: MIT
         </div>
         <div class="chart-wrap"><canvas id="chart-throughput"></canvas></div>
         <div id="throughput-xmr-panel" style="display:none;margin-top:0.75rem"></div>
+        <div id="throughput-week-panel" style="display:none;margin-top:0.75rem"></div>
       </div>
 
       <div class="chart-card" style="margin-top:1rem">
@@ -2494,11 +2495,68 @@ function renderScatter(data, p50, p70, p85, p95) {
   });
 }
 
+// ── Throughput week drill-down ─────────────────────────────────────────────
+function renderWeekDrilldown(weekKey, completed, panel) {
+  const cfg = getConfig();
+  const items = completed.filter(d => weekStart(d.endDate).toISOString().slice(0,10) === weekKey);
+  if (!items.length) { panel.style.display = 'none'; return; }
+
+  const weekDate = new Date(weekKey + 'T00:00:00');
+  const weekLabel = weekDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  // Detect a useful categorical column to show (first non-date col with 2-10 unique values)
+  const dateColSet = new Set(workflowStages.concat(
+    [cfg.startCol, cfg.endCol, cfg.activeCol, cfg.idCol, cfg.titleCol, cfg.blockedDaysCol, cfg.blockedFlagCol].filter(Boolean)
+  ));
+  const catCol = columns.find(c => {
+    if (dateColSet.has(c)) return false;
+    const vals = completed.map(d => (d._row[c] || '').trim()).filter(Boolean);
+    const uniq = new Set(vals);
+    return uniq.size >= 2 && uniq.size <= 15;
+  });
+
+  const showBlocked = cfg.blockedDaysCol && items.some(d => d.blockedDays > 0);
+
+  function idCell(d) {
+    const id = d.id || '—';
+    return d.link ? `<a href="${d.link}" target="_blank" rel="noopener" style="color:#0ea5e9;text-decoration:none">${id}</a>` : id;
+  }
+
+  const rows = items.map(d => {
+    const title = d.title ? (d.title.length > 45 ? d.title.slice(0, 44) + '…' : d.title) : '—';
+    const cat   = catCol ? (d._row[catCol] || '—') : null;
+    const ct    = d.cycleTime != null ? d.cycleTime.toFixed(1) + 'd' : '—';
+    const bl    = showBlocked ? (d.blockedDays > 0 ? `<span style="color:#dc2626">${d.blockedDays.toFixed(1)}d</span>` : '—') : null;
+    return { id: idCell(d), title, cat, ct, bl };
+  });
+
+  const catTh   = catCol ? `<th>${catCol}</th>` : '';
+  const blockedTh = showBlocked ? '<th>Blocked</th>' : '';
+  const ths = `<th>ID</th><th>Title</th>${catTh}<th>CT</th>${blockedTh}`;
+  const trs = rows.map(r =>
+    `<tr><td style="white-space:nowrap">${r.id}</td><td style="color:#374151">${r.title}</td>${catCol ? `<td style="color:#64748b">${r.cat}</td>` : ''}<td style="white-space:nowrap">${r.ct}</td>${showBlocked ? `<td>${r.bl}</td>` : ''}</tr>`
+  ).join('');
+
+  panel.style.display = 'block';
+  panel.innerHTML = `
+    <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:0.75rem 1rem;font-size:0.82rem">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem">
+        <span style="font-weight:700;color:#0f172a">Week of ${weekLabel} — ${items.length} item${items.length !== 1 ? 's' : ''} completed</span>
+        <button onclick="document.getElementById('throughput-week-panel').style.display='none';document.getElementById('throughput-week-panel').dataset.activeWeek=''" style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:1rem;line-height:1;padding:0 0.2rem" title="Close">✕</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="aging-table" style="font-size:0.8rem"><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>
+      </div>
+    </div>`;
+}
+
 // ── Throughput ─────────────────────────────────────────────────────────────
 function renderThroughput(data) {
   const ctx = document.getElementById('chart-throughput').getContext('2d');
   if (charts.throughput) charts.throughput.destroy();
   if (charts.throughputHist) { charts.throughputHist.destroy(); charts.throughputHist = null; }
+  const weekPanel = document.getElementById('throughput-week-panel');
+  if (weekPanel) { weekPanel.style.display = 'none'; weekPanel.dataset.activeWeek = ''; }
   if (!data.length) return;
 
   const byWeek = {};
@@ -2561,11 +2619,27 @@ function renderThroughput(data) {
         },
         tooltip: { mode: 'index', intersect: false }
       },
+      onHover(evt, elements) {
+        evt.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+      },
       scales: {
         x: { type: 'time', time: { unit: 'week', displayFormats: { week: 'd MMM' } },
              grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 11 } } },
         y: { title: { display: true, text: 'Items completed', color: '#94a3b8', font: { size: 11 } },
              grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 11 }, stepSize: 1 }, min: 0 }
+      },
+      onClick(evt, elements) {
+        const panel = document.getElementById('throughput-week-panel');
+        if (!elements.length) { panel.style.display = 'none'; return; }
+        const idx = elements.find(e => e.datasetIndex === datasets.findIndex(d => d.label === 'Items / week'))?.index;
+        if (idx === undefined) return;
+        const weekKey = keys[idx];
+        if (panel.dataset.activeWeek === weekKey && panel.style.display !== 'none') {
+          panel.style.display = 'none'; panel.dataset.activeWeek = '';
+        } else {
+          panel.dataset.activeWeek = weekKey;
+          renderWeekDrilldown(weekKey, data, panel);
+        }
       }
     }
   });
