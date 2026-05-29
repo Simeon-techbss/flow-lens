@@ -4388,14 +4388,15 @@ function renderAging(wip, p50, p70, p85, p95) {
 
   const xLabels = displayStages.map(s => `${s} (${stageCounts[s]})`);
 
-  // Inline plugin draws percentile band backgrounds
+  // Inline plugin draws percentile band backgrounds and stage column boxes
   const agingBandPlugin = {
     id: 'agingBands',
     beforeDraw(chart) {
       const { ctx, chartArea, scales } = chart;
       if (!chartArea) return;
-      const y = scales.y;
+      const { x, y } = scales;
       ctx.save();
+      // Horizontal percentile bands
       [
         { min: 0,   max: p50,  color: 'rgba(34,197,94,0.07)' },
         { min: p50, max: p70,  color: 'rgba(234,179,8,0.07)' },
@@ -4408,6 +4409,35 @@ function renderAging(wip, p50, p70, p85, p95) {
           ctx.fillStyle = band.color;
           ctx.fillRect(chartArea.left, yTop, chartArea.width, yBot - yTop);
         }
+      });
+      // Alternating column fills and box outlines per stage
+      displayStages.forEach((stage, si) => {
+        const xLeft  = x.getPixelForValue(si - 0.5);
+        const xRight = x.getPixelForValue(si + 0.5);
+        const colH   = chartArea.bottom - chartArea.top;
+        if (si % 2 === 0) {
+          ctx.fillStyle = 'rgba(241,245,249,0.35)';
+          ctx.fillRect(xLeft, chartArea.top, xRight - xLeft, colH);
+        }
+        ctx.strokeStyle = 'rgba(148,163,184,0.45)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([]);
+        ctx.strokeRect(xLeft + 0.5, chartArea.top + 0.5, xRight - xLeft - 1, colH - 1);
+      });
+      ctx.restore();
+    },
+    afterDraw(chart) {
+      const { ctx, chartArea, scales } = chart;
+      if (!chartArea) return;
+      const { x } = scales;
+      ctx.save();
+      ctx.font = '600 12px system-ui,sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = '#334155';
+      displayStages.forEach((stage, si) => {
+        const xCenter = x.getPixelForValue(si);
+        ctx.fillText(xLabels[si], xCenter, chartArea.bottom + 8);
       });
       ctx.restore();
     }
@@ -4442,7 +4472,7 @@ function renderAging(wip, p50, p70, p85, p95) {
         x: {
           min: -0.5, max: displayStages.length - 0.5,
           grid: { color: '#f1f5f9' },
-          ticks: { stepSize: 1, color: '#475569', font: { size: 11 }, callback(val) { return xLabels[Math.round(val)] || ''; } }
+          ticks: { stepSize: 1, callback() { return ''; } }
         },
         y: {
           title: { display: true, text: 'Age (days)', color: '#94a3b8', font: { size: 11 } },
