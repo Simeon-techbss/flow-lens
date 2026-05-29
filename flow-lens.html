@@ -578,23 +578,25 @@ License: MIT
   <h1>Flow<span>Lens</span></h1>
   <div id="file-status">
     <span id="status-text">No data loaded</span>
-    <button id="reload-btn" style="display:none" onclick="resetTool()">Load new file</button>
+    <button id="reload-btn" style="display:none" onclick="resetTool()">Change dataset</button>
   </div>
   <a href="https://simeon-techbss.github.io/flow-lens/guide.html" target="_blank" style="font-size:0.78rem;color:#94a3b8;text-decoration:none;border:1px solid #334155;border-radius:4px;padding:0.2rem 0.6rem;white-space:nowrap">Data guide</a>
 </header>
 
 <main>
-  <div class="upload-zone" id="upload-zone">
-    <input type="file" id="file-input" accept=".csv" style="display:none">
-    <svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-      <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-    </svg>
-    <h2>Drop your CSV here or click to browse</h2>
-    <p>Works with any CSV containing workflow stage date columns &nbsp;·&nbsp; Data stays on your machine</p>
-  </div>
-  <div style="text-align:center;margin-top:0.9rem">
-    <button onclick="loadExampleData()" style="font-size:0.82rem;color:#64748b;background:white;border:1px solid #e2e8f0;border-radius:6px;padding:0.4rem 1.1rem;cursor:pointer;transition:border-color 0.15s" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#e2e8f0'">Try with example data</button>
+  <div id="upload-area">
+    <div class="upload-zone" id="upload-zone">
+      <input type="file" id="file-input" accept=".csv" style="display:none">
+      <svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      <h2>Drop your CSV here or click to browse</h2>
+      <p>Works with any CSV containing workflow stage date columns &nbsp;·&nbsp; Data stays on your machine</p>
+    </div>
+    <div style="text-align:center;margin-top:0.9rem">
+      <button onclick="loadExampleData()" style="font-size:0.82rem;color:#64748b;background:white;border:1px solid #e2e8f0;border-radius:6px;padding:0.4rem 1.1rem;cursor:pointer;transition:border-color 0.15s" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#e2e8f0'">Try with example data</button>
+    </div>
   </div>
 
   <div id="error-area"></div>
@@ -713,6 +715,7 @@ License: MIT
         <button class="tab-btn" data-tab="wiptime">WIP Over Time</button>
         <button class="tab-btn" data-tab="cttime">CT Over Time</button>
         <button class="tab-btn" data-tab="health">Team Health</button>
+        <button class="tab-btn" data-tab="worksplit">Work Split</button>
         <button class="tab-btn" data-tab="forecast">Forecast</button>
       </div>
       <div class="tab-row-label">Detail</div>
@@ -847,8 +850,17 @@ License: MIT
           <div class="info-row"><strong>Why use a rolling average?</strong>Weekly counts are noisy (holidays, sprints, batch releases). The 4-week rolling average smooths this out so you can see the real trend.</div>
           <div class="info-row"><strong>What to look for:</strong> Steady or rising average = healthy. A sustained drop = investigate (team capacity, blocking, process issues). Spiky pattern with long gaps = work is being batched rather than flowing continuously.</div>
           <div class="info-row"><strong>Throughput and forecasting:</strong> The Monte Carlo forecast on the Flow Insights tab samples this historical throughput distribution to estimate future completions. More stable throughput = tighter, more reliable forecast range.</div>
+          <div class="info-row"><strong>Normal range (toggle):</strong> Tick "Show normal range" to overlay a band showing your expected weekly throughput based on actual historical variation. Bars outside the band (shown in orange) represent weeks where something real changed — not just random ups and downs. The panel below the chart lists those weeks and whether they were unusually high or low.</div>
+        </div>
+        <div style="margin-bottom:0.75rem">
+          <label style="display:inline-flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.83rem;color:#475569;user-select:none">
+            <input type="checkbox" id="tp-xmr" onchange="renderThroughput(lastRenderPayload&&lastRenderPayload.completed||[])">
+            Show normal range
+          </label>
+          <span style="font-size:0.78rem;color:#94a3b8;margin-left:0.25rem">— orange bars fell outside your normal variation and are worth investigating</span>
         </div>
         <div class="chart-wrap"><canvas id="chart-throughput"></canvas></div>
+        <div id="throughput-xmr-panel" style="display:none;margin-top:0.75rem"></div>
       </div>
     </div>
 
@@ -881,6 +893,29 @@ License: MIT
         </div>
         <div id="th-cards" class="th-grid"></div>
         <div id="th-narrative" style="margin-top:1.25rem;padding:0.9rem 1.1rem;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;color:#475569;line-height:1.6;"></div>
+      </div>
+    </div>
+
+    <div id="tab-worksplit" class="tab-pane">
+      <div class="chart-card">
+        <h2>Work Split <button class="info-btn" data-info="info-worksplit" onclick="toggleInfo('info-worksplit')" title="How to read this">ℹ</button></h2>
+        <div class="subtitle">How your work breaks down by type — across each stage of the pipeline. Compares what's waiting, in flight, and done.</div>
+        <div class="info-panel" id="info-worksplit">
+          <div class="info-row"><strong>What this shows</strong> — the composition of your work at each stage: Backlog (not yet committed), Committed (committed but not actively in progress), In Progress / Active WIP, and Done. Each bar shows how many items of each type sit in that group.</div>
+          <div class="info-row"><strong>What to look for</strong> — if your In Progress bar is dominated by one type (e.g. bugs / failure demand) but your Backlog is mostly features, the team is being pulled into reactive work. If Done is heavily weighted to one type, that's where your effort has actually gone — which may or may not match intent.</div>
+          <div class="info-row"><strong>Split by</strong> — choose any categorical column from your data. Demand Type, Demand Source, ticket type or team are all good choices. Charts with many distinct values can get busy — fewer categories read more clearly.</div>
+          <div class="info-row"><strong>Committed group</strong> — only appears if you have an Active Work Starts column configured. Items committed (Start date) but not yet actively worked appear here. Without that column, all in-progress items appear as a single WIP group.</div>
+          <div class="info-row"><strong>Backlog group</strong> — only appears if you have pre-commitment stages configured before your Start column in the workflow setup.</div>
+        </div>
+        <div style="margin-bottom:1rem;display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
+          <label style="font-size:0.83rem;font-weight:600;color:#374151">Split by</label>
+          <select id="ws-split-col" onchange="renderWorkSplit()" style="padding:0.3rem 0.6rem;border:1px solid #d1d5db;border-radius:6px;font-size:0.83rem;background:white;color:#1e293b"></select>
+        </div>
+        <div id="ws-empty" style="display:none;padding:2rem 1rem;text-align:center;color:#94a3b8;font-size:0.85rem">
+          No suitable columns found for splitting. Add a column like <em>Type</em>, <em>Priority</em>, or <em>Demand Type</em> to your CSV with 2–8 distinct values.
+        </div>
+        <div style="height:240px;position:relative"><canvas id="chart-worksplit"></canvas></div>
+        <div id="ws-table" style="margin-top:1.25rem;overflow-x:auto"></div>
       </div>
     </div>
 
@@ -1362,6 +1397,7 @@ function processFile(file) {
       const corrNote = corrected > 0 ? ` · ${corrected} rows corrected` : '';
       document.getElementById('status-text').textContent = `${file.name} · ${allRows.length.toLocaleString()} rows${corrNote}`;
       document.getElementById('reload-btn').style.display = 'inline-block';
+      document.getElementById('upload-area').style.display = 'none';
       setupConfig();
     },
     error(err) { showError('Could not read file: ' + err.message); }
@@ -1380,6 +1416,7 @@ function resetTool() {
   document.getElementById('data-footer').style.display = 'none';
   document.getElementById('status-text').textContent = 'No data loaded';
   document.getElementById('reload-btn').style.display = 'none';
+  document.getElementById('upload-area').style.display = '';
   fileInput.value = '';
   clearError();
 }
@@ -1487,6 +1524,21 @@ function loadExampleData() {
     });
   }
 
+  // Committed but not yet active (~12, has Ready but no Dev)
+  for (let i = 0; i < 12; i++) {
+    const readyAgo  = logn(0.7, 0.5, 1);
+    const readyDate = addDays(today, -readyAgo);
+    const backlog   = addDays(readyDate, -logn(2.0, 0.6, 2));
+    const src = pick(sourceWeights);
+    rows.push({
+      ID: makeId(), Title: pick(titleMap[src]),
+      'Demand Source': src, 'Demand Type': pick(typeMap[src]),
+      'Blocked Days': 0, 'Currently Blocked': 'No',
+      Backlog: fmt(backlog), Ready: fmt(readyDate),
+      Dev: '', 'Dev Done': '', Review: '', Done: '',
+    });
+  }
+
   // Backlog-only items (~20, not yet committed)
   for (let i = 0; i < 20; i++) {
     const src = pick(sourceWeights);
@@ -1521,10 +1573,11 @@ function loadExampleData() {
       allRows = results.data;
       document.getElementById('status-text').textContent = `Example data (Axiom Team) · ${allRows.length} rows · dates relative to today`;
       document.getElementById('reload-btn').style.display = 'inline-block';
+      document.getElementById('upload-area').style.display = 'none';
       setupConfig();
       applyConfig({
-        version: 1,
-        fields: { startCol:'Ready', endCol:'Done', idCol:'ID', titleCol:'Title', blockedDaysCol:'Blocked Days', blockedFlagCol:'Currently Blocked' },
+        version: 2,
+        fields: { startCol:'Ready', endCol:'Done', activeCol:'Dev', idCol:'ID', titleCol:'Title', blockedDaysCol:'Blocked Days', blockedFlagCol:'Currently Blocked' },
         workflow: {
           stages: ['Backlog','Ready','Dev','Dev Done','Review','Done'],
           types:  { Backlog:'queue', Ready:'queue', Dev:'process', 'Dev Done':'queue', Review:'process', Done:'queue' },
@@ -2094,6 +2147,7 @@ function renderActiveTab() {
     case 'blocked':    renderBlocked(completed, wip, p85); break;
     case 'health':     renderTeamHealth(); break;
     case 'ffe':        renderFFE(completed); break;
+    case 'worksplit':  renderWorkSplit(); break;
     case 'data':       renderData(); break;
     case 'ai':         /* prompt generated on demand */ break;
     case 'dq':         renderDataQuality(); break;
@@ -2404,19 +2458,53 @@ function renderThroughput(data) {
     return +(slice.reduce((a,b) => a+b, 0) / slice.length).toFixed(2);
   });
 
+  // XmR — normal range calculation (Vacanti / SPC)
+  // 2.66 = 3 / d2 constant for individual moving ranges
+  const mean = values.reduce((a, b) => a + b, 0) / values.length;
+  const movingRanges = values.slice(1).map((v, i) => Math.abs(v - values[i]));
+  const avgMR = movingRanges.length ? movingRanges.reduce((a, b) => a + b, 0) / movingRanges.length : 0;
+  const unpl = mean + 2.66 * avgMR;
+  const lnpl = Math.max(0, mean - 2.66 * avgMR);
+  const isSignal = values.map(v => v > unpl || v < lnpl);
+
+  const showXmR = document.getElementById('tp-xmr')?.checked;
+  const barBg     = values.map((_, i) => showXmR && isSignal[i] ? 'rgba(249,115,22,0.7)' : 'rgba(56,189,248,0.55)');
+  const barBorder = values.map((_, i) => showXmR && isSignal[i] ? 'rgba(249,115,22,0.9)' : 'rgba(56,189,248,0.85)');
+
+  const datasets = [];
+  if (showXmR && keys.length >= 3) {
+    const limitVals = labels.map(() => null); // placeholder shape
+    datasets.push(
+      { type: 'line', label: 'Normal range', data: labels.map(() => unpl),
+        borderColor: 'rgba(99,102,241,0.4)', borderWidth: 1.5, borderDash: [5, 4],
+        pointRadius: 0, fill: false, order: 5 },
+      { type: 'line', label: '_lower', data: labels.map(() => Math.max(0, lnpl)),
+        borderColor: 'rgba(99,102,241,0.4)', borderWidth: 1.5, borderDash: [5, 4],
+        pointRadius: 0,
+        fill: { target: 0, above: 'rgba(99,102,241,0.06)', below: 'transparent' },
+        order: 6 }
+    );
+  }
+  datasets.push(
+    { type: 'bar',  label: 'Items / week', data: values,
+      backgroundColor: barBg, borderColor: barBorder, borderWidth: 1, order: 2 },
+    { type: 'line', label: '4-week avg',   data: rolling,
+      borderColor: '#f97316', borderWidth: 2, pointRadius: 0, fill: false, order: 1, tension: 0.35 }
+  );
+
   charts.throughput = new Chart(ctx, {
-    data: {
-      labels,
-      datasets: [
-        { type: 'bar', label: 'Items / week', data: values,
-          backgroundColor: 'rgba(56,189,248,0.55)', borderColor: 'rgba(56,189,248,0.85)', borderWidth: 1, order: 2 },
-        { type: 'line', label: '4-week avg', data: rolling,
-          borderColor: '#f97316', borderWidth: 2, pointRadius: 0, fill: false, order: 1, tension: 0.35 }
-      ]
-    },
+    data: { labels, datasets },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { labels: { color: '#475569', font: { size: 11 }, boxWidth: 16 } }, tooltip: { mode: 'index', intersect: false } },
+      plugins: {
+        legend: {
+          labels: {
+            color: '#475569', font: { size: 11 }, boxWidth: 16,
+            filter: item => item.text !== '_lower'
+          }
+        },
+        tooltip: { mode: 'index', intersect: false }
+      },
       scales: {
         x: { type: 'time', time: { unit: 'week', displayFormats: { week: 'd MMM' } },
              grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 11 } } },
@@ -2425,6 +2513,193 @@ function renderThroughput(data) {
       }
     }
   });
+
+  // Interpretation panel
+  const panel = document.getElementById('throughput-xmr-panel');
+  if (!panel) return;
+  if (!showXmR || keys.length < 3) { panel.style.display = 'none'; return; }
+  panel.style.display = 'block';
+
+  const signalItems = keys
+    .map((k, i) => ({ k, v: values[i], signal: isSignal[i] }))
+    .filter(x => x.signal)
+    .map(({ k, v }) => {
+      const dir = v > unpl ? 'unusually high' : 'unusually low';
+      const d = new Date(k + 'T00:00:00');
+      const lbl = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      return `<li style="margin-bottom:0.15rem">Week of ${lbl}: <strong>${v}</strong> item${v !== 1 ? 's' : ''} — ${dir}</li>`;
+    });
+
+  const low  = Math.ceil(lnpl);
+  const high = Math.floor(unpl);
+  const rangeText = low <= 0 ? `up to ${high} items/week` : `${low}–${high} items/week`;
+
+  // Variability rating: (upper - lower) / mean as a proportion
+  // Skip rating at low throughput — integer jumps between 1-3 items always look "High" mathematically
+  const bandWidth = unpl - lnpl;
+  const variabilityRatio = mean > 0 ? bandWidth / mean : 0;
+  let varLabel, varColor, varMsg;
+  if (mean < 5) {
+    varLabel = 'Low throughput'; varColor = '#94a3b8';
+    varMsg = `Averaging ${mean.toFixed(1)} item${mean.toFixed(1) === '1.0' ? '' : 's'}/week. Week-to-week swings at this volume are expected — variability analysis becomes more meaningful above ~5 items/week.`;
+  } else if (variabilityRatio < 0.5) {
+    varLabel = 'Low'; varColor = '#16a34a';
+    varMsg = 'Consistent delivery — your forecasts will be reliable.';
+  } else if (variabilityRatio < 1.0) {
+    varLabel = 'Moderate'; varColor = '#b45309';
+    varMsg = 'Some week-to-week swings — forecasts will have a reasonable range of uncertainty.';
+  } else {
+    varLabel = 'High'; varColor = '#dc2626';
+    varMsg = 'Large swings week to week. This makes forecasts less reliable — worth understanding what drives the variation (batching, unplanned work, inconsistent commitment).';
+  }
+
+  const signalSection = signalItems.length === 0
+    ? `<div style="color:#64748b;margin-top:0.5rem">No weeks fell outside even this range. The band width is the main signal here.</div>`
+    : `<div style="color:#b45309;margin-top:0.5rem;margin-bottom:0.3rem"><strong>${signalItems.length} week${signalItems.length > 1 ? 's' : ''}</strong> fell outside even this wide range (shown in orange) — something genuinely unusual happened:</div>
+       <ul style="margin:0;padding-left:1.2rem;line-height:1.75;color:#64748b">${signalItems.join('')}</ul>`;
+
+  panel.innerHTML = `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:0.85rem 1rem;font-size:0.82rem;color:#475569">
+    <div style="display:flex;align-items:baseline;gap:1rem;margin-bottom:0.5rem;flex-wrap:wrap">
+      <span><strong style="color:#1e293b">Normal range: ${rangeText}</strong><span style="color:#94a3b8;font-size:0.78rem;margin-left:0.4rem">based on your delivery history</span></span>
+      <span style="font-weight:700;color:${varColor}">Variability: ${varLabel}</span>
+    </div>
+    <div style="color:#475569">${varMsg}</div>
+    ${signalSection}
+  </div>`;
+}
+
+// ── Work Split ─────────────────────────────────────────────────────────────
+function renderWorkSplit() {
+  const ctx = document.getElementById('chart-worksplit').getContext('2d');
+  if (charts.worksplit) charts.worksplit.destroy();
+
+  if (!lastRenderPayload) return;
+  const { completed, wip, committedQueue, backlog } = lastRenderPayload;
+  const cfg = getConfig();
+  const emptyEl = document.getElementById('ws-empty');
+
+  // Detect categorical columns: non-date, 2–10 unique values
+  const dateColSet = new Set(workflowStages.concat(
+    [cfg.startCol, cfg.endCol, cfg.activeCol, cfg.idCol, cfg.blockedDaysCol, cfg.blockedFlagCol].filter(Boolean)
+  ));
+  const catCols = columns.filter(c => {
+    if (dateColSet.has(c)) return false;
+    const vals = allRows.map(r => (r[c] || '').trim()).filter(Boolean);
+    if (!vals.length) return false;
+    const uniq = new Set(vals);
+    return uniq.size >= 2;
+  });
+
+  // Populate dropdown, keeping previous selection if still valid
+  const sel = document.getElementById('ws-split-col');
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">— choose a column —</option>' +
+    catCols.map(c => `<option value="${c}"${c === prev ? ' selected' : ''}>${c}</option>`).join('');
+  if (!sel.value && catCols.length) {
+    const pref = catCols.find(c => /demand.?type|demand.?source|type|category/i.test(c)) || catCols[0];
+    sel.value = pref;
+  }
+
+  const splitCol = sel.value;
+  if (!splitCol) { emptyEl.style.display = ''; return; }
+  emptyEl.style.display = 'none';
+
+  const getVal = row => (row[splitCol] || '').trim() || '(blank)';
+  const preStart = getPreStartStages(cfg);
+
+  // Build pipeline groups — only include groups that have items
+  const groupDefs = [];
+  if (preStart.length && backlog.length)
+    groupDefs.push({ label: 'Backlog', items: backlog.map(d => d._row) });
+  if (cfg.activeCol && committedQueue.length)
+    groupDefs.push({ label: 'Committed', items: committedQueue.map(d => d._row) });
+  if (wip.length)
+    groupDefs.push({ label: cfg.activeCol ? 'Active WIP' : 'In Progress', items: wip.map(d => d._row) });
+  if (completed.length)
+    groupDefs.push({ label: 'Done', items: completed.map(d => d._row) });
+
+  if (!groupDefs.length) { emptyEl.style.display = ''; return; }
+
+  // Collect all unique values across every group, ordered by total frequency desc
+  const allValCounts = {};
+  groupDefs.forEach(g => g.items.forEach(r => { const v = getVal(r); allValCounts[v] = (allValCounts[v] || 0) + 1; }));
+  const allVals = Object.keys(allValCounts).sort((a, b) => allValCounts[b] - allValCounts[a]);
+
+  const PALETTE = ['#3b82f6','#22c55e','#f97316','#a855f7','#ef4444','#eab308','#06b6d4','#ec4899','#94a3b8'];
+  const totalPerGroup = groupDefs.map(g => g.items.length);
+
+  // Pre-compute raw counts for the table, percentages for the chart
+  const rawCounts = allVals.map(val => groupDefs.map(g => g.items.filter(r => getVal(r) === val).length));
+
+  // Largest-remainder rounding: guarantees each group sums to exactly 100%
+  function to100pct(counts, total) {
+    if (!total) return counts.map(() => 0);
+    const exact   = counts.map(n => n / total * 100);
+    const floored = exact.map(Math.floor);
+    const deficit = 100 - floored.reduce((a, b) => a + b, 0);
+    exact.map((v, i) => ({ i, frac: v - floored[i] }))
+         .sort((a, b) => b.frac - a.frac)
+         .slice(0, deficit)
+         .forEach(({ i }) => floored[i]++);
+    return floored;
+  }
+
+  // pctData[gi][vi] = rounded % of value vi in group gi, sums to 100 per group
+  const pctData = groupDefs.map((g, gi) =>
+    to100pct(allVals.map((_, vi) => rawCounts[vi][gi]), totalPerGroup[gi])
+  );
+
+  const datasets = allVals.map((val, i) => ({
+    label: val,
+    data: groupDefs.map((_, gi) => pctData[gi][i]),
+    backgroundColor: PALETTE[i % PALETTE.length],
+    borderWidth: 0,
+    borderRadius: 2,
+  }));
+
+  charts.worksplit = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: groupDefs.map(g => g.label), datasets },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'right', labels: { color: '#475569', font: { size: 11 }, boxWidth: 13, padding: 10 } },
+        tooltip: { enabled: false }
+      },
+      scales: {
+        x: { stacked: true, min: 0, max: 100, grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 11 }, callback: v => v + '%' },
+             title: { display: true, text: '% of items in group', color: '#94a3b8', font: { size: 11 } } },
+        y: { stacked: true, grid: { display: false }, ticks: { color: '#374151', font: { size: 12, weight: '600' } } }
+      }
+    }
+  });
+
+  // Summary table — clearer than tooltips for reading the numbers
+  const tdStyle = 'padding:0.4rem 0.75rem;text-align:right;font-size:0.8rem;color:#475569;border-bottom:1px solid #f1f5f9';
+  const thStyle = 'padding:0.4rem 0.75rem;text-align:right;font-size:0.75rem;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid #e2e8f0;white-space:nowrap';
+  const rowHd   = 'padding:0.4rem 0.75rem;text-align:left;font-size:0.82rem;font-weight:600;color:#1e293b;border-bottom:1px solid #f1f5f9;white-space:nowrap';
+
+  const headerCells = allVals.map((val, i) =>
+    `<th style="${thStyle}"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${PALETTE[i % PALETTE.length]};margin-right:4px;vertical-align:middle"></span>${val}</th>`
+  ).join('');
+
+  const bodyRows = groupDefs.map((g, gi) => {
+    const total = totalPerGroup[gi];
+    const cells = allVals.map((val, vi) => {
+      const n = rawCounts[vi][gi];
+      const pct = pctData[gi][vi];
+      return `<td style="${tdStyle}">${n ? `<strong style="color:#1e293b">${pct}%</strong><span style="color:#94a3b8;font-size:0.72rem"> (${n})</span>` : '<span style="color:#e2e8f0">—</span>'}</td>`;
+    }).join('');
+    return `<tr><td style="${rowHd}">${g.label}<span style="color:#94a3b8;font-weight:400;font-size:0.75rem;margin-left:0.4rem">n=${total}</span></td>${cells}</tr>`;
+  }).join('');
+
+  document.getElementById('ws-table').innerHTML =
+    `<table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
+      <thead><tr><th style="${thStyle};text-align:left"></th>${headerCells}</tr></thead>
+      <tbody>${bodyRows}</tbody>
+    </table>`;
 }
 
 // ── WIP Over Time ──────────────────────────────────────────────────────────
