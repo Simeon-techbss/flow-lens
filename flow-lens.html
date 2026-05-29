@@ -992,6 +992,7 @@ License: MIT
           <span>days</span>
         </div>
         <div class="chart-wrap"><canvas id="chart-cttime"></canvas></div>
+        <div id="cttime-week-panel" style="display:none;margin-top:0.75rem"></div>
       </div>
     </div>
 
@@ -3145,6 +3146,8 @@ function renderWIPOverTime() {
 function renderCTOverTime() {
   const ctx = document.getElementById('chart-cttime').getContext('2d');
   if (charts.cttime) charts.cttime.destroy();
+  const cttimePanel = document.getElementById('cttime-week-panel');
+  if (cttimePanel) { cttimePanel.style.display = 'none'; cttimePanel.dataset.activeWeek = ''; }
 
   const cfg = getConfig();
   if (!cfg.startCol || !cfg.endCol) return;
@@ -3233,6 +3236,24 @@ function renderCTOverTime() {
              grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 11 } } },
         y: { title: { display: true, text: 'Cycle time (days)', color: '#94a3b8', font: { size: 11 } },
              grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 11 } }, min: 0 }
+      },
+      onHover(evt, elements) {
+        evt.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+      },
+      onClick(evt, elements) {
+        const panel = document.getElementById('cttime-week-panel');
+        if (!elements.length) { panel.style.display = 'none'; return; }
+        const idx = elements[0].index;
+        const weekKey = weeks[idx].toISOString().slice(0, 10);
+        if (!counts[idx]) { panel.style.display = 'none'; panel.dataset.activeWeek = ''; return; }
+        if (panel.dataset.activeWeek === weekKey && panel.style.display !== 'none') {
+          panel.style.display = 'none'; panel.dataset.activeWeek = '';
+        } else {
+          panel.dataset.activeWeek = weekKey;
+          const drillItems = (lastRenderPayload?.completed || [])
+            .filter(d => minCT === null || d.cycleTime > minCT);
+          renderWeekDrilldown(weekKey, drillItems, panel);
+        }
       }
     }
   });
