@@ -729,6 +729,7 @@ License: MIT
         <button class="tab-btn" data-tab="worksplit">Work Split</button>
         <button class="tab-btn" data-tab="breakdown">Breakdown</button>
         <button class="tab-btn" data-tab="forecast">Forecast</button>
+        <button class="tab-btn" data-tab="burnup">Burn Up</button>
       </div>
       <div class="tab-row-label">Detail</div>
       <div class="tab-row">
@@ -1305,12 +1306,63 @@ License: MIT
         </div>
       </div>
     </div>
+
+    <div id="tab-burnup" class="tab-pane">
+      <div class="chart-card">
+        <h2>Burn Up <button class="info-btn" data-info="info-burnup" onclick="toggleInfo('info-burnup')" title="How to read this">ℹ</button></h2>
+        <div class="subtitle">Cumulative completions vs a fixed scope target. Projection lines show when you'll finish at current throughput.</div>
+        <div class="info-panel" id="info-burnup">
+          <div class="info-row"><strong>Scope line (blue)</strong> — a flat horizontal line showing the total items in scope as of your chosen scope date. Set the scope date to any point in time to fix your target count.</div>
+          <div class="info-row"><strong>Completed line (green)</strong> — running total of items that reached Done each week. Should climb steadily to meet the scope line.</div>
+          <div class="info-row"><strong>Forecast line (dashed green)</strong> — a straight projection from the last completed point, based on average weekly throughput over the last 8 weeks. The date where it meets scope is your expected completion.</div>
+          <div class="info-row"><strong>±% scenarios</strong> — tick "Show scenarios" to draw two extra lines: one assuming you go X% faster, one X% slower. All three projected completion dates are shown in the summary bar.</div>
+          <div class="info-row"><strong>Scope date</strong> — items whose earliest workflow date falls on or before this date count as scope. Default is the latest entry date in your data.</div>
+          <div class="info-row"><strong>Filters</strong> — active filters are respected. Use slice filters to focus on a specific type, priority, or team.</div>
+        </div>
+        <div style="margin-bottom:0.75rem;display:flex;flex-wrap:wrap;align-items:center;gap:0.75rem 1.5rem">
+          <label style="display:inline-flex;align-items:center;gap:0.5rem;font-size:0.83rem;color:#475569;white-space:nowrap">
+            Items to finish:
+            <input type="number" id="bu-items-remaining" min="1" step="1" oninput="renderBurnUpTab()" style="width:5rem;font-size:0.83rem;border:1px solid #e2e8f0;border-radius:5px;padding:2px 6px;color:#334155">
+          </label>
+          <label style="display:inline-flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.83rem;color:#475569;user-select:none">
+            <input type="checkbox" id="bu-forecast" checked onchange="renderBurnUpTab()">
+            Show forecast
+          </label>
+          <label style="display:inline-flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.83rem;color:#475569;user-select:none">
+            <input type="checkbox" id="bu-scenarios" onchange="renderBurnUpTab()">
+            Show ±% scenarios
+          </label>
+          <label style="display:inline-flex;align-items:center;gap:0.5rem;font-size:0.83rem;color:#475569;white-space:nowrap">
+            Deviation:
+            <input type="number" id="bu-deviation" value="15" min="1" max="99" step="1" oninput="renderBurnUpTab()" style="width:4rem;font-size:0.83rem;border:1px solid #e2e8f0;border-radius:5px;padding:2px 6px;color:#334155">
+            %
+          </label>
+          <label style="display:inline-flex;align-items:center;gap:0.5rem;font-size:0.83rem;color:#475569;white-space:nowrap">
+            Throughput:
+            <select id="bu-throughput-weeks" onchange="renderBurnUpTab()" style="font-size:0.83rem;border:1px solid #e2e8f0;border-radius:5px;padding:2px 5px;color:#334155">
+              <option value="4">Last 4 weeks</option>
+              <option value="8" selected>Last 8 weeks</option>
+              <option value="12">Last 12 weeks</option>
+              <option value="16">Last 16 weeks</option>
+              <option value="26">Last 26 weeks</option>
+            </select>
+          </label>
+          <button id="bu-focus-btn" onclick="toggleBUFocus()" title="Auto-zoom to show forecast in context" style="font-size:0.78rem;padding:3px 10px;border:1px solid #cbd5e1;border-radius:5px;background:#f8fafc;color:#475569;cursor:pointer">Focus: Off</button>
+        </div>
+        <div id="bu-forecast-info" style="display:none;margin-bottom:0.75rem;padding:0.55rem 0.9rem;background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;font-size:0.82rem;color:#475569;line-height:1.8"></div>
+        <div class="chart-wrap"><canvas id="chart-burnup"></canvas></div>
+        <div id="burnup-empty" style="display:none;padding:2rem 1rem;text-align:center;color:#94a3b8;font-size:0.85rem">No data to display. Load a CSV and configure your Start and Done columns.</div>
+      </div>
+    </div>
   </div>
 
   <div id="filter-ctx-bar" class="filter-ctx-bar" style="display:none"></div>
   <div id="data-footer">
     <span id="footer-range"></span>
-    <button class="copy-btn" onclick="copySnapshot()">Copy snapshot</button>
+    <div style="display:flex;gap:0.5rem">
+      <button class="copy-btn" onclick="copySnapshot()">Copy snapshot</button>
+      <button class="copy-btn" onclick="saveSnapshot()">Save image</button>
+    </div>
   </div>
   <div style="text-align:center;padding:1.25rem 1rem 1.5rem;font-size:0.75rem;color:#94a3b8">
     Built by <a href="https://simeonherbert.com" target="_blank" rel="noopener" style="color:#64748b;text-decoration:none;border-bottom:1px solid #e2e8f0">Simeon Herbert</a> &nbsp;·&nbsp; MIT licence &nbsp;·&nbsp; <span id="app-version"></span>
@@ -2209,6 +2261,7 @@ function renderActiveTab() {
     case 'ai':         /* prompt generated on demand */ break;
     case 'dq':         renderDataQuality(); break;
     case 'forecast':   renderForecast(completed, wip, backlog); break;
+    case 'burnup':     renderBurnUpTab(); break;
   }
 }
 
@@ -3265,6 +3318,8 @@ let cfdMarkers     = [null, null]; // each is a weekIndex into cfdDataCache.week
 let cfdExportRange = null; // [date0, date1] for current two-marker range
 let cfdFocusMode   = false; // smart Y-axis floor: zooms in on in-progress bands
 let cfdFocusWeeks  = 4;    // minimum visible window when focus is on
+let buFocusMode    = false;
+let buFocusWeeks   = 8;
 
 const CFD_COLORS = [
   'rgba(14,165,233,0.92)',  'rgba(34,197,94,0.92)',   'rgba(249,115,22,0.92)',
@@ -3556,6 +3611,12 @@ function toggleCFDFocus() {
   document.getElementById('cfd-focus-btn').textContent = cfdFocusMode ? 'Focus: On' : 'Focus: Off';
   document.getElementById('cfd-focus-weeks').style.display = cfdFocusMode ? '' : 'none';
   renderCFD();
+}
+
+function toggleBUFocus() {
+  buFocusMode = !buFocusMode;
+  document.getElementById('bu-focus-btn').textContent = buFocusMode ? 'Focus: On' : 'Focus: Off';
+  renderBurnUpTab();
 }
 
 
@@ -5415,7 +5476,7 @@ async function copySnapshot() {
       ctx.fillText(range, 20 * scale, dateY);
       ctx.fillStyle = '#94a3b8';
       ctx.textAlign = 'right';
-      ctx.fillText('Flow Lens · ' + today, out.width - 20 * scale, dateY);
+      ctx.fillText('flow-lens.com · ' + today, out.width - 20 * scale, dateY);
 
       return new Promise(res => out.toBlob(res, 'image/png'));
     });
@@ -5436,6 +5497,87 @@ async function copySnapshot() {
     console.error('Snapshot failed:', err);
     btn.textContent = 'Copy failed';
     setTimeout(() => { btn.textContent = 'Copy snapshot'; btn.disabled = false; }, 3000);
+  }
+}
+
+async function saveSnapshot() {
+  const btn = document.querySelector('#data-footer .copy-btn:last-of-type');
+  const activePane = document.querySelector('.tab-pane.active');
+  if (!activePane) return;
+
+  btn.textContent = 'Saving…';
+  btn.disabled = true;
+
+  try {
+    // Build same composite as copySnapshot
+    const scale = 2;
+    const captured = await html2canvas(activePane, { backgroundColor: '#f8fafc', scale, useCORS: true, logging: false });
+    const cfg = getConfig();
+    const activeFilters = (cfg.filters || []).filter(f => f.col && f.vals && f.vals.length);
+    const filterText = activeFilters.length
+      ? 'Filters: ' + activeFilters.map(f => {
+          const vals = f.vals.map(v => v === '__BLANK__' ? '(blank)' : v).join(', ');
+          return (f.exclude ? 'Hide ' : 'Only ') + f.col + ' = ' + vals;
+        }).join(' · ')
+      : null;
+    const rowH = 36 * scale;
+    const footerH = filterText ? rowH * 2 : rowH;
+    const out = document.createElement('canvas');
+    out.width = captured.width;
+    out.height = captured.height + footerH;
+    const ctx = out.getContext('2d');
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(0, 0, out.width, out.height);
+    ctx.drawImage(captured, 0, 0);
+    const fy = captured.height;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, fy, out.width, footerH);
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = scale;
+    ctx.beginPath(); ctx.moveTo(0, fy); ctx.lineTo(out.width, fy); ctx.stroke();
+    const range = document.getElementById('footer-range').textContent;
+    const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    if (filterText) {
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#92400e';
+      ctx.font = `${11 * scale}px system-ui,-apple-system,sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.fillText(filterText, 20 * scale, fy + rowH / 2);
+      ctx.strokeStyle = '#fde68a'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(0, fy + rowH); ctx.lineTo(out.width, fy + rowH); ctx.stroke();
+    }
+    const dateY = fy + (filterText ? rowH : 0) + rowH / 2;
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#475569';
+    ctx.font = `${13 * scale}px system-ui,-apple-system,sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillText(range, 20 * scale, dateY);
+    ctx.fillStyle = '#94a3b8';
+    ctx.textAlign = 'right';
+    ctx.fillText('flow-lens.com · ' + today, out.width - 20 * scale, dateY);
+
+    // Build filename: dataset_tab_filters_date.png
+    const datasetRaw = document.getElementById('status-text')?.textContent || 'data';
+    const dataset = datasetRaw.split('·')[0].trim().replace(/\.csv$/i, '').replace(/\s+/g, '-');
+    const activeTabBtn = document.querySelector('.tab-btn.active');
+    const tabName = (activeTabBtn?.textContent || 'tab').trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    const filterPart = activeFilters.length
+      ? '_' + activeFilters.map(f => f.col.replace(/\s+/g, '-')).join('-').substring(0, 30)
+      : '';
+    const datePart = new Date().toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }).replace(/ /g, '-');
+    const filename = `${dataset}_${tabName}${filterPart}_${datePart}.png`;
+
+    const a = document.createElement('a');
+    a.download = filename;
+    a.href = out.toDataURL('image/png');
+    a.click();
+
+    btn.textContent = 'Saved!';
+    setTimeout(() => { btn.textContent = 'Save image'; btn.disabled = false; }, 2500);
+  } catch (err) {
+    console.error('Save failed:', err);
+    btn.textContent = 'Save failed';
+    setTimeout(() => { btn.textContent = 'Save image'; btn.disabled = false; }, 3000);
   }
 }
 
@@ -5705,6 +5847,253 @@ function removeImportedSnapshot(idx) {
   importedSnapshots.splice(idx, 1);
   updateImportCount();
   renderCompare();
+}
+
+// ── Burn Up ────────────────────────────────────────────────────────────────
+function renderBurnUpTab() {
+  const emptyEl  = document.getElementById('burnup-empty');
+  const infoEl   = document.getElementById('bu-forecast-info');
+  const ctx      = document.getElementById('chart-burnup').getContext('2d');
+  if (charts.burnup) { charts.burnup.destroy(); charts.burnup = null; }
+
+  const cfg = getConfig();
+  if (!cfg.startCol || !cfg.endCol) {
+    emptyEl.style.display = 'block';
+    if (infoEl) infoEl.style.display = 'none';
+    return;
+  }
+
+  const showForecast     = document.getElementById('bu-forecast')?.checked ?? true;
+  const showScenarios    = document.getElementById('bu-scenarios')?.checked ?? false;
+  const deviationPct     = Math.max(1, parseInt(document.getElementById('bu-deviation')?.value ?? 15));
+  const itemsRemainingEl = document.getElementById('bu-items-remaining');
+
+  // Collect entry dates and done dates
+  const entryDates = [], doneDates = [];
+  allRows.forEach(row => {
+    if (!rowMatchesFilters(row, cfg)) return;
+    let earliest = null;
+    for (const col of workflowStages) {
+      const d = getCachedDate(row, col);
+      if (d && (!earliest || d < earliest)) earliest = d;
+    }
+    if (!earliest) return;
+    entryDates.push(earliest);
+    const done = getCachedDate(row, cfg.endCol);
+    if (done) doneDates.push(done);
+  });
+
+  if (!entryDates.length) {
+    emptyEl.style.display = 'block';
+    if (infoEl) infoEl.style.display = 'none';
+    return;
+  }
+  emptyEl.style.display = 'none';
+
+  // Build weekly history labels
+  const latestEntry = new Date(Math.max(...entryDates.map(d => d.getTime())));
+  const minDate     = new Date(Math.min(...entryDates.map(d => d.getTime())));
+  const histLabels  = [];
+  const cursor      = new Date(weekStart(minDate));
+  while (cursor <= weekStart(latestEntry)) { histLabels.push(new Date(cursor)); cursor.setDate(cursor.getDate() + 7); }
+
+  const doneValues  = histLabels.map(wk => {
+    const wkEnd = new Date(wk.getTime() + 6 * 86400000 + 86399999);
+    return doneDates.filter(d => d <= wkEnd).length;
+  });
+
+  const currentDone = doneValues[doneValues.length - 1];
+
+  // Auto-populate items remaining from data if field is empty
+  const defaultRemaining = Math.max(0, entryDates.length - currentDone);
+  if (itemsRemainingEl && !itemsRemainingEl.value) itemsRemainingEl.value = defaultRemaining;
+  const itemsToFinish = Math.max(1, parseInt(itemsRemainingEl?.value ?? defaultRemaining));
+  const scopeCount  = currentDone + itemsToFinish;
+  const remaining   = itemsToFinish;
+
+  // Average weekly throughput over selected window
+  const throughputWeeks = parseInt(document.getElementById('bu-throughput-weeks')?.value ?? 8);
+  const win = Math.min(throughputWeeks, histLabels.length - 1);
+  let totalDelta = 0;
+  for (let i = histLabels.length - win; i < histLabels.length; i++) {
+    totalDelta += doneValues[i] - doneValues[i - 1];
+  }
+  const avgThroughput = win > 0 ? totalDelta / win : 0;
+
+  // Two-point projection — Chart.js draws a perfectly straight line between two {x,y} points
+  function buildProjection(slope) {
+    if (slope <= 0 || remaining <= 0) return null;
+    const exactWeeks = remaining / slope;
+    if (exactWeeks > 260) return null;
+    const anchor         = histLabels[histLabels.length - 1];
+    const completionDate = new Date(anchor.getTime() + exactWeeks * 7 * 86400000);
+    return {
+      data: [{ x: anchor, y: currentDone }, { x: completionDate, y: scopeCount }],
+      completionDate
+    };
+  }
+
+  const baseProj   = showForecast ? buildProjection(avgThroughput) : null;
+  const fasterProj = (showForecast && showScenarios) ? buildProjection(avgThroughput * (1 + deviationPct / 100)) : null;
+  const slowerProj = (showForecast && showScenarios) ? buildProjection(avgThroughput * (1 - deviationPct / 100)) : null;
+
+  // Dynamic focus: history shown = max(4 weeks, forecast_span × 2), capped at 52 weeks
+  let focusXMin = null;
+  if (buFocusMode) {
+    const now = Date.now();
+    const latestMs = Math.max(
+      slowerProj?.completionDate.getTime() ?? now,
+      baseProj?.completionDate.getTime() ?? now,
+      fasterProj?.completionDate.getTime() ?? now
+    );
+    const forecastSpanWeeks = Math.max(0, (latestMs - now) / (7 * 86400000));
+    const historyWeeks = Math.min(Math.max(4, forecastSpanWeeks * 2), 52);
+    focusXMin = now - historyWeeks * 7 * 86400000;
+  }
+
+  // Extend allLabels to cover x-axis range through max completion date
+  const allLabels = [...histLabels];
+  const maxCompletionMs = Math.max(
+    ...[baseProj, fasterProj, slowerProj].filter(Boolean).map(p => p.completionDate.getTime()),
+    0
+  );
+  if (maxCompletionMs > 0) {
+    const ext = new Date(allLabels[allLabels.length - 1]);
+    while (ext.getTime() < maxCompletionMs) { ext.setDate(ext.getDate() + 7); allLabels.push(new Date(ext)); }
+    if (allLabels[allLabels.length - 1].getTime() < maxCompletionMs) allLabels.push(new Date(maxCompletionMs));
+  }
+
+  const pad        = allLabels.length - histLabels.length;
+  const paddedDone = [...doneValues, ...Array(pad).fill(null)];
+  const scopeLine  = allLabels.map(() => scopeCount);
+
+  // When focus is on, slice chart data to focus window so x-axis clips correctly
+  let chartLabels = allLabels;
+  let chartDone   = paddedDone;
+  let chartScope  = scopeLine;
+  if (buFocusMode && focusXMin != null) {
+    const startIdx = allLabels.findIndex(l => l.getTime() >= focusXMin);
+    if (startIdx > 0) {
+      chartLabels = allLabels.slice(startIdx);
+      chartDone   = paddedDone.slice(startIdx);
+      chartScope  = scopeLine.slice(startIdx);
+    }
+  }
+
+  // Forecast info summary
+  const fmtDate = d => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
+  if (infoEl) {
+    const parts = [`<strong>Delivered:</strong> ${currentDone}`, `<strong>Scope:</strong> ${scopeCount}`];
+    if (baseProj)   parts.push(`<strong>Forecast:</strong> ${fmtDate(baseProj.completionDate)}`);
+    if (fasterProj) parts.push(`<strong>+${deviationPct}% faster:</strong> ${fmtDate(fasterProj.completionDate)}`);
+    if (slowerProj) parts.push(`<strong>−${deviationPct}% slower:</strong> ${fmtDate(slowerProj.completionDate)}`);
+    if (remaining <= 0) parts.push('<strong>Status:</strong> Complete');
+    infoEl.innerHTML = parts.join('&nbsp;&nbsp;·&nbsp;&nbsp;');
+    infoEl.style.display = 'block';
+  }
+
+  const datasets = [
+    {
+      label: 'Scope',
+      data: chartScope,
+      borderColor: 'rgba(56,189,248,0.8)',
+      borderWidth: 2,
+      pointRadius: 0,
+      fill: false,
+      tension: 0,
+      order: 3
+    },
+    {
+      label: 'Completed',
+      data: chartDone,
+      borderColor: 'rgba(34,197,94,0.9)',
+      borderWidth: 2,
+      pointRadius: 0,
+      fill: false,
+      tension: 0.15,
+      order: 2,
+      spanGaps: false
+    }
+  ];
+
+  if (baseProj) datasets.push({
+    label: 'Forecast',
+    data: baseProj.data,
+    borderColor: 'rgba(34,197,94,0.7)',
+    borderWidth: 2,
+    borderDash: [6, 4],
+    pointRadius: 0,
+    fill: false,
+    tension: 0,
+    order: 2
+  });
+
+  if (fasterProj) datasets.push({
+    label: `+${deviationPct}% faster`,
+    data: fasterProj.data,
+    borderColor: 'rgba(99,102,241,0.75)',
+    borderWidth: 1.5,
+    borderDash: [4, 3],
+    pointRadius: 0,
+    fill: false,
+    tension: 0,
+    order: 2
+  });
+
+  if (slowerProj) datasets.push({
+    label: `−${deviationPct}% slower`,
+    data: slowerProj.data,
+    borderColor: 'rgba(239,68,68,0.75)',
+    borderWidth: 1.5,
+    borderDash: [4, 3],
+    pointRadius: 0,
+    fill: false,
+    tension: 0,
+    order: 2
+  });
+
+  charts.burnup = new Chart(ctx, {
+    type: 'line',
+    data: { labels: chartLabels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#475569', font: { size: 11 }, boxWidth: 16 } },
+        tooltip: {
+          mode: 'index',
+          intersect: false,
+          callbacks: {
+            afterBody(items) {
+              const scope = items.find(i => i.dataset.label === 'Scope')?.raw;
+              const done  = items.find(i => i.dataset.label === 'Completed')?.raw;
+              if (scope != null && done != null) return [`Remaining: ${scope - done}`];
+              return [];
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          type: 'time',
+          time: { unit: 'week', displayFormats: { week: 'd MMM' } },
+          grid: { color: '#f1f5f9' },
+          ticks: { color: '#94a3b8', font: { size: 11 } },
+          ...(buFocusMode ? { min: focusXMin } : {})
+        },
+        y: {
+          title: { display: true, text: 'Cumulative items', color: '#94a3b8', font: { size: 11 } },
+          grid: { color: '#f1f5f9' },
+          ticks: { color: '#94a3b8', font: { size: 11 } },
+          min: (() => {
+            if (!buFocusMode || focusXMin == null) return 0;
+            const visible = histLabels.map((l, i) => l.getTime() >= focusXMin ? doneValues[i] : null).filter(v => v !== null);
+            return visible.length ? Math.max(0, Math.floor(Math.min(...visible) * 0.97)) : 0;
+          })()
+        }
+      }
+    }
+  });
 }
 
 function renderForecast(completed, wip, backlog) {
