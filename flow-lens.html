@@ -186,16 +186,34 @@ License: MIT
     .stat .label { font-size: 0.72rem; color: #64748b; margin-top: 0.25rem; }
 
     #tabs { display: none; margin-top: 1.5rem; }
-    .tab-bar { display: flex; flex-direction: column; border-bottom: 2px solid #e2e8f0; margin-bottom: 1.5rem; }
-    .tab-row { display: flex; gap: 0; overflow-x: auto; }
-    .tab-row-label { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #cbd5e1; padding: 0.4rem 0.75rem 0; }
-    .tab-btn {
-      padding: 0.6rem 1.25rem; font-size: 0.875rem; font-weight: 500; color: #64748b;
+    .tab-nav { display: flex; align-items: stretch; gap: 0; border-bottom: 2px solid #e2e8f0; margin-bottom: 1.5rem; }
+    .tab-nav-btn {
+      padding: 0.6rem 1.1rem; font-size: 0.875rem; font-weight: 500; color: #64748b;
       background: none; border: none; cursor: pointer;
       border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; white-space: nowrap;
+      display: flex; align-items: center; gap: 0.3rem;
     }
-    .tab-btn:hover { color: #0ea5e9; }
-    .tab-btn.active { color: #0ea5e9; border-bottom-color: #0ea5e9; font-weight: 600; }
+    .tab-nav-btn:hover { color: #0ea5e9; }
+    .tab-nav-btn.active { color: #0ea5e9; border-bottom-color: #0ea5e9; font-weight: 600; }
+    .tab-nav-btn .tab-arrow { font-size: 0.65rem; opacity: 0.55; transition: transform 0.15s; }
+    .tab-group { position: relative; }
+    .tab-group.open > .tab-nav-btn .tab-arrow { transform: rotate(180deg); }
+    .tab-dropdown {
+      display: none; position: absolute; top: calc(100% + 2px); left: 0;
+      background: white; border: 1px solid #e2e8f0; border-radius: 10px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.10); z-index: 100; min-width: 290px; padding: 0.35rem;
+    }
+    .tab-group.open > .tab-dropdown { display: block; }
+    .tab-dropdown-item {
+      display: flex; flex-direction: column; align-items: flex-start; gap: 0.1rem;
+      width: 100%; padding: 0.5rem 0.75rem; border: none; background: none; cursor: pointer;
+      border-radius: 6px; text-align: left; transition: background 0.12s;
+    }
+    .tab-dropdown-item:hover { background: #f0f9ff; }
+    .tab-dropdown-item.active { background: #e0f2fe; }
+    .tab-dropdown-item .item-name { font-size: 0.85rem; font-weight: 500; color: #1e293b; }
+    .tab-dropdown-item.active .item-name { color: #0284c7; font-weight: 600; }
+    .tab-dropdown-item .item-desc { font-size: 0.73rem; color: #94a3b8; line-height: 1.3; }
     .tab-pane { display: none; }
     .tab-pane.active { display: block; }
 
@@ -717,31 +735,117 @@ License: MIT
   </div>
 
   <div id="tabs">
-    <div class="tab-bar">
-      <div class="tab-row-label">Flow</div>
-      <div class="tab-row">
-        <button class="tab-btn active" data-tab="insights">Flow Insights</button>
-        <button class="tab-btn" data-tab="cfd">CFD</button>
-        <button class="tab-btn" data-tab="throughput">Throughput</button>
-        <button class="tab-btn" data-tab="wiptime">WIP Over Time</button>
-        <button class="tab-btn" data-tab="cttime">CT Over Time</button>
-        <button class="tab-btn" data-tab="health">Team Health</button>
-        <button class="tab-btn" data-tab="worksplit">Work Split</button>
-        <button class="tab-btn" data-tab="breakdown">Breakdown</button>
-        <button class="tab-btn" data-tab="forecast">Forecast</button>
-        <button class="tab-btn" data-tab="burnup">Burn Up</button>
+    <div class="tab-nav" id="tab-nav">
+      <button class="tab-nav-btn active" data-tab="insights" id="tab-direct-insights">Flow Insights</button>
+
+      <div class="tab-group" data-group="wipflow">
+        <button class="tab-nav-btn">WIP &amp; Flow <span class="tab-arrow">▾</span></button>
+        <div class="tab-dropdown">
+          <button class="tab-dropdown-item" data-tab="cfd">
+            <span class="item-name">CFD</span>
+            <span class="item-desc">Cumulative flow bands — spot WIP build-up over time</span>
+          </button>
+          <button class="tab-dropdown-item" data-tab="wiptime">
+            <span class="item-name">WIP Over Time</span>
+            <span class="item-desc">How much work sits in each stage each day</span>
+          </button>
+          <button class="tab-dropdown-item" data-tab="worksplit">
+            <span class="item-name">Work Split</span>
+            <span class="item-desc">Distribution of work by type or category</span>
+          </button>
+          <button class="tab-dropdown-item" data-tab="aging">
+            <span class="item-name">Aging WIP</span>
+            <span class="item-desc">Open items — how long each has been waiting</span>
+          </button>
+          <button class="tab-dropdown-item" data-tab="arrivaldep">
+            <span class="item-name">Arrival vs Departure</span>
+            <span class="item-desc">Starts vs completions per week — early warning for WIP growth</span>
+          </button>
+        </div>
       </div>
-      <div class="tab-row-label">Detail</div>
-      <div class="tab-row">
-        <button class="tab-btn" data-tab="scatter">Control Chart</button>
-        <button class="tab-btn" data-tab="histogram">Histogram</button>
-        <button class="tab-btn" data-tab="floweff">Flow Efficiency</button>
-        <button class="tab-btn" data-tab="aging">Aging WIP</button>
-        <button class="tab-btn" data-tab="blocked">Blocked</button>
-        <button class="tab-btn" data-tab="ffe">Fuzzy Front End</button>
-        <button class="tab-btn" data-tab="data">Data</button>
-        <button class="tab-btn" data-tab="ai">AI <span style="font-size:0.65em;font-weight:400;opacity:0.55;vertical-align:middle">(beta)</span></button>
-        <button class="tab-btn" data-tab="dq" id="tab-btn-dq">Data Quality</button>
+
+      <div class="tab-group" data-group="cycletime">
+        <button class="tab-nav-btn">Cycle Time <span class="tab-arrow">▾</span></button>
+        <div class="tab-dropdown">
+          <button class="tab-dropdown-item" data-tab="cttime">
+            <span class="item-name">CT Over Time</span>
+            <span class="item-desc">Weekly cycle time trend with drill-down</span>
+          </button>
+          <button class="tab-dropdown-item" data-tab="histogram">
+            <span class="item-name">Histogram</span>
+            <span class="item-desc">Distribution of cycle times — shape of your system</span>
+          </button>
+          <button class="tab-dropdown-item" data-tab="scatter">
+            <span class="item-name">Control Chart</span>
+            <span class="item-desc">Individual item cycle times — spot outliers</span>
+          </button>
+          <button class="tab-dropdown-item" data-tab="floweff">
+            <span class="item-name">Flow Efficiency</span>
+            <span class="item-desc">Active work time vs total time in system</span>
+          </button>
+          <button class="tab-dropdown-item" data-tab="ffe">
+            <span class="item-name">Fuzzy Front End</span>
+            <span class="item-desc">Time from creation to first active stage</span>
+          </button>
+          <button class="tab-dropdown-item" data-tab="stagetime">
+            <span class="item-name">Time in Stage</span>
+            <span class="item-desc">Where items spend their time — P50 and P85 per stage</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="tab-group" data-group="throughput">
+        <button class="tab-nav-btn">Throughput <span class="tab-arrow">▾</span></button>
+        <div class="tab-dropdown">
+          <button class="tab-dropdown-item" data-tab="throughput">
+            <span class="item-name">Throughput</span>
+            <span class="item-desc">Items completed per week with normal range</span>
+          </button>
+          <button class="tab-dropdown-item" data-tab="burnup">
+            <span class="item-name">Burn Up</span>
+            <span class="item-desc">Progress toward scope target with forecast lines</span>
+          </button>
+          <button class="tab-dropdown-item" data-tab="forecast">
+            <span class="item-name">Forecast</span>
+            <span class="item-desc">Monte Carlo — when will we finish / how much by date?</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="tab-group" data-group="health">
+        <button class="tab-nav-btn">Health <span class="tab-arrow">▾</span></button>
+        <div class="tab-dropdown">
+          <button class="tab-dropdown-item" data-tab="health">
+            <span class="item-name">Team Health</span>
+            <span class="item-desc">Period-over-period scorecard — throughput, CT, WIP</span>
+          </button>
+          <button class="tab-dropdown-item" data-tab="blocked">
+            <span class="item-name">Blocked</span>
+            <span class="item-desc">Items currently or previously blocked</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="tab-group" data-group="data">
+        <button class="tab-nav-btn">Data <span class="tab-arrow">▾</span></button>
+        <div class="tab-dropdown">
+          <button class="tab-dropdown-item" data-tab="breakdown">
+            <span class="item-name">Breakdown</span>
+            <span class="item-desc">Metrics split by any category column</span>
+          </button>
+          <button class="tab-dropdown-item" data-tab="data">
+            <span class="item-name">Data</span>
+            <span class="item-desc">Raw table of all imported items</span>
+          </button>
+          <button class="tab-dropdown-item" data-tab="dq" id="tab-btn-dq">
+            <span class="item-name">Data Quality</span>
+            <span class="item-desc">Issues detected in your CSV data</span>
+          </button>
+          <button class="tab-dropdown-item" data-tab="ai">
+            <span class="item-name">AI <span style="font-size:0.7em;opacity:0.5">(beta)</span></span>
+            <span class="item-desc">AI-assisted analysis of your flow data</span>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -1354,6 +1458,36 @@ License: MIT
         <div id="burnup-empty" style="display:none;padding:2rem 1rem;text-align:center;color:#94a3b8;font-size:0.85rem">No data to display. Load a CSV and configure your Start and Done columns.</div>
       </div>
     </div>
+
+    <div id="tab-stagetime" class="tab-pane">
+      <div class="chart-card">
+        <h2>Time in Stage <button class="info-btn" data-info="info-stagetime" onclick="toggleInfo('info-stagetime')" title="How to read this">ℹ</button></h2>
+        <div class="subtitle">Median and 85th percentile days spent in each stage, across completed items.</div>
+        <div class="info-panel" id="info-stagetime">
+          <div class="info-row"><strong>Bars (P50)</strong> — the median time items spent in this stage. Half moved through faster, half took longer.</div>
+          <div class="info-row"><strong>P85 bar</strong> — 85% of items left this stage within this many days. A wide gap between P50 and P85 means high variability — investigate why items get stuck there.</div>
+          <div class="info-row"><strong>Colours</strong> — blue = process stage (active work), amber = queue stage (waiting). Configure stage types in Column Mapping.</div>
+          <div class="info-row"><strong>What to look for</strong> — stages with the highest P50 are your bottlenecks. Stages where P85 dwarfs P50 are unpredictable — that's where items get blocked or forgotten.</div>
+        </div>
+        <canvas id="chart-stagetime"></canvas>
+        <div id="stagetime-empty" class="empty-state" style="display:none">No completed items to analyse.</div>
+      </div>
+    </div>
+
+    <div id="tab-arrivaldep" class="tab-pane">
+      <div class="chart-card">
+        <h2>Arrival vs Departure <button class="info-btn" data-info="info-arrivaldep" onclick="toggleInfo('info-arrivaldep')" title="How to read this">ℹ</button></h2>
+        <div class="subtitle">Items entering the workflow vs items completing each week. When arrivals consistently outpace departures, WIP grows.</div>
+        <div class="info-panel" id="info-arrivaldep">
+          <div class="info-row"><strong>Arrivals (orange)</strong> — items that entered the active workflow each week.</div>
+          <div class="info-row"><strong>Departures (blue)</strong> — items completed each week (same as throughput).</div>
+          <div class="info-row"><strong>Net WIP bars</strong> — weekly difference (arrivals minus departures). Orange = WIP growing that week. Green = WIP shrinking.</div>
+          <div class="info-row"><strong>What to look for</strong> — sustained orange periods signal WIP explosion in progress. This is the early warning sign that cycle times are about to rise.</div>
+        </div>
+        <canvas id="chart-arrivaldep"></canvas>
+        <div id="arrivaldep-empty" class="empty-state" style="display:none">Not enough data to display.</div>
+      </div>
+    </div>
   </div>
 
   <div id="filter-ctx-bar" class="filter-ctx-bar" style="display:none"></div>
@@ -1381,6 +1515,7 @@ let stageTypes = {};
 let hiddenStages = new Set();
 let filterIdCounter = 0;
 let filterRowIds = [];
+let currentTab = 'insights';
 
 // ── Date parsing ───────────────────────────────────────────────────────────
 function parseDate(str) {
@@ -2192,8 +2327,8 @@ function _doRenderAll() {
     if (dqIssues.length) { dqLink.style.display = 'inline'; dqLink.title = `${dqIssues.length} data quality issue${dqIssues.length !== 1 ? 's' : ''} — click to view`; }
     else dqLink.style.display = 'none';
   }
-  const dqBtn = document.getElementById('tab-btn-dq');
-  if (dqBtn) dqBtn.textContent = dqIssues.length ? `Data Quality ⚠ ${dqIssues.length}` : 'Data Quality';
+  const dqNameEl = document.querySelector('#tab-btn-dq .item-name');
+  if (dqNameEl) dqNameEl.textContent = dqIssues.length ? `Data Quality ⚠ ${dqIssues.length}` : 'Data Quality';
   document.getElementById('stat-median').textContent   = completed.length ? p50.toFixed(1) + 'd' : '—';
   document.getElementById('stat-p85').textContent      = completed.length ? p85.toFixed(1) + 'd' : '—';
   document.getElementById('stat-wip').textContent      = wip.length;
@@ -2241,7 +2376,7 @@ function renderActiveTab() {
   if (!lastRenderPayload) return;
   updateFilterContextBar();
   const { completed, wip, committedQueue, backlog, p50, p70, p85, p95 } = lastRenderPayload;
-  const tab = document.querySelector('.tab-btn.active')?.dataset.tab || 'insights';
+  const tab = currentTab;
   switch (tab) {
     case 'insights':   renderInsights(completed, wip, committedQueue, backlog, p50, p70, p85, p95); break;
     case 'scatter':    renderScatter(completed, p50, p70, p85, p95); break;
@@ -2262,6 +2397,8 @@ function renderActiveTab() {
     case 'dq':         renderDataQuality(); break;
     case 'forecast':   renderForecast(completed, wip, backlog); break;
     case 'burnup':     renderBurnUpTab(); break;
+    case 'stagetime':  renderStageTime(completed); break;
+    case 'arrivaldep': renderArrivalDep(completed, wip, committedQueue); break;
   }
 }
 
@@ -5559,8 +5696,7 @@ async function saveSnapshot() {
     // Build filename: dataset_tab_filters_date.png
     const datasetRaw = document.getElementById('status-text')?.textContent || 'data';
     const dataset = datasetRaw.split('·')[0].trim().replace(/\.csv$/i, '').replace(/\s+/g, '-');
-    const activeTabBtn = document.querySelector('.tab-btn.active');
-    const tabName = (activeTabBtn?.textContent || 'tab').trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    const tabName = currentTab;
     const filterPart = activeFilters.length
       ? '_' + activeFilters.map(f => f.col.replace(/\s+/g, '-')).join('-').substring(0, 30)
       : '';
@@ -6446,14 +6582,187 @@ function runWhenSimulation() {
   showSaveBar('when');
 }
 
+// ── Time in Stage ──────────────────────────────────────────────────────────
+function renderStageTime(completed) {
+  const el = document.getElementById('chart-stagetime');
+  const emptyEl = document.getElementById('stagetime-empty');
+  if (charts.stagetime) { charts.stagetime.destroy(); charts.stagetime = null; }
+
+  if (!completed.length) {
+    el.style.display = 'none';
+    if (emptyEl) emptyEl.style.display = '';
+    return;
+  }
+
+  const cfg = getConfig();
+  const startIdx = workflowStages.indexOf(cfg.startCol);
+  const endIdx   = workflowStages.indexOf(cfg.endCol);
+
+  const activeStages = workflowStages.filter((s, i) => {
+    if (hiddenStages.has(s)) return false;
+    if (endIdx >= 0 && i >= endIdx) return false;
+    if (startIdx >= 0 && i < startIdx) return false;
+    return true;
+  });
+
+  const stageData = {};
+  activeStages.forEach(s => { stageData[s] = []; });
+
+  completed.forEach(item => {
+    getStageBreakdown(item).forEach(({ stage, days, isFFE }) => {
+      if (!isFFE && stageData[stage] !== undefined && days > 0) stageData[stage].push(days);
+    });
+  });
+
+  const labels  = activeStages.filter(s => stageData[s].length > 0);
+  if (!labels.length) {
+    el.style.display = 'none';
+    if (emptyEl) emptyEl.style.display = '';
+    return;
+  }
+
+  el.style.display = '';
+  if (emptyEl) emptyEl.style.display = 'none';
+
+  const p50vals  = labels.map(s => +percentile(stageData[s], 50).toFixed(1));
+  const p85vals  = labels.map(s => +percentile(stageData[s], 85).toFixed(1));
+  const counts   = labels.map(s => stageData[s].length);
+
+  const p50Bg  = labels.map(s => stageTypes[s] === 'process' ? 'rgba(56,189,248,0.65)' : 'rgba(251,191,36,0.65)');
+  const p85Bg  = labels.map(s => stageTypes[s] === 'process' ? 'rgba(56,189,248,0.3)'  : 'rgba(251,191,36,0.3)');
+  const p50Bd  = labels.map(s => stageTypes[s] === 'process' ? 'rgba(56,189,248,0.9)'  : 'rgba(251,191,36,0.9)');
+  const p85Bd  = labels.map(s => stageTypes[s] === 'process' ? 'rgba(56,189,248,0.55)' : 'rgba(251,191,36,0.55)');
+
+  charts.stagetime = new Chart(el.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'P50 (median)', data: p50vals, backgroundColor: p50Bg, borderColor: p50Bd, borderWidth: 1, borderRadius: 3 },
+        { label: 'P85',         data: p85vals, backgroundColor: p85Bg, borderColor: p85Bd, borderWidth: 1, borderRadius: 3 }
+      ]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      plugins: {
+        legend: { display: true, position: 'top', labels: { color: '#64748b', font: { size: 12 } } },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const n = counts[ctx.dataIndex];
+              return ` ${ctx.dataset.label}: ${ctx.parsed.x}d  (${n} items)`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          title: { display: true, text: 'Days', color: '#94a3b8', font: { size: 11 } },
+          grid: { color: 'rgba(0,0,0,0.05)' },
+          ticks: { color: '#64748b' }
+        },
+        y: { grid: { display: false }, ticks: { color: '#475569', font: { size: 12 } } }
+      }
+    }
+  });
+}
+
+// ── Arrival vs Departure ───────────────────────────────────────────────────
+function renderArrivalDep(completed, wip, committedQueue) {
+  const el = document.getElementById('chart-arrivaldep');
+  const emptyEl = document.getElementById('arrivaldep-empty');
+  if (charts.arrivaldep) { charts.arrivaldep.destroy(); charts.arrivaldep = null; }
+
+  const arrMap = {};
+  [...completed, ...wip, ...committedQueue].forEach(item => {
+    if (!item.startDate) return;
+    const k = weekStart(item.startDate).toISOString().slice(0, 10);
+    arrMap[k] = (arrMap[k] || 0) + 1;
+  });
+
+  const depMap = {};
+  completed.forEach(item => {
+    const k = weekStart(item.endDate).toISOString().slice(0, 10);
+    depMap[k] = (depMap[k] || 0) + 1;
+  });
+
+  const allKeys = [...new Set([...Object.keys(arrMap), ...Object.keys(depMap)])].sort();
+
+  if (allKeys.length < 2) {
+    el.style.display = 'none';
+    if (emptyEl) emptyEl.style.display = '';
+    return;
+  }
+  el.style.display = '';
+  if (emptyEl) emptyEl.style.display = 'none';
+
+  const labels     = allKeys.map(k => new Date(k + 'T00:00:00'));
+  const arrivals   = allKeys.map(k => arrMap[k]  || 0);
+  const departures = allKeys.map(k => depMap[k]  || 0);
+  const net        = allKeys.map((_, i) => arrivals[i] - departures[i]);
+  const netBg      = net.map(v => v > 0 ? 'rgba(249,115,22,0.45)' : 'rgba(34,197,94,0.45)');
+  const netBd      = net.map(v => v > 0 ? 'rgba(249,115,22,0.8)'  : 'rgba(34,197,94,0.8)');
+
+  charts.arrivaldep = new Chart(el.getContext('2d'), {
+    data: {
+      labels,
+      datasets: [
+        { type: 'bar',  label: 'Net WIP change', data: net,        backgroundColor: netBg, borderColor: netBd, borderWidth: 1, order: 3 },
+        { type: 'line', label: 'Arrivals',        data: arrivals,   borderColor: '#f97316', borderWidth: 2, pointRadius: 2, tension: 0.3, fill: false, order: 1 },
+        { type: 'line', label: 'Departures',      data: departures, borderColor: '#38bdf8', borderWidth: 2, pointRadius: 2, tension: 0.3, fill: false, order: 2 }
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: true, position: 'top', labels: { color: '#64748b', font: { size: 12 } } },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              if (ctx.dataset.label === 'Net WIP change') {
+                const v = ctx.parsed.y;
+                return ` Net: ${v > 0 ? '+' : ''}${v} (WIP ${v > 0 ? 'growing' : 'shrinking'})`;
+              }
+              return ` ${ctx.dataset.label}: ${ctx.parsed.y}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          type: 'time',
+          time: { unit: 'week', tooltipFormat: 'dd MMM yyyy', displayFormats: { week: 'dd MMM' } },
+          grid: { color: 'rgba(0,0,0,0.04)' },
+          ticks: { color: '#64748b', maxTicksLimit: 20 }
+        },
+        y: {
+          grid: { color: 'rgba(0,0,0,0.05)' },
+          ticks: { color: '#64748b' },
+          title: { display: true, text: 'Items / week', color: '#94a3b8', font: { size: 11 } }
+        }
+      }
+    }
+  });
+}
+
 // ── Tab switching ──────────────────────────────────────────────────────────
 function switchToTab(tab) {
-  const btn = document.querySelector(`.tab-btn[data-tab="${tab}"]`);
-  if (!btn) return;
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  currentTab = tab;
   document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('tab-' + tab).classList.add('active');
+  const pane = document.getElementById('tab-' + tab);
+  if (pane) pane.classList.add('active');
+  // Update nav active states
+  document.querySelectorAll('.tab-dropdown-item').forEach(el => el.classList.toggle('active', el.dataset.tab === tab));
+  document.getElementById('tab-direct-insights')?.classList.toggle('active', tab === 'insights');
+  document.querySelectorAll('.tab-group').forEach(g => {
+    const hasActive = g.querySelector(`.tab-dropdown-item[data-tab="${tab}"]`);
+    g.querySelector('.tab-nav-btn')?.classList.toggle('active', !!hasActive);
+    g.classList.remove('open');
+  });
+  const copyBtn = document.querySelector('#data-footer .copy-btn');
+  if (copyBtn) copyBtn.style.visibility = tab === 'ai' ? 'hidden' : '';
   renderActiveTab();
 }
 
@@ -6619,16 +6928,35 @@ function dqUpdateToggleAll() {
   btn.textContent = allOpen ? 'Collapse all' : 'Expand all';
 }
 
-document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
-    const copyBtn = document.querySelector('#data-footer .copy-btn');
-    if (copyBtn) copyBtn.style.visibility = btn.dataset.tab === 'ai' ? 'hidden' : '';
-    renderActiveTab();
+function closeAllDropdowns() {
+  document.querySelectorAll('.tab-group.open').forEach(g => g.classList.remove('open'));
+}
+
+// Flow Insights direct button
+document.getElementById('tab-direct-insights')?.addEventListener('click', () => {
+  closeAllDropdowns();
+  switchToTab('insights');
+});
+
+// Group trigger buttons — toggle dropdown
+document.querySelectorAll('.tab-group > .tab-nav-btn').forEach(trigger => {
+  trigger.addEventListener('click', e => {
+    const group = trigger.closest('.tab-group');
+    const isOpen = group.classList.contains('open');
+    closeAllDropdowns();
+    if (!isOpen) group.classList.add('open');
+    e.stopPropagation();
   });
+});
+
+// Dropdown items — switch tab
+document.querySelectorAll('.tab-dropdown-item').forEach(item => {
+  item.addEventListener('click', () => switchToTab(item.dataset.tab));
+});
+
+// Close dropdowns when clicking outside the nav
+document.addEventListener('click', e => {
+  if (!e.target.closest('#tab-nav')) closeAllDropdowns();
 });
 
 document.getElementById('app-version').textContent = 'v' + VERSION;
