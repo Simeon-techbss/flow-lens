@@ -1466,8 +1466,9 @@ License: MIT
         <div class="info-panel" id="info-stagetime">
           <div class="info-row"><strong>Bars (P50)</strong> — the median time items spent in this stage. Half moved through faster, half took longer.</div>
           <div class="info-row"><strong>P85 bar</strong> — 85% of items left this stage within this many days. A wide gap between P50 and P85 means high variability — investigate why items get stuck there.</div>
-          <div class="info-row"><strong>Colours</strong> — blue = process stage (active work), amber = queue stage (waiting). Configure stage types in Column Mapping.</div>
-          <div class="info-row"><strong>What to look for</strong> — stages with the highest P50 are your bottlenecks. Stages where P85 dwarfs P50 are unpredictable — that's where items get blocked or forgotten.</div>
+          <div class="info-row"><strong>Colours</strong> — blue = active work stage, amber = queue (waiting). Stage type is also shown in the label. Configure in Column Mapping.</div>
+          <div class="info-row"><strong>Blocked time row</strong> — shown in red at the bottom when blocked data exists. This is the P50 and P85 of total blocked days per item across all completed work. It's shown separately because blocked time is recorded per item, not per stage — we can't tell which stage the block happened in.</div>
+          <div class="info-row"><strong>What to look for</strong> — stages with the highest P50 are your bottlenecks. Queue stages where P85 dwarfs P50 are where work sits unattended. A high blocked P85 relative to stage times means blocking is a significant drag on cycle time.</div>
         </div>
         <canvas id="chart-stagetime"></canvas>
         <div id="stagetime-empty" class="empty-state" style="display:none">No completed items to analyse.</div>
@@ -1481,7 +1482,7 @@ License: MIT
         <div class="info-panel" id="info-arrivaldep">
           <div class="info-row"><strong>Arrivals (orange)</strong> — items that entered the active workflow each week.</div>
           <div class="info-row"><strong>Departures (blue)</strong> — items completed each week (same as throughput).</div>
-          <div class="info-row"><strong>Net WIP bars</strong> — weekly difference (arrivals minus departures). Orange = WIP growing that week. Green = WIP shrinking.</div>
+          <div class="info-row"><strong>Net WIP bars</strong> — weekly difference (arrivals minus departures). Red = WIP growing that week. Green = WIP shrinking.</div>
           <div class="info-row"><strong>What to look for</strong> — sustained orange periods signal WIP explosion in progress. This is the early warning sign that cycle times are about to rise.</div>
         </div>
         <canvas id="chart-arrivaldep"></canvas>
@@ -6583,6 +6584,20 @@ function runWhenSimulation() {
 }
 
 // ── Time in Stage ──────────────────────────────────────────────────────────
+function stageHatch(color) {
+  const size = 10;
+  const c = document.createElement('canvas');
+  c.width = size; c.height = size;
+  const ctx = c.getContext('2d');
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(0, size); ctx.lineTo(size, 0); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-1, 1); ctx.lineTo(1, -1); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(size - 1, size + 1); ctx.lineTo(size + 1, size - 1); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(size, size); ctx.stroke();
+  return ctx.createPattern(c, 'repeat');
+}
+
 function renderStageTime(completed) {
   const el = document.getElementById('chart-stagetime');
   const emptyEl = document.getElementById('stagetime-empty');
@@ -6624,19 +6639,56 @@ function renderStageTime(completed) {
   el.style.display = '';
   if (emptyEl) emptyEl.style.display = 'none';
 
-  const p50vals  = labels.map(s => +percentile(stageData[s], 50).toFixed(1));
-  const p85vals  = labels.map(s => +percentile(stageData[s], 85).toFixed(1));
-  const counts   = labels.map(s => stageData[s].length);
+  const p50vals      = labels.map(s => +percentile(stageData[s], 50).toFixed(1));
+  const p85vals      = labels.map(s => +percentile(stageData[s], 85).toFixed(1));
+  const counts       = labels.map(s => stageData[s].length);
 
-  const p50Bg  = labels.map(s => stageTypes[s] === 'process' ? 'rgba(56,189,248,0.65)' : 'rgba(251,191,36,0.65)');
-  const p85Bg  = labels.map(s => stageTypes[s] === 'process' ? 'rgba(56,189,248,0.3)'  : 'rgba(251,191,36,0.3)');
-  const p50Bd  = labels.map(s => stageTypes[s] === 'process' ? 'rgba(56,189,248,0.9)'  : 'rgba(251,191,36,0.9)');
-  const p85Bd  = labels.map(s => stageTypes[s] === 'process' ? 'rgba(56,189,248,0.55)' : 'rgba(251,191,36,0.55)');
+  // Y-axis labels include stage type so colour isn't the only signal
+  const displayLabels = labels.map(s => {
+    const t = stageTypes[s];
+    if (t === 'process') return `${s}  (active work)`;
+    if (t === 'queue')   return `${s}  (queue)`;
+    return s;
+  });
+
+  const PROCESS_CLR = 'rgba(56,189,248,0.75)';
+  const QUEUE_CLR   = 'rgba(251,191,36,0.75)';
+  const BLOCKED_CLR = 'rgba(239,68,68,0.75)';
+  const stageColor  = s => stageTypes[s] === 'process' ? PROCESS_CLR : QUEUE_CLR;
+
+  const p50Bg  = labels.map(s => stageColor(s));
+  const p85Bg  = labels.map(s => stageHatch(stageColor(s)));
+  const p50Bd  = labels.map(s => stageColor(s).replace('0.75', '1'));
+  const p85Bd  = labels.map(s => stageColor(s).replace('0.75', '1'));
+
+  // Capture stage max before appending blocked row — used for axis cap
+  const stageP85Max = p85vals.length ? Math.max(...p85vals) : 0;
+
+  // Blocked time row — separate from stages, shown only when data exists
+  const blockedItems = completed.filter(i => i.blockedDays > 0);
+  let blockedP85Actual = null;
+  if (blockedItems.length > 0) {
+    const bDays = blockedItems.map(i => i.blockedDays);
+    const bP50 = +percentile(bDays, 50).toFixed(1);
+    const bP85 = +percentile(bDays, 85).toFixed(1);
+    blockedP85Actual = bP85;
+    displayLabels.push('— Blocked time');
+    p50vals.push(bP50);
+    p85vals.push(bP85);
+    counts.push(blockedItems.length);
+    p50Bg.push(BLOCKED_CLR);
+    p85Bg.push(stageHatch(BLOCKED_CLR));
+    p50Bd.push(BLOCKED_CLR.replace('0.75', '1'));
+    p85Bd.push(BLOCKED_CLR.replace('0.75', '1'));
+  }
+
+  // Cap x-axis so stage bars stay readable; tooltip always shows real values
+  const axisMax = stageP85Max > 0 ? Math.ceil(stageP85Max * 1.4) : undefined;
 
   charts.stagetime = new Chart(el.getContext('2d'), {
     type: 'bar',
     data: {
-      labels,
+      labels: displayLabels,
       datasets: [
         { label: 'P50 (median)', data: p50vals, backgroundColor: p50Bg, borderColor: p50Bd, borderWidth: 1, borderRadius: 3 },
         { label: 'P85',         data: p85vals, backgroundColor: p85Bg, borderColor: p85Bd, borderWidth: 1, borderRadius: 3 }
@@ -6646,19 +6698,34 @@ function renderStageTime(completed) {
       indexAxis: 'y',
       responsive: true,
       plugins: {
-        legend: { display: true, position: 'top', labels: { color: '#64748b', font: { size: 12 } } },
+        legend: {
+          display: true, position: 'top',
+          labels: {
+            color: '#64748b', font: { size: 12 },
+            generateLabels(chart) {
+              const labels = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+              const neutral = 'rgba(100,116,139,0.75)';
+              if (labels[0]) { labels[0].fillStyle = neutral; labels[0].strokeStyle = neutral; }
+              if (labels[1]) { labels[1].fillStyle = stageHatch(neutral); labels[1].strokeStyle = neutral; }
+              return labels;
+            }
+          }
+        },
         tooltip: {
           callbacks: {
             label: ctx => {
               const n = counts[ctx.dataIndex];
-              return ` ${ctx.dataset.label}: ${ctx.parsed.x}d  (${n} items)`;
+              const v = ctx.dataset.label === 'P50 (median)' ? p50vals[ctx.dataIndex] : p85vals[ctx.dataIndex];
+              const clipped = axisMax && v > axisMax ? ' ⟶ clipped' : '';
+              return ` ${ctx.dataset.label}: ${v}d  (${n} items${clipped})`;
             }
           }
         }
       },
       scales: {
         x: {
-          title: { display: true, text: 'Days', color: '#94a3b8', font: { size: 11 } },
+          max: axisMax,
+          title: { display: true, text: axisMax && blockedP85Actual > axisMax ? `Days  (axis capped at ${axisMax}d — blocked P85 is ${blockedP85Actual}d)` : 'Days', color: '#94a3b8', font: { size: 11 } },
           grid: { color: 'rgba(0,0,0,0.05)' },
           ticks: { color: '#64748b' }
         },
@@ -6701,16 +6768,17 @@ function renderArrivalDep(completed, wip, committedQueue) {
   const arrivals   = allKeys.map(k => arrMap[k]  || 0);
   const departures = allKeys.map(k => depMap[k]  || 0);
   const net        = allKeys.map((_, i) => arrivals[i] - departures[i]);
-  const netBg      = net.map(v => v > 0 ? 'rgba(249,115,22,0.45)' : 'rgba(34,197,94,0.45)');
-  const netBd      = net.map(v => v > 0 ? 'rgba(249,115,22,0.8)'  : 'rgba(34,197,94,0.8)');
+  const growing   = net.map(v => v > 0 ? v : null);
+  const shrinking = net.map(v => v < 0 ? v : null);
 
   charts.arrivaldep = new Chart(el.getContext('2d'), {
     data: {
       labels,
       datasets: [
-        { type: 'bar',  label: 'Net WIP change', data: net,        backgroundColor: netBg, borderColor: netBd, borderWidth: 1, order: 3 },
-        { type: 'line', label: 'Arrivals',        data: arrivals,   borderColor: '#f97316', borderWidth: 2, pointRadius: 2, tension: 0.3, fill: false, order: 1 },
-        { type: 'line', label: 'Departures',      data: departures, borderColor: '#38bdf8', borderWidth: 2, pointRadius: 2, tension: 0.3, fill: false, order: 2 }
+        { type: 'bar',  label: 'WIP Growing',  data: growing,    backgroundColor: 'rgba(239,68,68,0.5)',  borderColor: 'rgba(239,68,68,0.85)',  borderWidth: 1, order: 3 },
+        { type: 'bar',  label: 'WIP Shrinking', data: shrinking,  backgroundColor: 'rgba(34,197,94,0.5)', borderColor: 'rgba(34,197,94,0.85)',  borderWidth: 1, order: 3 },
+        { type: 'line', label: 'Arrivals',      data: arrivals,   borderColor: '#f97316', borderWidth: 2.5, pointRadius: 2, tension: 0.3, fill: false, order: 1 },
+        { type: 'line', label: 'Departures',    data: departures, borderColor: '#0ea5e9', borderWidth: 2.5, pointRadius: 2, tension: 0.3, fill: false, order: 2 }
       ]
     },
     options: {
@@ -6721,11 +6789,11 @@ function renderArrivalDep(completed, wip, committedQueue) {
         tooltip: {
           callbacks: {
             label: ctx => {
-              if (ctx.dataset.label === 'Net WIP change') {
-                const v = ctx.parsed.y;
-                return ` Net: ${v > 0 ? '+' : ''}${v} (WIP ${v > 0 ? 'growing' : 'shrinking'})`;
-              }
-              return ` ${ctx.dataset.label}: ${ctx.parsed.y}`;
+              if (ctx.parsed.y === null) return null;
+              const v = ctx.parsed.y;
+              if (ctx.dataset.label === 'WIP Growing')  return ` WIP Growing: +${v}`;
+              if (ctx.dataset.label === 'WIP Shrinking') return ` WIP Shrinking: ${v}`;
+              return ` ${ctx.dataset.label}: ${v}`;
             }
           }
         }
