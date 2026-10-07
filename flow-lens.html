@@ -1071,7 +1071,7 @@ License: MIT
     <div id="tab-wiptime" class="tab-pane">
       <div class="chart-card">
         <h2>WIP Over Time <button class="info-btn" data-info="info-wiptime" onclick="toggleInfo('info-wiptime')" title="How to read this">ℹ</button></h2>
-        <div class="subtitle">Work in progress count each week. A stable or declining WIP leads to more predictable flow — rising WIP means more is starting than finishing.</div>
+        <div class="subtitle">Work in progress count each week, counted from Active Work Starts (or Start Date if not set) until Done. A stable or declining WIP leads to more predictable flow — rising WIP means more is starting than finishing.</div>
         <div class="info-panel" id="info-wiptime">
           <div class="info-row"><strong>Little's Law</strong>The most important equation in flow metrics: <span class="info-formula">Lead Time = WIP ÷ Throughput</span> If WIP doubles and throughput stays flat, lead time doubles. You cannot improve lead time without managing WIP.</div>
           <div class="info-row"><strong>Rising WIP</strong> means more is being started than finished. This is the single most common cause of long lead times — not team capacity or skill, but too many things in flight at once.</div>
@@ -3297,7 +3297,9 @@ function renderWIPOverTime() {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const rows = allRows
     .filter(row => rowMatchesFilters(row, cfg))
-    .map(row => ({ startDate: getCachedDate(row, cfg.startCol), endDate: getCachedDate(row, cfg.endCol) }))
+    // Same WIP rule as processData: counts from Active Work Starts (falls back to Start Date),
+    // so committed-but-not-started items (e.g. "To do") are not counted as WIP.
+    .map(row => ({ startDate: getCachedDate(row, cfg.activeCol || cfg.startCol), endDate: getCachedDate(row, cfg.endCol) }))
     .filter(r => r.startDate);
 
   if (!rows.length) return;
@@ -5172,7 +5174,9 @@ function renderWIPAgeChart() {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const rows = allRows
     .filter(row => rowMatchesFilters(row, cfg))
-    .map(row => ({ startDate: getCachedDate(row, cfg.startCol), endDate: getCachedDate(row, cfg.endCol) }))
+    // Same WIP rule as processData: counts from Active Work Starts (falls back to Start Date),
+    // so committed-but-not-started items (e.g. "To do") are not counted as WIP.
+    .map(row => ({ startDate: getCachedDate(row, cfg.activeCol || cfg.startCol), endDate: getCachedDate(row, cfg.endCol) }))
     .filter(r => r.startDate);
 
   if (!rows.length) return;
