@@ -1506,7 +1506,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-10-07a';
+const VERSION = '2026-10-07b';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -2188,8 +2188,10 @@ function processData(cfg) {
     if (startDate && !endDate) {
       const startIdx = workflowStages.indexOf(cfg.startCol);
       const hasProgress = startIdx >= 0 && workflowStages.slice(startIdx + 1).filter(col => !hiddenStages.has(col)).some(col => getCachedDate(row, col));
-      if (!hasProgress) {
-        dqIssues.push({ type: 'no-progress', id, title, link, startDate });
+      // Only flag after 4 weeks — a committed queue (sprint backlog / Kanban next) waiting a few weeks is normal.
+      const waitingDays = daysBetween(startDate, new Date());
+      if (!hasProgress && waitingDays > 28) {
+        dqIssues.push({ type: 'no-progress', id, title, link, startDate, waitingDays });
       }
     }
 
@@ -6916,11 +6918,11 @@ function renderDataQuality() {
   const sections = [
     {
       type: 'no-progress',
-      title: 'Started but never progressed',
+      title: 'Committed but not moved in 4+ weeks',
       badge: 'amber',
-      desc: 'These items have a start date but no dates in any later workflow stage — they show as permanent WIP and inflate your WIP count and aging chart indefinitely. Common causes: bulk imports, items cancelled without being closed, or records created speculatively and abandoned. If these are not real in-progress work, add a filter to exclude them.',
-      headers: ['Item', 'Started'],
-      row: i => `${itemCell(i.id, i.title, i.link)}<td>${fmtD(i.startDate)}</td>`,
+      desc: 'These items reached your Start Date stage more than 4 weeks ago and have not moved to any later stage. A few weeks in the committed queue is normal — beyond 4 weeks they may be forgotten, cancelled without being closed, or bulk-imported. If they are no longer real work, close them or add a filter to exclude them.',
+      headers: ['Item', 'Committed', 'Waiting'],
+      row: i => `${itemCell(i.id, i.title, i.link)}<td>${fmtD(i.startDate)}</td><td>${Math.floor(i.waitingDays)}d</td>`,
     },
     {
       type: 'no-start',
