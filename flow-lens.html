@@ -1530,7 +1530,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-10-09c';
+const VERSION = '2026-10-09d';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -1826,9 +1826,41 @@ function loadExampleData() {
   rows.push({ ID: makeId(), Title: 'Update GDPR consent flow', 'Demand Source': 'Maintenance', 'Demand Type': 'Improvement Demand', 'Blocked Days': 18, 'Currently Blocked': 'No', Backlog: '', Ready: fmt(addDays(dqBase, 20)), Dev: fmt(addDays(dqBase, 21)), 'Dev Done': fmt(addDays(dqBase, 22)), Review: '', Done: fmt(addDays(dqBase, 30)) }); // blocked > ct (10d ct, 18d blocked)
   rows.push({ ID: makeId(), Title: 'Patch XSS vulnerability in search', 'Demand Source': 'Bug', 'Demand Type': 'Failure Demand', 'Blocked Days': 0, 'Currently Blocked': 'No', Backlog: '', Ready: fmt(addDays(dqBase, 5)), Dev: fmt(addDays(dqBase, 12)), 'Dev Done': fmt(addDays(dqBase, 9)), Review: '', Done: fmt(addDays(dqBase, 20)) }); // Dev Done before Dev
 
+  // Epics — Feature and Tech Debt stories grouped by when they ran, so the Epic Progress tab
+  // shows a spread: finished, nearly done, in flight, just committed, not started.
+  const epics = [
+    { id: 'AXM-0101', title: 'Customer Self-Service Portal' },   // finished
+    { id: 'AXM-0102', title: 'Reporting & Analytics' },          // nearly done
+    { id: 'AXM-0103', title: 'Single Sign-On Rollout' },         // in progress
+    { id: 'AXM-0104', title: 'Mobile Experience' },              // just committed
+    { id: 'AXM-0105', title: 'Billing Platform Migration' },     // not started
+    { id: 'AXM-0106', title: 'Platform Modernisation' },         // tech debt, ongoing
+  ];
+  const ago = v => v ? (today - new Date(v)) / 86400000 : null;
+  rows.forEach(r => {
+    r['Issue Type'] = 'Story';
+    r['Epic Link'] = '';
+    const doneAgo = ago(r.Done);
+    if (r['Demand Source'] === 'Tech Debt') { if (Math.random() < 0.6) r['Epic Link'] = 'AXM-0106'; return; }
+    if (r['Demand Source'] !== 'Feature') return;
+    if (doneAgo !== null) {
+      if (doneAgo > 120)     r['Epic Link'] = 'AXM-0101';
+      else if (doneAgo > 50) r['Epic Link'] = Math.random() < 0.7 ? 'AXM-0102' : '';
+      else                   r['Epic Link'] = Math.random() < 0.6 ? 'AXM-0103' : 'AXM-0102';
+    } else if (r.Dev)        { const x = Math.random(); r['Epic Link'] = x < 0.25 ? 'AXM-0102' : x < 0.7 ? 'AXM-0103' : 'AXM-0104'; }
+    else if (r.Ready)        r['Epic Link'] = 'AXM-0104';
+    else if (r.Backlog)      r['Epic Link'] = 'AXM-0105';
+  });
+  // Epic rows themselves (hidden from flow metrics by the "Issue Type is not Epic" filter)
+  epics.forEach(e => {
+    const kids = rows.filter(r => r['Epic Link'] === e.id && r.Backlog).map(r => r.Backlog).sort();
+    rows.push({ ID: e.id, Title: e.title, 'Issue Type': 'Epic', 'Epic Link': '', 'Demand Source': 'Feature', 'Demand Type': 'Value Demand',
+      'Blocked Days': 0, 'Currently Blocked': 'No', Backlog: kids[0] || fmt(addDays(today, -30)), Ready: '', Dev: '', 'Dev Done': '', Review: '', Done: '' });
+  });
+
   rows.sort(() => Math.random() - 0.5);
 
-  const fields = ['ID','Title','Demand Source','Demand Type','Blocked Days','Currently Blocked','Backlog','Ready','Dev','Dev Done','Review','Done'];
+  const fields = ['ID','Title','Issue Type','Epic Link','Demand Source','Demand Type','Blocked Days','Currently Blocked','Backlog','Ready','Dev','Dev Done','Review','Done'];
   const csv = [
     fields.join(','),
     ...rows.map(r => fields.map(f => { const v = String(r[f] ?? ''); return v.includes(',') ? `"${v}"` : v; }).join(','))
@@ -1845,13 +1877,13 @@ function loadExampleData() {
       setupConfig();
       applyConfig({
         version: 2,
-        fields: { startCol:'Ready', endCol:'Done', activeCol:'Dev', idCol:'ID', titleCol:'Title', blockedDaysCol:'Blocked Days', blockedFlagCol:'Currently Blocked' },
+        fields: { startCol:'Ready', endCol:'Done', activeCol:'Dev', idCol:'ID', titleCol:'Title', blockedDaysCol:'Blocked Days', blockedFlagCol:'Currently Blocked', epicCol:'Epic Link' },
         workflow: {
           stages: ['Backlog','Ready','Dev','Dev Done','Review','Done'],
           types:  { Backlog:'queue', Ready:'queue', Dev:'process', 'Dev Done':'queue', Review:'process', Done:'queue' },
           hidden: [],
         },
-        filters:   [{ col:'Demand Source', val:'' }, { col:'Demand Type', val:'' }, { col:'', val:'' }],
+        filters:   [{ col:'Issue Type', vals:['Epic'], exclude:true }, { col:'Demand Source', val:'' }, { col:'Demand Type', val:'' }],
         dateRange: '0',
       });
     }
