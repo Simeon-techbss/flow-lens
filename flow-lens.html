@@ -557,6 +557,7 @@ License: MIT
     .dq-table tr:last-child td { border-bottom:none; }
     .dq-badge { display:inline-block; padding:0.12rem 0.5rem; border-radius:99px; font-size:0.71rem; font-weight:600; }
     .dq-badge-amber { background:#fef3c7; color:#92400e; }
+    .dq-badge-blue { background:#dbeafe; color:#1e40af; }
     .dq-badge-red   { background:#fee2e2; color:#991b1b; }
     .dq-toolbar { display:flex; justify-content:flex-end; margin-bottom:0.75rem; }
     .dq-toggle-all { font-size:0.78rem; color:#2563eb; background:none; border:none; cursor:pointer; padding:0; }
@@ -1530,7 +1531,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-10-09d';
+const VERSION = '2026-10-09e';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -1838,7 +1839,7 @@ function loadExampleData() {
   ];
   const ago = v => v ? (today - new Date(v)) / 86400000 : null;
   rows.forEach(r => {
-    r['Issue Type'] = 'Story';
+    r['Issue Type'] = r['Demand Source'] === 'Bug' ? 'Bug' : 'Story';
     r['Epic Link'] = '';
     const doneAgo = ago(r.Done);
     if (r['Demand Source'] === 'Tech Debt') { if (Math.random() < 0.6) r['Epic Link'] = 'AXM-0106'; return; }
@@ -7184,7 +7185,63 @@ function renderDataQuality() {
     issuesHtml = '<div style="font-size:0.85rem;color:#059669;padding:0.5rem 0">No data quality issues found in the rows above.</div>';
   }
 
-  el.innerHTML = breakdownHtml + issuesHtml;
+  el.innerHTML = breakdownHtml + issuesHtml + epicCoverageHtml(itemCell);
+}
+
+// Epic link coverage for the Data Quality tab. Informational only — not counted in the ⚠ total,
+// because plenty of work (bugs, maintenance) legitimately has no Epic.
+// Generic Epic detection: a row is an Epic if other rows link to its ID, or if any column says "Epic".
+function epicCoverageHtml(itemCell) {
+  const cfg = getConfig();
+  const linkCol = cfg.epicCol;
+  const esc = t => String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  if (!linkCol) {
+    return `<div class="dq-section"><div class="dq-section-header" onclick="this.closest('.dq-section').classList.toggle('open');dqUpdateToggleAll()">
+      <span class="dq-badge dq-badge-blue">off</span><span class="dq-section-title">Epic links — not set up</span><span class="dq-chevron">▶</span></div>
+      <div class="dq-section-body"><p class="dq-desc">No <em>Epic Link</em> column is set in the Config panel, so the Epic Progress tab is off. If your export has an Epic Link or Parent column, pick it there.
+      If not, add it to your export. <a href="https://simeon-techbss.github.io/flow-lens/guide.html#epic-link" target="_blank" style="color:#0ea5e9">See the data guide →</a></p></div></div>`;
+  }
+
+  const idOf = r => cfg.idCol ? (r[cfg.idCol] || '').trim() : '';
+  const linkOf = r => (r[linkCol] || '').trim();
+  const referenced = new Set(allRows.map(linkOf).filter(Boolean));
+  // A "type" column is any column where some value is literally "Epic"
+  const typeCol = columns.find(c => c !== linkCol && allRows.some(r => /^epic$/i.test((r[c] || '').trim())));
+  const isEpic = r => referenced.has(idOf(r)) || (typeCol && /^epic$/i.test((r[typeCol] || '').trim()));
+  const allIds = new Set(allRows.map(idOf).filter(Boolean));
+
+  const items = allRows.filter(r => rowMatchesFilters(r, cfg) && !isEpic(r));
+  const unlinked = items.filter(r => !linkOf(r));
+  const linked = items.length - unlinked.length;
+  const pct = items.length ? Math.round(linked / items.length * 100) : 0;
+  const epicCount = new Set(allRows.filter(isEpic).map(idOf).concat([...referenced])).size;
+  const missingEpics = [...referenced].filter(k => !allIds.has(k));
+
+  let body = `<p class="dq-desc"><strong>${linked.toLocaleString()} of ${items.length.toLocaleString()}</strong> work items (${pct}%) are linked to one of <strong>${epicCount}</strong> Epics.
+    Epics are recognised by other items linking to them${typeCol ? ` or by <em>${esc(typeCol)}</em> = Epic` : ''}, and are not counted as work items here.
+    Not every item needs an Epic — bugs and maintenance often don't — so use this to spot gaps, not as a target.</p>`;
+
+  if (typeCol && unlinked.length) {
+    const byType = {};
+    unlinked.forEach(r => { const t = (r[typeCol] || '').trim() || '(blank)'; byType[t] = (byType[t] || 0) + 1; });
+    body += `<p class="dq-desc">Items with no Epic, by <em>${esc(typeCol)}</em>: ` +
+      Object.entries(byType).sort((a, b) => b[1] - a[1]).map(([t, n]) => `<strong>${esc(t)}</strong> ${n}`).join(' · ') + '</p>';
+  }
+  if (missingEpics.length) {
+    body += `<p class="dq-desc" style="color:#92400e">${missingEpics.length} Epic${missingEpics.length === 1 ? ' is' : 's are'} linked to but not in your file, so ${missingEpics.length === 1 ? 'its name' : 'their names'} can't be shown:
+      ${missingEpics.slice(0, 20).map(esc).join(', ')}${missingEpics.length > 20 ? '…' : ''}. Include Epic rows in your export to fix this.</p>`;
+  }
+  if (unlinked.length) {
+    const cap = unlinked.slice(0, 100);
+    body += `<table class="dq-table"><thead><tr><th>Item with no Epic</th>${typeCol ? `<th>${esc(typeCol)}</th>` : ''}</tr></thead><tbody>
+      ${cap.map(r => `<tr>${itemCell(idOf(r), cfg.titleCol ? r[cfg.titleCol] : '', cfg.linkCol ? r[cfg.linkCol] : '')}${typeCol ? `<td>${esc(r[typeCol])}</td>` : ''}</tr>`).join('')}
+      ${unlinked.length > 100 ? `<tr><td colspan="2" style="color:#94a3b8;font-style:italic;padding:0.5rem 0.65rem">…and ${(unlinked.length - 100).toLocaleString()} more not shown</td></tr>` : ''}
+    </tbody></table>`;
+  }
+
+  return `<div class="dq-section"><div class="dq-section-header" onclick="this.closest('.dq-section').classList.toggle('open');dqUpdateToggleAll()">
+    <span class="dq-badge dq-badge-blue">${pct}%</span><span class="dq-section-title">Epic links — ${unlinked.length.toLocaleString()} item${unlinked.length === 1 ? '' : 's'} with no Epic${missingEpics.length ? ` · ${missingEpics.length} Epic${missingEpics.length === 1 ? '' : 's'} missing from file` : ''}</span><span class="dq-chevron">▶</span></div>
+    <div class="dq-section-body">${body}</div></div>`;
 }
 
 function dqToggleAll(btn) {
