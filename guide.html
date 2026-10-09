@@ -214,30 +214,58 @@
     </div>
   </div>
 
-  <div class="card">
+  <div class="card" id="tabs">
     <h2>What each tab shows</h2>
-    <p>The tool has two rows of tabs. The <strong>Flow</strong> row gives you the big picture; the <strong>Detail</strong> row lets you dig in.</p>
+    <p><strong>Flow Insights</strong> is your summary page. Every other tab sits in one of five menus along the top — hover or click a menu to see its tabs.</p>
 
-    <h3>Flow row</h3>
+    <h3>Flow Insights</h3>
     <div class="col-list">
-      <div class="col-row"><span class="badge badge-stage" style="min-width:7rem;text-align:center">Flow Insights</span><p>Cycle time percentiles, Monte Carlo forecast, current WIP, smelly tickets (WIP over your p85), and multitasking index. Your daily summary page.</p></div>
-      <div class="col-row"><span class="badge badge-stage" style="min-width:7rem;text-align:center">CFD</span><p>Cumulative Flow Diagram. Click to place markers — select two points to get a range analysis: items completed, throughput rate, and WIP change per stage across the period. Export the items in the range as CSV.</p></div>
-      <div class="col-row"><span class="badge badge-stage" style="min-width:7rem;text-align:center">Throughput</span><p>Weekly completion rate bar chart. Understand your team's delivery cadence and spot disruptions.</p></div>
-      <div class="col-row"><span class="badge badge-stage" style="min-width:7rem;text-align:center">WIP Over Time</span><p>WIP count (bars) and average age of in-progress items (line) each week. Rising average age with flat WIP means items are ageing in place — a flow problem.</p></div>
-      <div class="col-row"><span class="badge badge-stage" style="min-width:7rem;text-align:center">Team Health</span><p>Scorecard comparing the current period against the previous same-length period. Traffic lights for throughput, cycle time p50, system WIP, backlog size, FFE time, flow efficiency, and currently blocked. All numbers are period-scoped — they will differ from the summary bar which uses your full date range.</p></div>
+      <div class="col-row"><span class="badge badge-stage" style="min-width:7rem;text-align:center">Flow Insights</span><p>Lead time percentiles, Monte Carlo forecast ("what can we close this month?"), current WIP, smelly tickets (WIP older than your p85), and multitasking index. Your daily summary page.</p></div>
+    </div>
+    <h3>WIP &amp; Flow menu</h3>
+    <div class="col-list">
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">CFD</span><p>Cumulative Flow Diagram. Click to place markers — select two points to get a range analysis: items completed, throughput rate, and WIP change per stage across the period. Export the items in the range as CSV.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">WIP Over Time</span><p>WIP count each week with a 4-week average. Counts items from <strong>Active Work Starts</strong> (or Start Date if not set) until Done — items waiting in your committed queue are not WIP. Rising WIP means more is starting than finishing.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Work Split</span><p>How your work divides across a category column such as type or priority.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Aging WIP</span><p>Every in-progress item plotted by current stage and age in days, against your completed lead time percentile bands. Red ring = currently blocked. Items above the p85 band are worth a conversation. Also shows WIP count vs average age over time.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Arrival vs Departure</span><p>Items started vs items finished each week. When arrivals keep beating departures, WIP — and lead time — will grow.</p></div>
+    </div>
+    <h3>Lead Time menu</h3>
+    <div class="col-list">
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">LT Over Time</span><p>Weekly lead time trend. Click a week to see the items behind it.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Histogram</span><p>Lead time distribution — where most items cluster. Min/max inputs hide outliers from the view.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Control Chart</span><p>Every completed item by finish date and lead time, with p50/p70/p85/p95 lines. Orange dots had blocked time. Spot outliers and trends.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Flow Efficiency</span><p>Share of each item's time spent in active (process) stages vs queues. Needs stages marked P or Q in Config. 100% usually means dates were entered in bulk rather than as work happened.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Fuzzy Front End</span><p>Pre-commitment analysis — how long items wait before the team commits to them. Needs stage columns before your Start column. <a href="#ffe" style="color:#0ea5e9">See the FFE section below.</a></p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Time in Stage</span><p>P50 and P85 days spent in each stage. The stage with the highest numbers is usually your bottleneck.</p></div>
+    </div>
+    <h3>Throughput menu</h3>
+    <div class="col-list">
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Throughput</span><p>Items completed per week, with an optional normal range (XmR) and a distribution chart. Click a bar to see what was delivered that week.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Burn Up</span><p>Completed items climbing towards a scope target, with a straight-line forecast and optional faster/slower scenarios.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Epic Progress</span><p>Needs an <a href="#epic-link" style="color:#0ea5e9">Epic Link</a> column. One row per Epic: progress bar (Done / In progress / Committed / Not started), start date, pace and a finish forecast. Click an Epic to see its stories. <a href="#epic-maths" style="color:#0ea5e9">How pace and forecast are worked out ↓</a></p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Forecast</span><p>Monte Carlo forecasting — "when will these N items be done?" and "how many by this date?", at 50/70/85/95% confidence, based on your throughput history.</p></div>
+    </div>
+    <h3>Health menu</h3>
+    <div class="col-list">
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Team Health</span><p>Scorecard comparing this period with the previous one of the same length. Traffic lights for throughput, lead time p50, WIP, backlog size, FFE time, flow efficiency and currently blocked. Numbers are period-scoped, so they will differ from the summary bar.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Blocked</span><p>Needs a Blocked Days column. Lead time for blocked vs never-blocked items, items blocked right now (needs Currently Blocked), and completed items sorted by blocked days.</p></div>
+    </div>
+    <h3>Data menu</h3>
+    <div class="col-list">
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Breakdown</span><p>Metrics side by side for each value of a category column — backlog, committed, WIP, done, throughput, lead time and blocked %. Best used without slice filters.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Data</span><p>Full table of every imported item. Useful for checking items flagged elsewhere.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Data Quality</span><p>Where every row went (completed, WIP, committed, backlog) and any problems found — e.g. dates out of order, Done before Start, or items committed but not moved in 4+ weeks. The ⚠ next to <em>Items completed</em> links here.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">AI (beta)</span><p>Builds a prompt from your flow data that you can paste into an AI assistant for a written analysis.</p></div>
     </div>
 
-    <h3>Detail row</h3>
-    <div class="col-list">
-      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Control Chart</span><p>Scatter plot of every completed item by date and cycle time. Percentile lines (p50/p70/p85/p95) shown. Orange dots had blocked time. Use this to spot outliers and check whether cycle time is trending up or down over time.</p></div>
-      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Histogram</span><p>Cycle time distribution. Shows where most items cluster. Option to hide zero-day items (common when your source system back-dates stage entries).</p></div>
-      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Flow Efficiency</span><p>Percentage of each item's cycle time spent in active (process) stages vs queues. Requires stages to be marked P or Q in the Config panel. 100% usually means dates were entered in bulk rather than reflecting real activity.</p></div>
-      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Aging WIP</span><p>Every in-progress item plotted by current stage and age in days, against your completed cycle time percentile bands. Red ring = currently blocked. Items above the p85 band are statistical outliers — worth a conversation.</p></div>
-      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Blocked</span><p>Requires a Blocked Days column. Shows: cycle time comparison (blocked vs not blocked), currently blocked items needing action today (requires Currently Blocked column), and completed items sorted by blocked days. Items where blocked days exceed cycle time are flagged — likely a data recording issue in the source system.</p></div>
-      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Fuzzy Front End</span><p>Pre-commitment analysis. Only available if you have workflow stage columns configured before your Start column. Shows how long items spend in the backlog before the team commits to them. <a href="#ffe" style="color:#0ea5e9">See the FFE section below.</a></p></div>
-      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Epic Progress</span><p>Requires an <a href="#epic-link" style="color:#0ea5e9">Epic Link</a> column. One row per Epic: progress bar (Done / In progress / Committed / Not started), when work started, pace (stories done per week) and a rough finish forecast once 3+ stories are done. Click an Epic to see its stories.</p></div>
-      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Data</span><p>Full raw data table with column filters. Useful for investigating individual items flagged by other tabs.</p></div>
-    </div>
+    <h3 id="epic-maths">How Epic Progress works out pace and forecast</h3>
+    <p>Each story linked to an Epic is put in one of four groups: <strong>Done</strong> (has a Done date), <strong>In progress</strong> (reached Active Work Starts or any later stage), <strong>Committed</strong> (reached Start Date only) or <strong>Not started</strong>.</p>
+    <p><strong>Started</strong> is the date the Epic's first story reached Active Work Starts — when real work began, not when it was committed.</p>
+    <p><strong>Pace</strong> = stories done ÷ weeks since Started (counted as at least 1 week).</p>
+    <p><strong>Forecast</strong> = today + (stories left ÷ pace).</p>
+    <p><em>Example:</em> an Epic started on 18 Sept. On 9 Oct — 3 weeks later — 6 of its 7 stories are done. Pace = 6 ÷ 3 = <strong>2 stories a week</strong>. One story left ÷ 2 a week = half a week, so the forecast is <strong>about 12 Oct</strong>.</p>
+    <p>The forecast only appears once an Epic has <strong>3 or more stories done</strong> — before that it shows <em>Too early</em>, because one or two data points can't tell you a pace. It is a rough guide, not a promise: it assumes the team keeps the same pace on that Epic and that no new stories are added. If stories keep being added, the date will keep moving — and that in itself is worth a conversation.</p>
   </div>
 
   <div class="card">
