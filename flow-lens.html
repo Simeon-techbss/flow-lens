@@ -1528,7 +1528,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-10-09a';
+const VERSION = '2026-10-09b';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -3030,7 +3030,9 @@ function renderEpicProgress() {
   }
   const linkCol = sel.value;
   if (!linkCol) {
-    container.innerHTML = '<div class="empty-state">No Epic link column found. Add the Jira <em>Epic Link</em> or <em>Parent</em> field to your export.</div>';
+    container.innerHTML = `<div class="empty-state" style="line-height:1.6"><strong>This report needs to know which Epic each item belongs to.</strong><br>
+      Your data has no column that links items to an Epic. Add the Jira <em>Epic Link</em> field (older Jira) or <em>Parent</em> field (newer Jira) to your export —
+      one column holding the Epic's ID, e.g. <code>ABC-123</code>. Include the Epic rows too so their names show. <a href="https://simeon-techbss.github.io/flow-lens/guide.html#epic-link" target="_blank" style="color:#0ea5e9">See the data guide →</a></div>`;
     return;
   }
 
@@ -3077,7 +3079,11 @@ function renderEpicProgress() {
   });
 
   const list = Object.values(epics);
-  if (!list.length) { container.innerHTML = '<div class="empty-state">No stories are linked to an Epic in this data (with current filters).</div>'; return; }
+  if (!list.length) {
+    container.innerHTML = `<div class="empty-state" style="line-height:1.6"><strong>No items are linked to an Epic.</strong><br>
+      The <em>${linkCol}</em> column is empty for every item that passes your current filters. Check the filters, or pick a different column above. <a href="https://simeon-techbss.github.io/flow-lens/guide.html#epic-link" target="_blank" style="color:#0ea5e9">See the data guide →</a></div>`;
+    return;
+  }
 
   list.forEach(e => {
     e.total = e.items.length;

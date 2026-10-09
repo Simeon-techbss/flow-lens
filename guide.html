@@ -207,6 +207,10 @@
         <span class="badge badge-opt">Optional</span>
         <p><strong>Currently Blocked</strong> — a boolean flag (Yes/No, True/False, 1/0) marking whether the item is blocked right now. Separate from Blocked Days — this is a live state, not a duration. If not mapped, the Blocked tab's "currently blocked" section is unavailable.</p>
       </div>
+      <div class="col-row" id="epic-link">
+        <span class="badge badge-opt">Optional</span>
+        <p><strong>Epic Link</strong> — the ID of the Epic (or parent) each item belongs to, e.g. <code>COC-24768</code>. Called <em>Epic Link</em> in older Jira and <em>Parent</em> in newer Jira. Turns on the Epic Progress tab. Include the Epic rows themselves in the export too, so the tab can show Epic names rather than just IDs. Items with no Epic are simply left out of that tab.</p>
+      </div>
     </div>
   </div>
 
@@ -231,6 +235,7 @@
       <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Aging WIP</span><p>Every in-progress item plotted by current stage and age in days, against your completed cycle time percentile bands. Red ring = currently blocked. Items above the p85 band are statistical outliers — worth a conversation.</p></div>
       <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Blocked</span><p>Requires a Blocked Days column. Shows: cycle time comparison (blocked vs not blocked), currently blocked items needing action today (requires Currently Blocked column), and completed items sorted by blocked days. Items where blocked days exceed cycle time are flagged — likely a data recording issue in the source system.</p></div>
       <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Fuzzy Front End</span><p>Pre-commitment analysis. Only available if you have workflow stage columns configured before your Start column. Shows how long items spend in the backlog before the team commits to them. <a href="#ffe" style="color:#0ea5e9">See the FFE section below.</a></p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Epic Progress</span><p>Requires an <a href="#epic-link" style="color:#0ea5e9">Epic Link</a> column. One row per Epic: progress bar (Done / In progress / Committed / Not started), when work started, pace (stories done per week) and a rough finish forecast once 3+ stories are done. Click an Epic to see its stories.</p></div>
       <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Data</span><p>Full raw data table with column filters. Useful for investigating individual items flagged by other tabs.</p></div>
     </div>
   </div>
