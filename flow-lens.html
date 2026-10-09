@@ -148,6 +148,7 @@ License: MIT
     }
     .stage-type-btn.queue   { background: #e2e8f0; color: #64748b; }
     .stage-type-btn.process { background: #bae6fd; color: #0369a1; }
+    .stage-type-btn.discarded { background: #fee2e2; color: #b91c1c; }
     .stage-item.stage-hidden {
       opacity: 0.45; background: #f8fafc; border-style: dashed; border-color: #cbd5e1;
     }
@@ -700,7 +701,7 @@ License: MIT
     <div class="workflow-section" id="workflow-section" style="display:none">
       <div class="workflow-section-header">
         <span>Workflow Stages</span>
-        <small>Drag to reorder · order drives the CFD · stages <strong>before</strong> your Start column are treated as backlog (fuzzy front end)</small>
+        <small>Drag to reorder · order drives the CFD · stages <strong>before</strong> your Start column are treated as backlog (fuzzy front end) · <strong>P</strong> process · <strong>Q</strong> queue · <strong>X</strong> discarded (Rejected, Cancelled…)</small>
       </div>
       <div class="stage-list" id="stage-list"></div>
     </div>
@@ -1430,6 +1431,7 @@ License: MIT
           <div class="info-row"><strong>Where the data comes from</strong> — needs a column linking each story to its Epic (e.g. <em>Epic Link</em> or <em>Parent</em>). Epic names come from the Epic's own row in the file; if it isn't there, the Epic key is shown.</div>
           <div class="info-row"><strong>Bar colours</strong> — green = Done, blue = In progress (reached Active Work Starts), purple = Committed (reached Start Date), grey = Not started.</div>
           <div class="info-row"><strong>Started</strong> — when the first story reached Active Work Starts. <strong>Pace</strong> — stories done per week since then. <strong>Forecast</strong> = remaining stories ÷ pace. It is a rough guide, not a promise: it assumes the pace stays the same and nothing new is added. Shown only once an Epic has 3+ stories done.</div>
+          <div class="info-row"><strong>Discarded stories</strong> (in a stage marked X, e.g. Rejected) are left out of the totals and shown as "+N discarded".</div>
           <div class="info-row"><strong>Filters</strong> — active filters apply to the stories counted.</div>
         </div>
         <div id="ep-link-note" style="margin-bottom:0.75rem;font-size:0.8rem;color:#64748b"></div>
@@ -1531,7 +1533,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-10-09e';
+const VERSION = '2026-10-09f';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -1566,6 +1568,28 @@ function getCachedDate(row, col) {
   if (!row._pd) row._pd = {};
   if (!(col in row._pd)) row._pd[col] = parseDate(row[col]);
   return row._pd[col];
+}
+
+// Discarded stages (stage type 'discarded', shown as X in the workflow list): the item left the
+// system without being delivered — Rejected, Cancelled, Not done, Won't do. From that date it is
+// no longer WIP or backlog, but it never counts towards throughput, lead time or forecasts.
+function workflowStagesOrdered() {
+  return [...workflowStages.filter(c => stageTypes[c] !== 'discarded'), ...workflowStages.filter(c => stageTypes[c] === 'discarded')];
+}
+
+function getDiscardDate(row) {
+  let first = null;
+  workflowStages.forEach(col => {
+    if (stageTypes[col] !== 'discarded') return;
+    const d = getCachedDate(row, col);
+    if (d && (!first || d < first)) first = d;
+  });
+  return first;
+}
+
+// When the item left the system — delivered (End Date) or discarded. Null while still open.
+function getExitDate(row, cfg) {
+  return (cfg.endCol && getCachedDate(row, cfg.endCol)) || getDiscardDate(row);
 }
 
 // Actionable Agile exports have two CSV corruption patterns:
@@ -1820,6 +1844,24 @@ function loadExampleData() {
     });
   }
 
+  // Discarded items (~18) — rejected from the backlog, after commitment, or mid-development
+  for (let i = 0; i < 18; i++) {
+    const rejectAgo = Math.floor(Math.random() * 170) + 2;
+    const rejectDate = addDays(today, -rejectAgo);
+    const stage = i % 3;   // 0 = from backlog, 1 = after Ready, 2 = during Dev
+    const readyDate = stage >= 1 ? addDays(rejectDate, -logn(1.2, 0.6, 1)) : null;
+    const devDate   = stage === 2 ? addDays(rejectDate, -logn(0.8, 0.5, 1)) : null;
+    const backlog   = addDays(readyDate || rejectDate, -logn(2.0, 0.6, 2));
+    const src = pick(['Feature','Feature','Bug','Tech Debt']);
+    rows.push({
+      ID: makeId(), Title: pick(titleMap[src]),
+      'Demand Source': src, 'Demand Type': pick(typeMap[src]),
+      'Blocked Days': 0, 'Currently Blocked': 'No',
+      Backlog: fmt(backlog), Ready: readyDate ? fmt(readyDate) : '',
+      Dev: devDate && devDate > readyDate ? fmt(devDate) : '', 'Dev Done': '', Review: '', Done: '', Rejected: fmt(rejectDate),
+    });
+  }
+
   // Data quality examples (deliberately bad data for the DQ tab demo)
   const dqBase = addDays(today, -60);
   rows.push({ ID: makeId(), Title: 'Migrate legacy billing module', 'Demand Source': 'Feature', 'Demand Type': 'Value Demand', 'Blocked Days': 0, 'Currently Blocked': 'No', Backlog: '', Ready: '', Dev: '', 'Dev Done': '', Review: '', Done: fmt(addDays(dqBase, 10)) }); // no start
@@ -1861,7 +1903,7 @@ function loadExampleData() {
 
   rows.sort(() => Math.random() - 0.5);
 
-  const fields = ['ID','Title','Issue Type','Epic Link','Demand Source','Demand Type','Blocked Days','Currently Blocked','Backlog','Ready','Dev','Dev Done','Review','Done'];
+  const fields = ['ID','Title','Issue Type','Epic Link','Demand Source','Demand Type','Blocked Days','Currently Blocked','Backlog','Ready','Dev','Dev Done','Review','Done','Rejected'];
   const csv = [
     fields.join(','),
     ...rows.map(r => fields.map(f => { const v = String(r[f] ?? ''); return v.includes(',') ? `"${v}"` : v; }).join(','))
@@ -1880,8 +1922,8 @@ function loadExampleData() {
         version: 2,
         fields: { startCol:'Ready', endCol:'Done', activeCol:'Dev', idCol:'ID', titleCol:'Title', blockedDaysCol:'Blocked Days', blockedFlagCol:'Currently Blocked', epicCol:'Epic Link' },
         workflow: {
-          stages: ['Backlog','Ready','Dev','Dev Done','Review','Done'],
-          types:  { Backlog:'queue', Ready:'queue', Dev:'process', 'Dev Done':'queue', Review:'process', Done:'queue' },
+          stages: ['Backlog','Ready','Dev','Dev Done','Review','Done','Rejected'],
+          types:  { Backlog:'queue', Ready:'queue', Dev:'process', 'Dev Done':'queue', Review:'process', Done:'queue', Rejected:'discarded' },
           hidden: [],
         },
         filters:   [{ col:'Issue Type', vals:['Epic'], exclude:true }, { col:'Demand Source', val:'' }, { col:'Demand Type', val:'' }],
@@ -2047,6 +2089,7 @@ function populateFilterValuesById(id) {
 // ── Workflow stages ────────────────────────────────────────────────────────
 function autoDetectStageType(col) {
   const lower = col.toLowerCase();
+  if (/reject|cancel|not.?done|won'?t|abandon|discard|declin|duplicate/.test(lower)) return 'discarded';
   const processWords = ['doing','active','progress','dev','review','analysis','building','working','in flight','in-flight'];
   return processWords.some(k => lower.includes(k)) ? 'process' : 'queue';
 }
@@ -2086,7 +2129,7 @@ function buildWorkflowUI() {
       <span class="stage-num">${i + 1}</span>
       <span class="stage-handle">⠿</span>
       <span>${col}</span>
-      <button class="stage-type-btn ${type}" onclick="toggleStageType('${col}', this)" title="Queue (waiting) or Process (active work)">${type === 'process' ? 'P' : 'Q'}</button>
+      <button class="stage-type-btn ${type}" onclick="toggleStageType('${col}', this)" title="${STAGE_TYPE_TITLE[type]} — click to change">${STAGE_TYPE_LETTER[type]}</button>
       <button class="stage-vis-btn" onclick="toggleStageVis('${col}')" title="${hidden ? 'Show in CFD' : 'Hide from CFD'}">${hidden ? '⊕' : '×'}</button>
     </div>`;
   }).join('');
@@ -2137,10 +2180,18 @@ function toggleInfo(id) {
   if (btn) btn.classList.toggle('open', open);
 }
 
+const STAGE_TYPE_LETTER = { process: 'P', queue: 'Q', discarded: 'X' };
+const STAGE_TYPE_TITLE  = {
+  process:   'P = Process (active work)',
+  queue:     'Q = Queue (waiting)',
+  discarded: 'X = Discarded (left without being delivered — e.g. Rejected, Cancelled)',
+};
 function toggleStageType(col, btn) {
   event.stopPropagation();
-  stageTypes[col] = stageTypes[col] === 'process' ? 'queue' : 'process';
-  btn.textContent = stageTypes[col] === 'process' ? 'P' : 'Q';
+  const next = { process: 'queue', queue: 'discarded', discarded: 'process' };
+  stageTypes[col] = next[stageTypes[col] || 'queue'];
+  btn.textContent = STAGE_TYPE_LETTER[stageTypes[col]];
+  btn.title = `${STAGE_TYPE_TITLE[stageTypes[col]]} — click to change`;
   btn.className = `stage-type-btn ${stageTypes[col]}`;
   renderAll();
 }
@@ -2152,7 +2203,7 @@ function calculateFlowEfficiency(completedItems) {
   const efficiencies = [];
 
   rows.forEach(row => {
-    const dates = workflowStages.map(col => getCachedDate(row, col));
+    const dates = workflowStages.map(col => stageTypes[col] === 'discarded' ? null : getCachedDate(row, col));
     let processTime = 0, queueTime = 0;
     dates.forEach((d, i) => {
       if (!d) return;
@@ -2215,9 +2266,9 @@ function getPreStartStages(cfg) {
 }
 
 function processData(cfg) {
-  if (!cfg.startCol || !cfg.endCol) return { completed: [], wip: [], committedQueue: [], backlog: [], dqIssues: [], totalRows: 0 };
+  if (!cfg.startCol || !cfg.endCol) return { completed: [], wip: [], committedQueue: [], backlog: [], discarded: [], dqIssues: [], totalRows: 0 };
   const cutoff = cfg.filterDays ? new Date(Date.now() - cfg.filterDays * 86400000) : null;
-  const completed = [], wip = [], committedQueue = [], backlog = [], dqIssues = [];
+  const completed = [], wip = [], committedQueue = [], backlog = [], discarded = [], dqIssues = [];
   let totalRows = 0;
 
   allRows.forEach(row => {
@@ -2225,6 +2276,7 @@ function processData(cfg) {
     totalRows++;
     const startDate = getCachedDate(row, cfg.startCol);
     const endDate   = getCachedDate(row, cfg.endCol);
+    const discardDate = getDiscardDate(row);
     const id          = cfg.idCol    ? (row[cfg.idCol]    || '') : '';
     const title       = cfg.titleCol ? (row[cfg.titleCol] || '') : '';
     const link        = cfg.linkCol  ? (row[cfg.linkCol]  || '') : '';
@@ -2245,7 +2297,11 @@ function processData(cfg) {
       dqIssues.push({ type: 'no-dates', id, title, link });
     }
 
-    if (startDate && !endDate) {
+    if (endDate && discardDate) {
+      dqIssues.push({ type: 'done-and-discarded', id, title, link, endDate, discardDate });
+    }
+
+    if (startDate && !endDate && !discardDate) {
       const startIdx = workflowStages.indexOf(cfg.startCol);
       const hasProgress = startIdx >= 0 && workflowStages.slice(startIdx + 1).filter(col => !hiddenStages.has(col)).some(col => getCachedDate(row, col));
       // Only flag after 4 weeks — a committed queue (sprint backlog / Kanban next) waiting a few weeks is normal.
@@ -2295,7 +2351,7 @@ function processData(cfg) {
       const totalTime = (backlogDate && backlogDate <= endDate)  ? daysBetween(backlogDate, endDate)   : null;  // backlog→done (Vacanti total time)
       let flowEfficiency = null;
       if (workflowStages.length >= 2) {
-        const stageDates = workflowStages.map(col => getCachedDate(row, col));
+        const stageDates = workflowStages.map(col => stageTypes[col] === 'discarded' ? null : getCachedDate(row, col));
         let processTime = 0, queueTime = 0;
         stageDates.forEach((d, i) => {
           if (!d) return;
@@ -2310,6 +2366,9 @@ function processData(cfg) {
         if (total > 0) flowEfficiency = processTime / total * 100;
       }
       completed.push({ id, title, link, startDate, endDate, cycleTime, leadTime, totalTime, blockedDays, flowEfficiency, backlogDate, ffeTime, _row: row });
+    } else if (!endDate && discardDate) {
+      // Discarded — left the system without being delivered. Not WIP, not backlog, not throughput.
+      discarded.push({ id, title, link, startDate, discardDate, _row: row });
     } else {
       // Not completed — classify as WIP, committedQueue, or backlog.
       // WIP is gated on activeCol only (not startCol), so items that skipped startCol
@@ -2355,7 +2414,7 @@ function processData(cfg) {
   wip.sort((a, b) => b.age - a.age);
   committedQueue.sort((a, b) => b.committedAge - a.committedAge);
   backlog.sort((a, b) => b.ffeAge - a.ffeAge);
-  return { completed, wip, committedQueue, backlog, dqIssues, totalRows };
+  return { completed, wip, committedQueue, backlog, discarded, dqIssues, totalRows };
 }
 
 // ── Render all ─────────────────────────────────────────────────────────────
@@ -2370,7 +2429,7 @@ function _doRenderAll() {
   const cfg = getConfig();
   if (!cfg.startCol || !cfg.endCol) return;
 
-  const { completed, wip, committedQueue, backlog, dqIssues, totalRows } = processData(cfg);
+  const { completed, wip, committedQueue, backlog, discarded, dqIssues, totalRows } = processData(cfg);
 
   if (!completed.length && !wip.length && !committedQueue.length) {
     showError('No usable rows found. Check your start and end date column selection.');
@@ -2434,7 +2493,7 @@ function _doRenderAll() {
   document.getElementById('btn-save-config').style.display = 'inline-block';
 
   updateFooter();
-  lastRenderPayload = { completed, wip, committedQueue, backlog, dqIssues, totalRows, p50, p70, p85, p95 };
+  lastRenderPayload = { completed, wip, committedQueue, backlog, discarded, dqIssues, totalRows, p50, p70, p85, p95 };
   renderActiveTab();
 }
 
@@ -2465,7 +2524,7 @@ function renderActiveTab() {
     case 'burnup':     renderBurnUpTab(); break;
     case 'epics':      renderEpicProgress(); break;
     case 'stagetime':  renderStageTime(completed); break;
-    case 'arrivaldep': renderArrivalDep(completed, wip, committedQueue); break;
+    case 'arrivaldep': renderArrivalDep(completed, wip, committedQueue, lastRenderPayload.discarded || []); break;
   }
 }
 
@@ -3075,7 +3134,7 @@ function renderEpicProgress() {
     if (idx < 0) return null;
     let first = null;
     workflowStages.slice(idx).forEach(s => {
-      if (s === cfg.endCol || hiddenStages.has(s)) return;
+      if (s === cfg.endCol || hiddenStages.has(s) || stageTypes[s] === 'discarded') return;
       const d = getCachedDate(row, s);
       if (d && (!first || d < first)) first = d;
     });
@@ -3093,13 +3152,14 @@ function renderEpicProgress() {
     const endD    = cfg.endCol ? getCachedDate(row, cfg.endCol) : null;
     const activeD = reached(row, cfg.activeCol || cfg.startCol);
     const startD  = reached(row, cfg.startCol);
-    const status  = endD ? 'done' : activeD ? 'active' : startD ? 'committed' : 'todo';
+    const status  = endD ? 'done' : getDiscardDate(row) ? 'discarded' : activeD ? 'active' : startD ? 'committed' : 'todo';
     let stage = '';
     for (let i = workflowStages.length - 1; i >= 0; i--) {
       if (!hiddenStages.has(workflowStages[i]) && getCachedDate(row, workflowStages[i])) { stage = workflowStages[i]; break; }
     }
-    const e = epics[key] || (epics[key] = { key, items: [], firstStart: null, done: 0, active: 0, committed: 0, todo: 0 });
+    const e = epics[key] || (epics[key] = { key, items: [], firstStart: null, done: 0, active: 0, committed: 0, todo: 0, discarded: 0 });
     e[status]++;
+    if (status === 'discarded') return;   // counted, but not part of the Epic's remaining work
     if (activeD && (!e.firstStart || activeD < e.firstStart)) e.firstStart = activeD;   // first real work, not first commit
     e.items.push({ id: cfg.idCol ? row[cfg.idCol] : '', title: cfg.titleCol ? row[cfg.titleCol] : '', link: cfg.linkCol ? row[cfg.linkCol] : '', status, stage, endD });
   });
@@ -3112,7 +3172,7 @@ function renderEpicProgress() {
   }
 
   list.forEach(e => {
-    e.total = e.items.length;
+    e.total = e.items.length;   // excludes discarded stories
     e.pct = Math.round(e.done / e.total * 100);
     e.remaining = e.total - e.done;
     const weeks = e.firstStart ? Math.max(1, (today - e.firstStart) / (7 * 86400000)) : null;
@@ -3145,7 +3205,7 @@ function renderEpicProgress() {
     html += `<tr style="cursor:pointer" onclick="const r=document.getElementById('ep-detail-${i}');r.style.display=r.style.display==='none'?'table-row':'none'">
       <td style="font-weight:600;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${name}">▸ ${name}</td>
       <td><div style="display:flex;height:12px;border-radius:6px;overflow:hidden;background:#f1f5f9">${bar}</div></td>
-      <td>${e.done}/${e.total} <span style="color:#94a3b8;font-size:0.78em">${e.pct}%</span></td>
+      <td>${e.done}/${e.total} <span style="color:#94a3b8;font-size:0.78em">${e.pct}%</span>${e.discarded ? `<div style="color:#94a3b8;font-size:0.72em">+${e.discarded} discarded</div>` : ''}</td>
       <td>${e.active || dim}</td>
       <td>${fmt(e.firstStart)}</td>
       <td>${e.pace ? e.pace.toFixed(1) + '/wk' : dim}</td>
@@ -3234,6 +3294,8 @@ function renderBreakdown() {
       const ct      = (endD - startD) / 86400000;
       const blocked = cfg.blockedDaysCol ? (parseFloat(row[cfg.blockedDaysCol]) || 0) : 0;
       completedItems.push({ row, ct, blocked, endD });
+    } else if (!endD && getDiscardDate(row)) {
+      // discarded — left without being delivered, not counted
     } else if (activeD && !endD) {
       wipItems.push({ row });
     } else if (cfg.activeCol && startD && !activeD && !endD) {
@@ -3480,7 +3542,7 @@ function renderWIPOverTime() {
     .filter(row => rowMatchesFilters(row, cfg))
     // Same WIP rule as processData: counts from Active Work Starts (falls back to Start Date),
     // so committed-but-not-started items (e.g. "To do") are not counted as WIP.
-    .map(row => ({ startDate: getCachedDate(row, cfg.activeCol || cfg.startCol), endDate: getCachedDate(row, cfg.endCol) }))
+    .map(row => ({ startDate: getCachedDate(row, cfg.activeCol || cfg.startCol), endDate: getExitDate(row, cfg) }))
     .filter(r => r.startDate);
 
   if (!rows.length) return;
@@ -3660,6 +3722,9 @@ function countUpto(sorted, target) {
 }
 
 function buildCFDData() {
+  // Discarded stages go last in the cumulative order so they form the bottom band and every
+  // band above counts them as having left. Local copy — the user's stage order is untouched.
+  const workflowStages = workflowStagesOrdered();
   const visibleStages = workflowStages.filter(col => !hiddenStages.has(col));
   if (visibleStages.length < 2) return null;
 
@@ -4146,7 +4211,7 @@ function renderTeamHealth() {
     while (c <= end) { weeks.push(new Date(c)); c.setDate(c.getDate()+7); }
     if (!weeks.length) return null;
     const counts = weeks.map(wk => allRowsF.filter(r => {
-      const s = getCachedDate(r, cfg.startCol), e = getCachedDate(r, cfg.endCol);
+      const s = getCachedDate(r, cfg.startCol), e = getExitDate(r, cfg);
       return s && s <= wk && (!e || e > wk);
     }).length);
     return avg(counts);
@@ -4163,7 +4228,8 @@ function renderTeamHealth() {
     const counts = weeks.map(wk => allRowsF.filter(r => {
       const s = getCachedDate(r, cfg.startCol);
       const hasPreStart = preStart.some(col => { const d = getCachedDate(r,col); return d && d <= wk; });
-      return hasPreStart && (!s || s > wk);
+      const x = getDiscardDate(r);
+      return hasPreStart && (!s || s > wk) && (!x || x > wk);
     }).length);
     return avg(counts);
   }
@@ -5053,7 +5119,7 @@ function renderData() {
 function calculateMultitaskingIndex(cfg) {
   const items = allRows
     .filter(row => rowMatchesFilters(row, cfg))
-    .map(row => ({ start: getCachedDate(row, cfg.startCol), end: getCachedDate(row, cfg.endCol) }))
+    .map(row => ({ start: getCachedDate(row, cfg.startCol), end: getExitDate(row, cfg) }))
     .filter(r => r.start);
   if (items.length < 2) return null;
   let total = 0;
@@ -5357,7 +5423,7 @@ function renderWIPAgeChart() {
     .filter(row => rowMatchesFilters(row, cfg))
     // Same WIP rule as processData: counts from Active Work Starts (falls back to Start Date),
     // so committed-but-not-started items (e.g. "To do") are not counted as WIP.
-    .map(row => ({ startDate: getCachedDate(row, cfg.activeCol || cfg.startCol), endDate: getCachedDate(row, cfg.endCol) }))
+    .map(row => ({ startDate: getCachedDate(row, cfg.activeCol || cfg.startCol), endDate: getExitDate(row, cfg) }))
     .filter(r => r.startDate);
 
   if (!rows.length) return;
@@ -5495,7 +5561,7 @@ function applyConfig(cfg) {
     if (cfg.workflow.types) {
       stageTypes = {};
       Object.entries(cfg.workflow.types).forEach(([k, v]) => {
-        stageTypes[k] = (v === 'P' || v === 'process') ? 'process' : 'queue';
+        stageTypes[k] = (v === 'P' || v === 'process') ? 'process' : (v === 'X' || v === 'discarded') ? 'discarded' : 'queue';
       });
     }
     if (cfg.workflow.hidden) hiddenStages = new Set(cfg.workflow.hidden);
@@ -6222,6 +6288,7 @@ function renderBurnUpTab() {
       if (d && (!earliest || d < earliest)) earliest = d;
     }
     if (!earliest) return;
+    if (!getCachedDate(row, cfg.endCol) && getDiscardDate(row)) return;   // discarded — not scope
     entryDates.push(earliest);
     const done = getCachedDate(row, cfg.endCol);
     if (done) doneDates.push(done);
@@ -6943,13 +7010,13 @@ function renderStageTime(completed) {
 }
 
 // ── Arrival vs Departure ───────────────────────────────────────────────────
-function renderArrivalDep(completed, wip, committedQueue) {
+function renderArrivalDep(completed, wip, committedQueue, discarded = []) {
   const el = document.getElementById('chart-arrivaldep');
   const emptyEl = document.getElementById('arrivaldep-empty');
   if (charts.arrivaldep) { charts.arrivaldep.destroy(); charts.arrivaldep = null; }
 
   const arrMap = {};
-  [...completed, ...wip, ...committedQueue].forEach(item => {
+  [...completed, ...wip, ...committedQueue, ...discarded].forEach(item => {
     if (!item.startDate) return;
     const k = weekStart(item.startDate).toISOString().slice(0, 10);
     arrMap[k] = (arrMap[k] || 0) + 1;
@@ -6961,7 +7028,15 @@ function renderArrivalDep(completed, wip, committedQueue) {
     depMap[k] = (depMap[k] || 0) + 1;
   });
 
-  const allKeys = [...new Set([...Object.keys(arrMap), ...Object.keys(depMap)])].sort();
+  // Discarded items also leave WIP — shown as their own line so departures stay "delivered"
+  const discMap = {};
+  discarded.forEach(item => {
+    if (!item.startDate) return;   // never entered the system, so never WIP
+    const k = weekStart(item.discardDate).toISOString().slice(0, 10);
+    discMap[k] = (discMap[k] || 0) + 1;
+  });
+
+  const allKeys = [...new Set([...Object.keys(arrMap), ...Object.keys(depMap), ...Object.keys(discMap)])].sort();
 
   if (allKeys.length < 2) {
     el.style.display = 'none';
@@ -6974,7 +7049,8 @@ function renderArrivalDep(completed, wip, committedQueue) {
   const labels     = allKeys.map(k => new Date(k + 'T00:00:00'));
   const arrivals   = allKeys.map(k => arrMap[k]  || 0);
   const departures = allKeys.map(k => depMap[k]  || 0);
-  const net        = allKeys.map((_, i) => arrivals[i] - departures[i]);
+  const discards   = allKeys.map(k => discMap[k] || 0);
+  const net        = allKeys.map((_, i) => arrivals[i] - departures[i] - discards[i]);
   const growing   = net.map(v => v > 0 ? v : null);
   const shrinking = net.map(v => v < 0 ? v : null);
 
@@ -6985,7 +7061,8 @@ function renderArrivalDep(completed, wip, committedQueue) {
         { type: 'bar',  label: 'WIP Growing',  data: growing,    backgroundColor: 'rgba(239,68,68,0.5)',  borderColor: 'rgba(239,68,68,0.85)',  borderWidth: 1, order: 3 },
         { type: 'bar',  label: 'WIP Shrinking', data: shrinking,  backgroundColor: 'rgba(34,197,94,0.5)', borderColor: 'rgba(34,197,94,0.85)',  borderWidth: 1, order: 3 },
         { type: 'line', label: 'Arrivals',      data: arrivals,   borderColor: '#f97316', borderWidth: 2.5, pointRadius: 2, tension: 0.3, fill: false, order: 1 },
-        { type: 'line', label: 'Departures',    data: departures, borderColor: '#0ea5e9', borderWidth: 2.5, pointRadius: 2, tension: 0.3, fill: false, order: 2 }
+        { type: 'line', label: 'Departures',    data: departures, borderColor: '#0ea5e9', borderWidth: 2.5, pointRadius: 2, tension: 0.3, fill: false, order: 2 },
+        ...(discarded.length ? [{ type: 'line', label: 'Discarded', data: discards, borderColor: '#94a3b8', borderDash: [5, 4], borderWidth: 2, pointRadius: 1, tension: 0.3, fill: false, order: 2 }] : [])
       ]
     },
     options: {
@@ -7046,11 +7123,12 @@ function renderDataQuality() {
   if (!el) return;
   if (!lastRenderPayload) { el.innerHTML = '<div class="empty-state">Load a CSV to see the breakdown.</div>'; return; }
   const { completed, wip, committedQueue, backlog, dqIssues, totalRows } = lastRenderPayload;
+  const discarded = lastRenderPayload.discarded || [];
   const issues = dqIssues || [];
   const noStartCount = issues.filter(i => i.type === 'no-start').length;
 
   // ── Breakdown ──────────────────────────────────────────────────────────────
-  const counted = completed.length + noStartCount + wip.length + committedQueue.length + backlog.length;
+  const counted = completed.length + noStartCount + wip.length + committedQueue.length + backlog.length + discarded.length;
   const invisible = Math.max(0, (totalRows || 0) - counted);
   const total = totalRows || (counted + invisible);
   function brow(color, count, label, desc) {
@@ -7080,6 +7158,7 @@ function renderDataQuality() {
     ${brow('#059669', wip.length, 'Active WIP', 'Has Active Work Starts date, not yet done — drives WIP count and aging chart.')}
     ${committedQueue.length ? brow('#7c3aed', committedQueue.length, 'Committed, not started', 'Has a Start Date but not yet at Active Work Starts stage — shows in pipeline visual.') : ''}
     ${brow('#d97706', backlog.length, 'In backlog / FFE', 'Pre-commitment stage only — counted in Fuzzy Front End metrics.')}
+    ${discarded.length ? brow('#94a3b8', discarded.length, 'Discarded', 'Reached a stage marked X (e.g. Rejected, Cancelled) without being delivered — left WIP on that date, not counted in throughput or lead time.') : ''}
     ${invisible ? brow('#94a3b8', invisible, 'Not in any metric', 'No readable dates in any column — completely invisible to all analysis. See issues below.') : ''}
   </div>`;
 
@@ -7095,6 +7174,14 @@ function renderDataQuality() {
   }
 
   const sections = [
+    {
+      type: 'done-and-discarded',
+      title: 'Both Done and Discarded',
+      badge: 'amber',
+      desc: 'These items have a date in your End Date column and in a Discarded stage (marked X). They are counted as delivered. Check whether they were really rejected or cancelled — if so, clear the Done date in your source system.',
+      headers: ['Item', 'Done', 'Discarded'],
+      row: i => `${itemCell(i.id, i.title, i.link)}<td>${fmtD(i.endDate)}</td><td>${fmtD(i.discardDate)}</td>`,
+    },
     {
       type: 'no-progress',
       title: 'Committed but not moved in 4+ weeks',

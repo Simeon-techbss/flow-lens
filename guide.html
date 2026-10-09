@@ -235,7 +235,7 @@
       <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">LT Over Time</span><p>Weekly lead time trend. Click a week to see the items behind it.</p></div>
       <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Histogram</span><p>Lead time distribution — where most items cluster. Min/max inputs hide outliers from the view.</p></div>
       <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Control Chart</span><p>Every completed item by finish date and lead time, with p50/p70/p85/p95 lines. Orange dots had blocked time. Spot outliers and trends.</p></div>
-      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Flow Efficiency</span><p>Share of each item's time spent in active (process) stages vs queues. Needs stages marked P or Q in Config. 100% usually means dates were entered in bulk rather than as work happened.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Flow Efficiency</span><p>Share of each item's time spent in active (process) stages vs queues. Needs stages marked P or Q in Config (X stages are ignored). 100% usually means dates were entered in bulk rather than as work happened.</p></div>
       <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Fuzzy Front End</span><p>Pre-commitment analysis — how long items wait before the team commits to them. Needs stage columns before your Start column. <a href="#ffe" style="color:#0ea5e9">See the FFE section below.</a></p></div>
       <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Time in Stage</span><p>P50 and P85 days spent in each stage. The stage with the highest numbers is usually your bottleneck.</p></div>
     </div>
@@ -337,10 +337,16 @@
   <div class="card">
     <h2>Tips and gotchas</h2>
 
-    <h3>Cancelled / rejected items</h3>
-    <p>If your data has a terminal stage for cancelled work (e.g. <code>Not done</code>, <code>Rejected</code>), hide it in the stage list. Items that only have a date in a hidden terminal stage are excluded from the CFD Done count. They will still appear as WIP in other charts until you filter them at source.</p>
+    <h3 id="discarded">Cancelled / rejected items — mark them Discarded (X)</h3>
+    <p>Each stage in the Config stage list has a type button. Click it to cycle through:</p>
+    <ul>
+      <li><strong>P — Process:</strong> active work (Dev, Testing). Counts as work time in flow efficiency.</li>
+      <li><strong>Q — Queue:</strong> waiting (Ready for Dev, Awaiting Deploy). Counts as wait time.</li>
+      <li><strong>X — Discarded:</strong> the item left without being delivered (Rejected, Cancelled, Not done, Won't do). Picked automatically for stages with those kinds of names.</li>
+    </ul>
+    <p>A discarded item <strong>stops being WIP or backlog on the date it was discarded</strong>, but it is <strong>never counted as delivered</strong> — it is left out of throughput, lead time, forecasts and Burn Up scope. You'll see discarded items as their own band at the bottom of the CFD, a dashed "Discarded" line on Arrival vs Departure, a "Discarded" row on the Data Quality tab, and "+N discarded" on Epic Progress.</p>
     <div class="callout">
-      Best practice: filter cancelled items out of the CSV before loading. Add a status column to your export and remove rows where status = Cancelled.
+      You no longer need to filter cancelled items out of your data. Filtering removes their history — they really were in progress until they were cancelled. Marking the stage X keeps WIP over time accurate. If an item has both a Done date and a Discarded date, it counts as delivered and is flagged on the Data Quality tab.
     </div>
 
     <h3>Items that skip stages</h3>
