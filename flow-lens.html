@@ -806,6 +806,10 @@ License: MIT
             <span class="item-name">Burn Up</span>
             <span class="item-desc">Progress toward scope target with forecast lines</span>
           </button>
+          <button class="tab-dropdown-item" data-tab="epics">
+            <span class="item-name">Epic Progress</span>
+            <span class="item-desc">How far along each Epic is, with a finish forecast</span>
+          </button>
           <button class="tab-dropdown-item" data-tab="forecast">
             <span class="item-name">Forecast</span>
             <span class="item-desc">Monte Carlo — when will we finish / how much by date?</span>
@@ -1412,6 +1416,24 @@ License: MIT
       </div>
     </div>
 
+    <div id="tab-epics" class="tab-pane">
+      <div class="chart-card">
+        <h2>Epic Progress <button class="info-btn" data-info="info-epics" onclick="toggleInfo('info-epics')" title="How to read this">ℹ</button></h2>
+        <div class="subtitle">How far along each Epic is, based on the stories linked to it. Click an Epic to see its stories.</div>
+        <div class="info-panel" id="info-epics">
+          <div class="info-row"><strong>Where the data comes from</strong> — needs a column linking each story to its Epic (e.g. <em>Epic Link</em> or <em>Parent</em>). Epic names come from the Epic's own row in the file; if it isn't there, the Epic key is shown.</div>
+          <div class="info-row"><strong>Bar colours</strong> — green = Done, blue = In progress (reached Active Work Starts), purple = Committed (reached Start Date), grey = Not started.</div>
+          <div class="info-row"><strong>Started</strong> — when the first story reached Active Work Starts. <strong>Pace</strong> — stories done per week since then. <strong>Forecast</strong> = remaining stories ÷ pace. It is a rough guide, not a promise: it assumes the pace stays the same and nothing new is added. Shown only once an Epic has 3+ stories done.</div>
+          <div class="info-row"><strong>Filters</strong> — active filters apply to the stories counted.</div>
+        </div>
+        <div style="margin-bottom:1rem;display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
+          <label style="font-size:0.83rem;font-weight:600;color:#374151">Epic column</label>
+          <select id="ep-link-col" onchange="renderEpicProgress()" style="font-size:0.83rem;border:1px solid #e2e8f0;border-radius:5px;padding:3px 8px;color:#334155"></select>
+        </div>
+        <div id="ep-content"></div>
+      </div>
+    </div>
+
     <div id="tab-burnup" class="tab-pane">
       <div class="chart-card">
         <h2>Burn Up <button class="info-btn" data-info="info-burnup" onclick="toggleInfo('info-burnup')" title="How to read this">ℹ</button></h2>
@@ -1506,7 +1528,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-10-07b';
+const VERSION = '2026-10-09a';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -2403,6 +2425,7 @@ function renderActiveTab() {
     case 'dq':         renderDataQuality(); break;
     case 'forecast':   renderForecast(completed, wip, backlog); break;
     case 'burnup':     renderBurnUpTab(); break;
+    case 'epics':      renderEpicProgress(); break;
     case 'stagetime':  renderStageTime(completed); break;
     case 'arrivaldep': renderArrivalDep(completed, wip, committedQueue); break;
   }
@@ -2988,6 +3011,130 @@ function updateFilterContextBar() {
 }
 
 // ── Breakdown ──────────────────────────────────────────────────────────────
+// ── Epic Progress ──────────────────────────────────────────────────────────
+function renderEpicProgress() {
+  const cfg = getConfig();
+  const container = document.getElementById('ep-content');
+  const sel = document.getElementById('ep-link-col');
+
+  // Candidate link columns: non-date columns whose values look like issue keys
+  const keyRe = /^[A-Z][A-Z0-9_]+-\d+$/;
+  const dateCols = new Set(workflowStages);
+  const candidates = columns.filter(c => !dateCols.has(c) && c !== cfg.idCol &&
+    allRows.some(r => keyRe.test((r[c] || '').trim())));
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">— choose a column —</option>' +
+    candidates.map(c => `<option value="${c}"${c === prev ? ' selected' : ''}>${c}</option>`).join('');
+  if (!sel.value && candidates.length) {
+    sel.value = candidates.find(c => /epic.?link|^parent/i.test(c)) || candidates[0];
+  }
+  const linkCol = sel.value;
+  if (!linkCol) {
+    container.innerHTML = '<div class="empty-state">No Epic link column found. Add the Jira <em>Epic Link</em> or <em>Parent</em> field to your export.</div>';
+    return;
+  }
+
+  // Epic names from the Epic's own row (unfiltered, so "Only Story" filters don't hide names)
+  const nameById = {}, linkById = {};
+  allRows.forEach(r => {
+    const id = cfg.idCol ? (r[cfg.idCol] || '').trim() : '';
+    if (id) { nameById[id] = cfg.titleCol ? (r[cfg.titleCol] || '').trim() : ''; linkById[id] = cfg.linkCol ? (r[cfg.linkCol] || '').trim() : ''; }
+  });
+
+  // Has the row reached this stage or any later one? (skips stages are common; hidden stages like "Not done" ignored)
+  const reached = (row, col) => {
+    const idx = workflowStages.indexOf(col);
+    if (idx < 0) return null;
+    let first = null;
+    workflowStages.slice(idx).forEach(s => {
+      if (s === cfg.endCol || hiddenStages.has(s)) return;
+      const d = getCachedDate(row, s);
+      if (d && (!first || d < first)) first = d;
+    });
+    return first;
+  };
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const epics = {};
+  const epicKeys = new Set(allRows.map(r => (r[linkCol] || '').trim()).filter(Boolean));
+  let unlinked = 0;
+  allRows.forEach(row => {
+    if (!rowMatchesFilters(row, cfg)) return;
+    const key = (row[linkCol] || '').trim();
+    if (!key) { if (!epicKeys.has(cfg.idCol ? (row[cfg.idCol] || '').trim() : '')) unlinked++; return; }  // Epic rows themselves aren't "unlinked"
+    const endD    = cfg.endCol ? getCachedDate(row, cfg.endCol) : null;
+    const activeD = reached(row, cfg.activeCol || cfg.startCol);
+    const startD  = reached(row, cfg.startCol);
+    const status  = endD ? 'done' : activeD ? 'active' : startD ? 'committed' : 'todo';
+    let stage = '';
+    for (let i = workflowStages.length - 1; i >= 0; i--) {
+      if (!hiddenStages.has(workflowStages[i]) && getCachedDate(row, workflowStages[i])) { stage = workflowStages[i]; break; }
+    }
+    const e = epics[key] || (epics[key] = { key, items: [], firstStart: null, done: 0, active: 0, committed: 0, todo: 0 });
+    e[status]++;
+    if (activeD && (!e.firstStart || activeD < e.firstStart)) e.firstStart = activeD;   // first real work, not first commit
+    e.items.push({ id: cfg.idCol ? row[cfg.idCol] : '', title: cfg.titleCol ? row[cfg.titleCol] : '', link: cfg.linkCol ? row[cfg.linkCol] : '', status, stage, endD });
+  });
+
+  const list = Object.values(epics);
+  if (!list.length) { container.innerHTML = '<div class="empty-state">No stories are linked to an Epic in this data (with current filters).</div>'; return; }
+
+  list.forEach(e => {
+    e.total = e.items.length;
+    e.pct = Math.round(e.done / e.total * 100);
+    e.remaining = e.total - e.done;
+    const weeks = e.firstStart ? Math.max(1, (today - e.firstStart) / (7 * 86400000)) : null;
+    e.pace = weeks && e.done ? e.done / weeks : 0;
+    e.forecast = (e.remaining && e.done >= 3 && e.pace > 0) ? new Date(today.getTime() + e.remaining / e.pace * 7 * 86400000) : null;
+    e.rank = e.remaining === 0 ? 2 : (e.active || e.done) ? 0 : 1;   // in flight first, then not started, then finished
+  });
+  list.sort((a, b) => a.rank - b.rank || b.pct - a.pct || b.total - a.total);
+
+  const esc = t => String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  const fmt = d => d ? d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—';
+  const colours = { done: '#22c55e', active: '#3b82f6', committed: '#8b5cf6', todo: '#cbd5e1' };
+  const labels  = { done: 'Done', active: 'In progress', committed: 'Committed', todo: 'Not started' };
+  const dim = '<span style="color:#94a3b8">—</span>';
+
+  let html = `<div style="display:flex;gap:1rem;flex-wrap:wrap;font-size:0.78rem;color:#475569;margin-bottom:0.75rem">` +
+    Object.keys(colours).map(k => `<span style="display:inline-flex;align-items:center;gap:0.35rem"><span style="width:10px;height:10px;border-radius:2px;background:${colours[k]}"></span>${labels[k]}</span>`).join('') +
+    `</div><table class="bd-table"><thead><tr>
+      <th>Epic</th><th style="min-width:180px">Progress</th><th>Done</th><th>In progress</th><th>Started</th><th>Pace</th><th>Forecast</th>
+    </tr></thead><tbody>`;
+
+  list.forEach((e, i) => {
+    const name = nameById[e.key] ? `${esc(e.key)} — ${esc(nameById[e.key])}` : esc(e.key);
+    const bar = ['done', 'active', 'committed', 'todo'].filter(k => e[k])
+      .map(k => `<div title="${labels[k]}: ${e[k]}" style="width:${e[k] / e.total * 100}%;background:${colours[k]}"></div>`).join('');
+    const forecast = e.remaining === 0 ? '<span style="color:#16a34a;font-weight:600">Complete</span>'
+      : e.forecast ? fmt(e.forecast)
+      : !e.firstStart ? '<span style="color:#94a3b8">Not started</span>'
+      : `<span style="color:#94a3b8" title="Needs 3+ stories done">Too early</span>`;
+    html += `<tr style="cursor:pointer" onclick="const r=document.getElementById('ep-detail-${i}');r.style.display=r.style.display==='none'?'table-row':'none'">
+      <td style="font-weight:600;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${name}">▸ ${name}</td>
+      <td><div style="display:flex;height:12px;border-radius:6px;overflow:hidden;background:#f1f5f9">${bar}</div></td>
+      <td>${e.done}/${e.total} <span style="color:#94a3b8;font-size:0.78em">${e.pct}%</span></td>
+      <td>${e.active || dim}</td>
+      <td>${fmt(e.firstStart)}</td>
+      <td>${e.pace ? e.pace.toFixed(1) + '/wk' : dim}</td>
+      <td>${forecast}</td>
+    </tr>
+    <tr id="ep-detail-${i}" style="display:none"><td colspan="7" style="background:#f8fafc;padding:0.5rem 1rem">
+      ${e.items.sort((a, b) => ['active','committed','todo','done'].indexOf(a.status) - ['active','committed','todo','done'].indexOf(b.status)).map(it => {
+        const label = esc([it.id, it.title].filter(Boolean).join(' — '));
+        const txt = it.link ? `<a href="${esc(it.link)}" target="_blank" rel="noopener" style="color:#2563eb;text-decoration:none">${label}</a>` : label;
+        return `<div style="display:flex;gap:0.6rem;align-items:center;font-size:0.8rem;padding:2px 0">
+          <span style="width:8px;height:8px;border-radius:2px;background:${colours[it.status]};flex:none"></span>
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${txt}</span>
+          <span style="color:#64748b;white-space:nowrap">${esc(it.stage || 'No dates')}${it.endD ? ' · ' + fmt(it.endD) : ''}</span></div>`;
+      }).join('')}
+    </td></tr>`;
+  });
+  html += '</tbody></table>';
+  if (unlinked) html += `<div style="margin-top:0.75rem;font-size:0.8rem;color:#64748b">${unlinked} item${unlinked === 1 ? '' : 's'} not linked to any Epic (not shown).</div>`;
+  container.innerHTML = html;
+}
+
 function renderBreakdown() {
   if (!lastRenderPayload) return;
   const cfg = getConfig();
