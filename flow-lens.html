@@ -689,6 +689,11 @@ License: MIT
         <div class="hint">Boolean flag — Yes/No, True/False, 1/0. If not mapped, blocked indicators are hidden.</div>
         <select id="col-blocked-flag"><option value="">— none —</option></select>
       </div>
+      <div class="config-field">
+        <label>Epic Link</label>
+        <div class="hint">The Epic (or parent) ID each item belongs to — turns on the Epic Progress tab</div>
+        <select id="col-epic"><option value="">— none —</option></select>
+      </div>
     </div>
 
     <div class="workflow-section" id="workflow-section" style="display:none">
@@ -1426,10 +1431,7 @@ License: MIT
           <div class="info-row"><strong>Started</strong> — when the first story reached Active Work Starts. <strong>Pace</strong> — stories done per week since then. <strong>Forecast</strong> = remaining stories ÷ pace. It is a rough guide, not a promise: it assumes the pace stays the same and nothing new is added. Shown only once an Epic has 3+ stories done.</div>
           <div class="info-row"><strong>Filters</strong> — active filters apply to the stories counted.</div>
         </div>
-        <div style="margin-bottom:1rem;display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
-          <label style="font-size:0.83rem;font-weight:600;color:#374151">Epic column</label>
-          <select id="ep-link-col" onchange="renderEpicProgress()" style="font-size:0.83rem;border:1px solid #e2e8f0;border-radius:5px;padding:3px 8px;color:#334155"></select>
-        </div>
+        <div id="ep-link-note" style="margin-bottom:0.75rem;font-size:0.8rem;color:#64748b"></div>
         <div id="ep-content"></div>
       </div>
     </div>
@@ -1528,7 +1530,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-10-09b';
+const VERSION = '2026-10-09c';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -1865,7 +1867,7 @@ function setupConfig() {
   document.getElementById('filter-body').classList.add('filter-collapsed');
   document.getElementById('btn-toggle-filters').textContent = 'Expand Filters';
 
-  ['col-start','col-end','col-active','col-id','col-title','col-link','col-blocked','col-blocked-flag'].forEach(id => {
+  ['col-start','col-end','col-active','col-id','col-title','col-link','col-blocked','col-blocked-flag','col-epic'].forEach(id => {
     const sel = document.getElementById(id);
     const hasNone = id !== 'col-start' && id !== 'col-end';
     sel.innerHTML = hasNone ? '<option value="">— none —</option>' : '<option value="">Select column…</option>';
@@ -1883,13 +1885,15 @@ function setupConfig() {
   if (detectedLink)         document.getElementById('col-link').value          = detectedLink;
   if (detectedBlocked)      document.getElementById('col-blocked').value       = detectedBlocked;
   if (detectedBlockedFlag)  document.getElementById('col-blocked-flag').value  = detectedBlockedFlag;
+  const detectedEpic = columns.find(c => /epic.?link|^parent(.?(link|key|id))?$/i.test(c.trim())) || '';
+  if (detectedEpic)         document.getElementById('col-epic').value          = detectedEpic;
 
   workflowStages = detectWorkflowCols();
   workflowStages.forEach(col => { if (!(col in stageTypes)) stageTypes[col] = autoDetectStageType(col); });
   buildWorkflowUI();
   autoDetect();
 
-  ['col-start','col-end','col-active','col-id','col-title','col-link','col-blocked','col-blocked-flag','filter-range'].forEach(id => {
+  ['col-start','col-end','col-active','col-id','col-title','col-link','col-blocked','col-blocked-flag','col-epic','filter-range'].forEach(id => {
     document.getElementById(id).addEventListener('change', renderAll);
   });
 
@@ -2146,6 +2150,7 @@ function getConfig() {
     linkCol:        document.getElementById('col-link').value,
     blockedDaysCol:  document.getElementById('col-blocked').value,
     blockedFlagCol:  document.getElementById('col-blocked-flag').value,
+    epicCol:         document.getElementById('col-epic').value || null,
     filters: filterRowIds.map(id => {
       const colEl = document.getElementById(`fcol-${id}`);
       const opEl  = document.getElementById(`fop-${id}`);
@@ -3015,23 +3020,11 @@ function updateFilterContextBar() {
 function renderEpicProgress() {
   const cfg = getConfig();
   const container = document.getElementById('ep-content');
-  const sel = document.getElementById('ep-link-col');
-
-  // Candidate link columns: non-date columns whose values look like issue keys
-  const keyRe = /^[A-Z][A-Z0-9_]+-\d+$/;
-  const dateCols = new Set(workflowStages);
-  const candidates = columns.filter(c => !dateCols.has(c) && c !== cfg.idCol &&
-    allRows.some(r => keyRe.test((r[c] || '').trim())));
-  const prev = sel.value;
-  sel.innerHTML = '<option value="">— choose a column —</option>' +
-    candidates.map(c => `<option value="${c}"${c === prev ? ' selected' : ''}>${c}</option>`).join('');
-  if (!sel.value && candidates.length) {
-    sel.value = candidates.find(c => /epic.?link|^parent/i.test(c)) || candidates[0];
-  }
-  const linkCol = sel.value;
+  const linkCol = cfg.epicCol;
+  document.getElementById('ep-link-note').innerHTML = linkCol ? `Epic column: <strong>${linkCol}</strong> · change it under <em>Epic Link</em> in the Config panel` : '';
   if (!linkCol) {
     container.innerHTML = `<div class="empty-state" style="line-height:1.6"><strong>This report needs to know which Epic each item belongs to.</strong><br>
-      Your data has no column that links items to an Epic. Add the Jira <em>Epic Link</em> field (older Jira) or <em>Parent</em> field (newer Jira) to your export —
+      No <em>Epic Link</em> column is set in the Config panel. If your data has one, pick it there. If not, add the Jira <em>Epic Link</em> field (older Jira) or <em>Parent</em> field (newer Jira) to your export —
       one column holding the Epic's ID, e.g. <code>ABC-123</code>. Include the Epic rows too so their names show. <a href="https://simeon-techbss.github.io/flow-lens/guide.html#epic-link" target="_blank" style="color:#0ea5e9">See the data guide →</a></div>`;
     return;
   }
@@ -3081,7 +3074,7 @@ function renderEpicProgress() {
   const list = Object.values(epics);
   if (!list.length) {
     container.innerHTML = `<div class="empty-state" style="line-height:1.6"><strong>No items are linked to an Epic.</strong><br>
-      The <em>${linkCol}</em> column is empty for every item that passes your current filters. Check the filters, or pick a different column above. <a href="https://simeon-techbss.github.io/flow-lens/guide.html#epic-link" target="_blank" style="color:#0ea5e9">See the data guide →</a></div>`;
+      The <em>${linkCol}</em> column is empty for every item that passes your current filters. Check the filters, or pick a different Epic Link column in the Config panel. <a href="https://simeon-techbss.github.io/flow-lens/guide.html#epic-link" target="_blank" style="color:#0ea5e9">See the data guide →</a></div>`;
     return;
   }
 
@@ -5397,7 +5390,7 @@ function buildConfigPayload() {
   const cfg = getConfig();
   return {
     version:  2,
-    fields:   { startCol: cfg.startCol, endCol: cfg.endCol, activeCol: cfg.activeCol, idCol: cfg.idCol, titleCol: cfg.titleCol, linkCol: cfg.linkCol, blockedDaysCol: cfg.blockedDaysCol, blockedFlagCol: cfg.blockedFlagCol },
+    fields:   { startCol: cfg.startCol, endCol: cfg.endCol, activeCol: cfg.activeCol, idCol: cfg.idCol, titleCol: cfg.titleCol, linkCol: cfg.linkCol, blockedDaysCol: cfg.blockedDaysCol, blockedFlagCol: cfg.blockedFlagCol, epicCol: cfg.epicCol },
     workflow: { stages: workflowStages, types: stageTypes, hidden: [...hiddenStages] },
     filters:  cfg.filters,
     dateRange: document.getElementById('filter-range').value,
@@ -5455,7 +5448,7 @@ function applyConfig(cfg) {
   const fieldMap = {
     startCol: 'col-start', endCol: 'col-end', activeCol: 'col-active',
     idCol: 'col-id', titleCol: 'col-title', linkCol: 'col-link',
-    blockedDaysCol: 'col-blocked', blockedFlagCol: 'col-blocked-flag',
+    blockedDaysCol: 'col-blocked', blockedFlagCol: 'col-blocked-flag', epicCol: 'col-epic',
   };
   if (cfg.fields) {
     Object.entries(fieldMap).forEach(([key, elId]) => {
