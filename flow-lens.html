@@ -703,6 +703,7 @@ License: MIT
         <span>Workflow Stages</span>
         <small>Drag to reorder · order drives the CFD · stages <strong>before</strong> your Start column are treated as backlog (fuzzy front end) · <strong>P</strong> process · <strong>Q</strong> queue · <strong>X</strong> discarded (Rejected, Cancelled…)</small>
       </div>
+      <div id="workflow-notice" style="display:none;margin:0.5rem 0;padding:0.5rem 0.75rem;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;font-size:0.8rem;color:#1e40af"></div>
       <div class="stage-list" id="stage-list"></div>
     </div>
 
@@ -1533,7 +1534,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-10-14b';
+const VERSION = '2026-10-14c';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -5570,12 +5571,37 @@ function applyConfig(cfg) {
   }
 
   if (cfg.workflow) {
-    if (cfg.workflow.stages) workflowStages = cfg.workflow.stages.filter(s => columns.includes(s));
+    let addedStages = [];
+    if (cfg.workflow.stages) {
+      workflowStages = cfg.workflow.stages.filter(s => columns.includes(s));
+      // Overlay: stage columns in this file that the saved config doesn't know about are kept,
+      // slotted in after the stage that comes before them in the file.
+      const fileStages = detectWorkflowCols();
+      addedStages = fileStages.filter(c => !workflowStages.includes(c));
+      addedStages.forEach(c => {
+        const prev = fileStages.slice(0, fileStages.indexOf(c)).reverse().find(p => workflowStages.includes(p));
+        workflowStages.splice(prev ? workflowStages.indexOf(prev) + 1 : 0, 0, c);
+      });
+    }
     if (cfg.workflow.types) {
       stageTypes = {};
       Object.entries(cfg.workflow.types).forEach(([k, v]) => {
         stageTypes[k] = (v === 'P' || v === 'process') ? 'process' : (v === 'X' || v === 'discarded') ? 'discarded' : 'queue';
       });
+    }
+    workflowStages.forEach(c => { if (!(c in stageTypes)) stageTypes[c] = autoDetectStageType(c); });
+    const notice = document.getElementById('workflow-notice');
+    notice.style.display = addedStages.length ? 'block' : 'none';
+    notice.innerHTML = addedStages.length
+      ? `New stage column${addedStages.length === 1 ? '' : 's'} in this file, added to your loaded config: <strong>${addedStages.join(', ')}</strong>.
+         Check ${addedStages.length === 1 ? 'its' : 'their'} P / Q / X type below, then <strong>Save config</strong> to keep ${addedStages.length === 1 ? 'it' : 'them'}.`
+      : '';
+    if (addedStages.length) {
+      // Make sure the user sees it — config panel is collapsed after a load
+      setTimeout(() => {
+        const body = document.getElementById('config-body'), btn = document.getElementById('btn-toggle-config');
+        if (body) { body.classList.remove('config-collapsed'); btn.textContent = 'Collapse Config'; }
+      }, 0);
     }
     if (cfg.workflow.hidden) hiddenStages = new Set(cfg.workflow.hidden);
     // Old configs (version < 2) don't encode pre-startCol visibility — apply default auto-hide

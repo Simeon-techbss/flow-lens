@@ -327,11 +327,13 @@
     <h2>Setting up the tool</h2>
     <ol class="steps">
       <li>Drop your CSV onto the tool. It will detect date columns automatically.</li>
-      <li>In the <strong>Config</strong> panel, map your columns: set Start, End, and optionally ID, Title, Link, Blocked Days.</li>
+      <li>In the <strong>Config</strong> panel, map your columns: set Start, End, and optionally Active Work Starts, ID, Title, Link, Blocked Days, Currently Blocked and Epic Link.</li>
       <li>Drag the workflow stage rows into the correct order — left to right, earliest to latest.</li>
-      <li>Hide any terminal stages you don't want counted as completions (e.g. a "Cancelled" or "Not done" column) using the <strong>×</strong> button next to each stage.</li>
+      <li>Set each stage's type with its button: <strong>P</strong> process, <strong>Q</strong> queue, <strong>X</strong> discarded (e.g. Cancelled, Withdrawn, Not done). <a href="#discarded" style="color:#0ea5e9">More on discarded stages ↓</a></li>
       <li>The charts update immediately. Use the date range filters to zoom in.</li>
+      <li>Click <strong>Save config</strong> to keep your setup as a small JSON file. Next time, drop in the new CSV and click <strong>Load config</strong>.</li>
     </ol>
+    <p>If your export gains a new stage column (say you start capturing <em>Withdrawn</em>), just load your old config. Your saved settings are applied and the new column is added to the workflow with a note asking you to check its type. Then <strong>Save config</strong> again to keep it.</p>
   </div>
 
   <div class="card">
