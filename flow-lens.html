@@ -1533,7 +1533,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-10-14a';
+const VERSION = '2026-10-14b';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -2299,8 +2299,12 @@ function processData(cfg) {
       dqIssues.push({ type: 'no-dates', id, title, link });
     }
 
+    // Done + Discarded is only suspicious when the X stage sits after End Date. When it sits before,
+    // export tools back-fill it as the item "passes through" on its way to Done — expected, not an issue.
     if (endDate && discardDate) {
-      dqIssues.push({ type: 'done-and-discarded', id, title, link, endDate, discardDate });
+      const endIdx = workflowStages.indexOf(cfg.endCol);
+      const lateDiscard = workflowStages.some((c, i) => i > endIdx && stageTypes[c] === 'discarded' && getCachedDate(row, c));
+      if (lateDiscard) dqIssues.push({ type: 'done-and-discarded', id, title, link, endDate, discardDate });
     }
 
     if (startDate && !endDate && !discardDate) {
@@ -3165,8 +3169,7 @@ function renderEpicProgress() {
     }
     const e = epics[key] || (epics[key] = { key, items: [], firstStart: null, done: 0, active: 0, committed: 0, todo: 0, discarded: 0 });
     e[status]++;
-    if (status === 'discarded') return;   // counted, but not part of the Epic's remaining work
-    if (activeD && (!e.firstStart || activeD < e.firstStart)) e.firstStart = activeD;   // first real work, not first commit
+    if (status !== 'discarded' && activeD && (!e.firstStart || activeD < e.firstStart)) e.firstStart = activeD;   // first real work, not first commit
     e.items.push({ id: cfg.idCol ? row[cfg.idCol] : '', title: cfg.titleCol ? row[cfg.titleCol] : '', link: cfg.linkCol ? row[cfg.linkCol] : '', status, stage, endD });
   });
 
@@ -3178,25 +3181,26 @@ function renderEpicProgress() {
   }
 
   list.forEach(e => {
-    e.total = e.items.length;   // excludes discarded stories
-    e.pct = Math.round(e.done / e.total * 100);
+    e.total = e.items.length - e.discarded;   // discarded stories are listed but not part of the Epic's work
+    e.allDiscarded = e.total === 0;
+    e.pct = e.total ? Math.round(e.done / e.total * 100) : 0;
     e.remaining = e.total - e.done;
     const weeks = e.firstStart ? Math.max(1, (today - e.firstStart) / (7 * 86400000)) : null;
     e.pace = weeks && e.done ? e.done / weeks : 0;
     e.forecast = (e.remaining && e.done >= 3 && e.pace > 0) ? new Date(today.getTime() + e.remaining / e.pace * 7 * 86400000) : null;
     e.epicDiscarded = epicDiscardById[e.key] || null;
-    e.rank = e.epicDiscarded ? 3 : e.remaining === 0 ? 2 : (e.active || e.done) ? 0 : 1;   // in flight, not started, finished, discarded
+    e.rank = (e.epicDiscarded || e.allDiscarded) ? 3 : e.remaining === 0 ? 2 : (e.active || e.done) ? 0 : 1;   // in flight, not started, finished, discarded
   });
   list.sort((a, b) => a.rank - b.rank || b.pct - a.pct || b.total - a.total);
 
   const esc = t => String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
   const fmt = d => d ? d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—';
-  const colours = { done: '#22c55e', active: '#3b82f6', committed: '#8b5cf6', todo: '#cbd5e1' };
-  const labels  = { done: 'Done', active: 'In progress', committed: 'Committed', todo: 'Not started' };
+  const colours = { done: '#22c55e', active: '#3b82f6', committed: '#8b5cf6', todo: '#cbd5e1', discarded: '#fca5a5' };
+  const labels  = { done: 'Done', active: 'In progress', committed: 'Committed', todo: 'Not started', discarded: 'Discarded' };
   const dim = '<span style="color:#94a3b8">—</span>';
 
   let html = `<div style="display:flex;gap:1rem;flex-wrap:wrap;font-size:0.78rem;color:#475569;margin-bottom:0.75rem">` +
-    Object.keys(colours).map(k => `<span style="display:inline-flex;align-items:center;gap:0.35rem"><span style="width:10px;height:10px;border-radius:2px;background:${colours[k]}"></span>${labels[k]}</span>`).join('') +
+    ['done', 'active', 'committed', 'todo'].map(k => `<span style="display:inline-flex;align-items:center;gap:0.35rem"><span style="width:10px;height:10px;border-radius:2px;background:${colours[k]}"></span>${labels[k]}</span>`).join('') +
     `</div><table class="bd-table"><thead><tr>
       <th>Epic</th><th style="min-width:180px">Progress</th><th>Done</th><th>In progress</th><th>Started</th><th>Pace</th><th>Forecast</th>
     </tr></thead><tbody>`;
@@ -3206,11 +3210,12 @@ function renderEpicProgress() {
     const bar = ['done', 'active', 'committed', 'todo'].filter(k => e[k])
       .map(k => `<div title="${labels[k]}: ${e[k]}" style="width:${e[k] / e.total * 100}%;background:${colours[k]}"></div>`).join('');
     const forecast = e.epicDiscarded ? `<span style="color:#b91c1c;font-weight:600" title="The Epic itself is in a stage marked X">Discarded ${fmt(e.epicDiscarded)}</span>`
+      : e.allDiscarded ? '<span style="color:#b91c1c;font-weight:600">All stories discarded</span>'
       : e.remaining === 0 ? '<span style="color:#16a34a;font-weight:600">Complete</span>'
       : e.forecast ? fmt(e.forecast)
       : !e.firstStart ? '<span style="color:#94a3b8">Not started</span>'
       : `<span style="color:#94a3b8" title="Needs 3+ stories done">Too early</span>`;
-    html += `<tr style="cursor:pointer${e.epicDiscarded ? ';opacity:0.55' : ''}" onclick="const r=document.getElementById('ep-detail-${i}');r.style.display=r.style.display==='none'?'table-row':'none'">
+    html += `<tr style="cursor:pointer${e.epicDiscarded || e.allDiscarded ? ';opacity:0.55' : ''}" onclick="const r=document.getElementById('ep-detail-${i}');r.style.display=r.style.display==='none'?'table-row':'none'">
       <td style="font-weight:600;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${name}">▸ ${name}</td>
       <td><div style="display:flex;height:12px;border-radius:6px;overflow:hidden;background:#f1f5f9">${bar}</div></td>
       <td>${e.done}/${e.total} <span style="color:#94a3b8;font-size:0.78em">${e.pct}%</span>${e.discarded ? `<div style="color:#94a3b8;font-size:0.72em">+${e.discarded} discarded</div>` : ''}</td>
@@ -3220,13 +3225,13 @@ function renderEpicProgress() {
       <td>${forecast}</td>
     </tr>
     <tr id="ep-detail-${i}" style="display:none"><td colspan="7" style="background:#f8fafc;padding:0.5rem 1rem">
-      ${e.items.sort((a, b) => ['active','committed','todo','done'].indexOf(a.status) - ['active','committed','todo','done'].indexOf(b.status)).map(it => {
+      ${e.items.sort((a, b) => ['active','committed','todo','done','discarded'].indexOf(a.status) - ['active','committed','todo','done','discarded'].indexOf(b.status)).map(it => {
         const label = esc([it.id, it.title].filter(Boolean).join(' — '));
         const txt = it.link ? `<a href="${esc(it.link)}" target="_blank" rel="noopener" style="color:#2563eb;text-decoration:none">${label}</a>` : label;
         return `<div style="display:flex;gap:0.6rem;align-items:center;font-size:0.8rem;padding:2px 0">
           <span style="width:8px;height:8px;border-radius:2px;background:${colours[it.status]};flex:none"></span>
           <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${txt}</span>
-          <span style="color:#64748b;white-space:nowrap">${esc(it.stage || 'No dates')}${it.endD ? ' · ' + fmt(it.endD) : ''}</span></div>`;
+          <span style="color:#64748b;white-space:nowrap">${it.status === 'discarded' ? 'Discarded' : esc(it.stage || 'No dates')}${it.endD ? ' · ' + fmt(it.endD) : ''}</span></div>`;
       }).join('')}
     </td></tr>`;
   });
@@ -7186,7 +7191,7 @@ function renderDataQuality() {
       type: 'done-and-discarded',
       title: 'Both Done and Discarded',
       badge: 'amber',
-      desc: 'These items have a date in your End Date column and in a Discarded stage (marked X). They are counted as delivered. Check whether they were really rejected or cancelled — if so, clear the Done date in your source system.',
+      desc: 'These items have a date in your End Date column and in a Discarded stage (marked X) that comes after it. They are counted as delivered. Check whether they were really rejected or cancelled — if so, clear the Done date in your source system.',
       headers: ['Item', 'Done', 'Discarded'],
       row: i => `${itemCell(i.id, i.title, i.link)}<td>${fmtD(i.endDate)}</td><td>${fmtD(i.discardDate)}</td>`,
     },
