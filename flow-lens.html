@@ -1534,7 +1534,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-10-14c';
+const VERSION = '2026-10-14d';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -1588,9 +1588,23 @@ function getDiscardDate(row) {
   return first;
 }
 
-// When the item left the system — delivered (End Date) or discarded. Null while still open.
+// Delivered date: the End Date, unless the item also reached a Discarded stage that sits AFTER
+// End Date in the file's column order — then where it ended up was discarded. Export tools fill in every
+// stage an item passes through, so whichever of Done / Discarded comes later in the order wins.
+// Works whether the export puts Withdrawn before or after Done.
+function getDeliveredDate(row, cfg) {
+  const end = cfg.endCol ? getCachedDate(row, cfg.endCol) : null;
+  if (!end) return null;
+  // Uses the FILE's column order (how the export tool filled dates in), not the stage list order,
+  // so an old saved config with a different order can't flip the result.
+  const endIdx = columns.indexOf(cfg.endCol);
+  const laterDiscard = columns.some((c, i) => i > endIdx && stageTypes[c] === 'discarded' && getCachedDate(row, c));
+  return laterDiscard ? null : end;
+}
+
+// When the item left the system — delivered or discarded. Null while still open.
 function getExitDate(row, cfg) {
-  return (cfg.endCol && getCachedDate(row, cfg.endCol)) || getDiscardDate(row);
+  return getDeliveredDate(row, cfg) || getDiscardDate(row);
 }
 
 // Actionable Agile exports have two CSV corruption patterns:
@@ -2278,7 +2292,7 @@ function processData(cfg) {
     if (!rowMatchesFilters(row, cfg)) return;
     totalRows++;
     const startDate = getCachedDate(row, cfg.startCol);
-    const endDate   = getCachedDate(row, cfg.endCol);
+    const endDate   = getDeliveredDate(row, cfg);
     const discardDate = getDiscardDate(row);
     const id          = cfg.idCol    ? (row[cfg.idCol]    || '') : '';
     const title       = cfg.titleCol ? (row[cfg.titleCol] || '') : '';
@@ -2292,7 +2306,7 @@ function processData(cfg) {
     // ── Data quality checks ─────────────────────────────────────────────
     const rawEnd   = cfg.endCol   ? (row[cfg.endCol]   || '').trim() : '';
     const rawStart = cfg.startCol ? (row[cfg.startCol] || '').trim() : '';
-    if (rawEnd && !endDate)   dqIssues.push({ type: 'bad-date', id, title, link, detail: `"${rawEnd}" in ${cfg.endCol} could not be read as a date` });
+    if (rawEnd && !getCachedDate(row, cfg.endCol)) dqIssues.push({ type: 'bad-date', id, title, link, detail: `"${rawEnd}" in ${cfg.endCol} could not be read as a date` });
     if (rawStart && !startDate) dqIssues.push({ type: 'bad-date', id, title, link, detail: `"${rawStart}" in ${cfg.startCol} could not be read as a date` });
 
     const hasAnyStageDate = workflowStages.some(col => getCachedDate(row, col));
@@ -2300,13 +2314,6 @@ function processData(cfg) {
       dqIssues.push({ type: 'no-dates', id, title, link });
     }
 
-    // Done + Discarded is only suspicious when the X stage sits after End Date. When it sits before,
-    // export tools back-fill it as the item "passes through" on its way to Done — expected, not an issue.
-    if (endDate && discardDate) {
-      const endIdx = workflowStages.indexOf(cfg.endCol);
-      const lateDiscard = workflowStages.some((c, i) => i > endIdx && stageTypes[c] === 'discarded' && getCachedDate(row, c));
-      if (lateDiscard) dqIssues.push({ type: 'done-and-discarded', id, title, link, endDate, discardDate });
-    }
 
     if (startDate && !endDate && !discardDate) {
       const startIdx = workflowStages.indexOf(cfg.startCol);
@@ -3160,7 +3167,7 @@ function renderEpicProgress() {
     if (!rowMatchesFilters(row, cfg)) return;
     const key = (row[linkCol] || '').trim();
     if (!key) { if (!epicKeys.has(cfg.idCol ? (row[cfg.idCol] || '').trim() : '')) unlinked++; return; }  // Epic rows themselves aren't "unlinked"
-    const endD    = cfg.endCol ? getCachedDate(row, cfg.endCol) : null;
+    const endD    = getDeliveredDate(row, cfg);
     const activeD = reached(row, cfg.activeCol || cfg.startCol);
     const startD  = reached(row, cfg.startCol);
     const status  = endD ? 'done' : getDiscardDate(row) ? 'discarded' : activeD ? 'active' : startD ? 'committed' : 'todo';
@@ -3299,7 +3306,7 @@ function renderBreakdown() {
   const preStartCols = getPreStartStages(cfg);
   baseRows.forEach(row => {
     const startD  = cfg.startCol  ? getCachedDate(row, cfg.startCol)  : null;
-    const endD    = cfg.endCol    ? getCachedDate(row, cfg.endCol)    : null;
+    const endD    = getDeliveredDate(row, cfg);
     const activeD = cfg.activeCol ? getCachedDate(row, cfg.activeCol) : startD;
     const backlogDate = preStartCols.length
       ? preStartCols.reduce((earliest, col) => { const d = getCachedDate(row, col); return d && (!earliest || d < earliest) ? d : earliest; }, null)
@@ -3613,7 +3620,7 @@ function renderCTOverTime() {
   const completed = allRows
     .filter(row => rowMatchesFilters(row, cfg))
     .map(row => {
-      const s = getCachedDate(row, cfg.startCol), e = getCachedDate(row, cfg.endCol);
+      const s = getCachedDate(row, cfg.startCol), e = getDeliveredDate(row, cfg);
       if (!s || !e || e < s) return null;
       return { endDate: e, ct: daysBetween(s, e) };
     })
@@ -6327,9 +6334,9 @@ function renderBurnUpTab() {
       if (d && (!earliest || d < earliest)) earliest = d;
     }
     if (!earliest) return;
-    if (!getCachedDate(row, cfg.endCol) && getDiscardDate(row)) return;   // discarded — not scope
+    if (!getDeliveredDate(row, cfg) && getDiscardDate(row)) return;   // discarded — not scope
     entryDates.push(earliest);
-    const done = getCachedDate(row, cfg.endCol);
+    const done = getDeliveredDate(row, cfg);
     if (done) doneDates.push(done);
   });
 
@@ -7213,14 +7220,6 @@ function renderDataQuality() {
   }
 
   const sections = [
-    {
-      type: 'done-and-discarded',
-      title: 'Both Done and Discarded',
-      badge: 'amber',
-      desc: 'These items have a date in your End Date column and in a Discarded stage (marked X) that comes after it. They are counted as delivered. Check whether they were really rejected or cancelled — if so, clear the Done date in your source system.',
-      headers: ['Item', 'Done', 'Discarded'],
-      row: i => `${itemCell(i.id, i.title, i.link)}<td>${fmtD(i.endDate)}</td><td>${fmtD(i.discardDate)}</td>`,
-    },
     {
       type: 'no-progress',
       title: 'Committed but not moved in 4+ weeks',
