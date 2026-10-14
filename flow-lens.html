@@ -1431,7 +1431,7 @@ License: MIT
           <div class="info-row"><strong>Where the data comes from</strong> — needs a column linking each story to its Epic (e.g. <em>Epic Link</em> or <em>Parent</em>). Epic names come from the Epic's own row in the file; if it isn't there, the Epic key is shown.</div>
           <div class="info-row"><strong>Bar colours</strong> — green = Done, blue = In progress (reached Active Work Starts), purple = Committed (reached Start Date), grey = Not started.</div>
           <div class="info-row"><strong>Started</strong> — when the first story reached Active Work Starts. <strong>Pace</strong> — stories done per week since then. <strong>Forecast</strong> = remaining stories ÷ pace. It is a rough guide, not a promise: it assumes the pace stays the same and nothing new is added. Shown only once an Epic has 3+ stories done.</div>
-          <div class="info-row"><strong>Discarded stories</strong> (in a stage marked X, e.g. Rejected) are left out of the totals and shown as "+N discarded".</div>
+          <div class="info-row"><strong>Discarded stories</strong> (in a stage marked X, e.g. Rejected, Withdrawn) are left out of the totals and shown as "+N discarded". If the <strong>Epic itself</strong> is in an X stage, it is greyed out, moved to the bottom and marked "Discarded".</div>
           <div class="info-row"><strong>Filters</strong> — active filters apply to the stories counted.</div>
         </div>
         <div id="ep-link-note" style="margin-bottom:0.75rem;font-size:0.8rem;color:#64748b"></div>
@@ -1533,7 +1533,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-10-09f';
+const VERSION = '2026-10-14a';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -2089,8 +2089,10 @@ function populateFilterValuesById(id) {
 // ── Workflow stages ────────────────────────────────────────────────────────
 function autoDetectStageType(col) {
   const lower = col.toLowerCase();
-  if (/reject|cancel|not.?done|won'?t|abandon|discard|declin|duplicate/.test(lower)) return 'discarded';
+  if (/reject|cancel|not.?done|won'?t|abandon|discard|declin|duplicate|withdr|obsolete|descoped|de-scoped/.test(lower)) return 'discarded';
+  if (/^(ready|awaiting|waiting|pending)\b/.test(lower)) return 'queue';   // "Ready for Dev" is a queue, not Dev
   const processWords = ['doing','active','progress','dev','review','analysis','building','working','in flight','in-flight'];
+  if (/\b(qa|sit|uat|test|testing)\b/.test(lower)) return 'process';
   return processWords.some(k => lower.includes(k)) ? 'process' : 'queue';
 }
 
@@ -3122,10 +3124,14 @@ function renderEpicProgress() {
   }
 
   // Epic names from the Epic's own row (unfiltered, so "Only Story" filters don't hide names)
-  const nameById = {}, linkById = {};
+  const nameById = {}, linkById = {}, epicDiscardById = {};
   allRows.forEach(r => {
     const id = cfg.idCol ? (r[cfg.idCol] || '').trim() : '';
-    if (id) { nameById[id] = cfg.titleCol ? (r[cfg.titleCol] || '').trim() : ''; linkById[id] = cfg.linkCol ? (r[cfg.linkCol] || '').trim() : ''; }
+    if (id) {
+      nameById[id] = cfg.titleCol ? (r[cfg.titleCol] || '').trim() : '';
+      linkById[id] = cfg.linkCol ? (r[cfg.linkCol] || '').trim() : '';
+      epicDiscardById[id] = getDiscardDate(r);   // the Epic itself was withdrawn / cancelled
+    }
   });
 
   // Has the row reached this stage or any later one? (skips stages are common; hidden stages like "Not done" ignored)
@@ -3178,7 +3184,8 @@ function renderEpicProgress() {
     const weeks = e.firstStart ? Math.max(1, (today - e.firstStart) / (7 * 86400000)) : null;
     e.pace = weeks && e.done ? e.done / weeks : 0;
     e.forecast = (e.remaining && e.done >= 3 && e.pace > 0) ? new Date(today.getTime() + e.remaining / e.pace * 7 * 86400000) : null;
-    e.rank = e.remaining === 0 ? 2 : (e.active || e.done) ? 0 : 1;   // in flight first, then not started, then finished
+    e.epicDiscarded = epicDiscardById[e.key] || null;
+    e.rank = e.epicDiscarded ? 3 : e.remaining === 0 ? 2 : (e.active || e.done) ? 0 : 1;   // in flight, not started, finished, discarded
   });
   list.sort((a, b) => a.rank - b.rank || b.pct - a.pct || b.total - a.total);
 
@@ -3198,11 +3205,12 @@ function renderEpicProgress() {
     const name = nameById[e.key] ? `${esc(e.key)} — ${esc(nameById[e.key])}` : esc(e.key);
     const bar = ['done', 'active', 'committed', 'todo'].filter(k => e[k])
       .map(k => `<div title="${labels[k]}: ${e[k]}" style="width:${e[k] / e.total * 100}%;background:${colours[k]}"></div>`).join('');
-    const forecast = e.remaining === 0 ? '<span style="color:#16a34a;font-weight:600">Complete</span>'
+    const forecast = e.epicDiscarded ? `<span style="color:#b91c1c;font-weight:600" title="The Epic itself is in a stage marked X">Discarded ${fmt(e.epicDiscarded)}</span>`
+      : e.remaining === 0 ? '<span style="color:#16a34a;font-weight:600">Complete</span>'
       : e.forecast ? fmt(e.forecast)
       : !e.firstStart ? '<span style="color:#94a3b8">Not started</span>'
       : `<span style="color:#94a3b8" title="Needs 3+ stories done">Too early</span>`;
-    html += `<tr style="cursor:pointer" onclick="const r=document.getElementById('ep-detail-${i}');r.style.display=r.style.display==='none'?'table-row':'none'">
+    html += `<tr style="cursor:pointer${e.epicDiscarded ? ';opacity:0.55' : ''}" onclick="const r=document.getElementById('ep-detail-${i}');r.style.display=r.style.display==='none'?'table-row':'none'">
       <td style="font-weight:600;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${name}">▸ ${name}</td>
       <td><div style="display:flex;height:12px;border-radius:6px;overflow:hidden;background:#f1f5f9">${bar}</div></td>
       <td>${e.done}/${e.total} <span style="color:#94a3b8;font-size:0.78em">${e.pct}%</span>${e.discarded ? `<div style="color:#94a3b8;font-size:0.72em">+${e.discarded} discarded</div>` : ''}</td>
