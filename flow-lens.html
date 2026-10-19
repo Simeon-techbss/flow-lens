@@ -1534,7 +1534,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-10-19e';
+const VERSION = '2026-10-19f';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -3969,11 +3969,10 @@ function renderCFD() {
               });
             },
           },
-          // Clicking a stage shows/hides it for real (same as ⊕/× in the stage list), so the bands are
-          // recalculated and the choice is saved with the config
-          onClick: (e, item) => {
-            if (hiddenStages.has(item.text)) hiddenStages.delete(item.text); else hiddenStages.add(item.text);
-            buildWorkflowUI(); renderAll();
+          // Legend click is display-only (Chart.js default). Hidden-stage entries have no band, so do nothing.
+          onClick: (e, item, legend) => {
+            if (item.datasetIndex < 0) return;
+            Chart.defaults.plugins.legend.onClick(e, item, legend);
           },
         },
         tooltip: { enabled: false }
