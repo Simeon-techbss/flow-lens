@@ -1534,7 +1534,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-10-14d';
+const VERSION = '2026-10-19a';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -1980,6 +1980,8 @@ function setupConfig() {
 
   workflowStages = detectWorkflowCols();
   workflowStages.forEach(col => { if (!(col in stageTypes)) stageTypes[col] = autoDetectStageType(col); });
+  // Discarded stages start hidden from the CFD — the user can show them with ⊕ if they want the band
+  workflowStages.forEach(col => { if (stageTypes[col] === 'discarded') hiddenStages.add(col); });
   buildWorkflowUI();
   autoDetect();
 
@@ -2207,10 +2209,9 @@ function toggleStageType(col, btn) {
   event.stopPropagation();
   const next = { process: 'queue', queue: 'discarded', discarded: 'process' };
   stageTypes[col] = next[stageTypes[col] || 'queue'];
-  btn.textContent = STAGE_TYPE_LETTER[stageTypes[col]];
-  btn.title = `${STAGE_TYPE_TITLE[stageTypes[col]]} — click to change`;
-  btn.className = `stage-type-btn ${stageTypes[col]}`;
-  renderAll();
+  // Marking a stage X hides it from the CFD; moving it off X shows it again
+  if (stageTypes[col] === 'discarded') hiddenStages.add(col); else hiddenStages.delete(col);
+  buildWorkflowUI(); renderAll();
 }
 
 function calculateFlowEfficiency(completedItems) {
@@ -3751,7 +3752,11 @@ function buildCFDData() {
 
   const cfg = getConfig();
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  const rows = allRows.filter(row => rowMatchesFilters(row, cfg));
+  // With every X stage hidden, discarded items leave the CFD altogether — otherwise they would
+  // sit in their last visible stage forever and inflate WIP. Showing an X stage brings back the band.
+  const showDiscarded = workflowStages.some(c => stageTypes[c] === 'discarded' && !hiddenStages.has(c));
+  const rows = allRows.filter(row => rowMatchesFilters(row, cfg)
+    && (showDiscarded || !getDiscardDate(row) || getDeliveredDate(row, cfg)));
   if (!rows.length) return null;
 
   // Parse all stage dates once, indexed [rowIdx][stageIdx]
@@ -5611,6 +5616,7 @@ function applyConfig(cfg) {
       }, 0);
     }
     if (cfg.workflow.hidden) hiddenStages = new Set(cfg.workflow.hidden);
+    addedStages.forEach(c => { if (stageTypes[c] === 'discarded') hiddenStages.add(c); });
     // Old configs (version < 2) don't encode pre-startCol visibility — apply default auto-hide
     if (!cfg.version || cfg.version < 2) {
       const startColVal = document.getElementById('col-start').value;
