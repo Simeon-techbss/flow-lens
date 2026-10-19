@@ -1534,7 +1534,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-10-19c';
+const VERSION = '2026-10-19d';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -1939,7 +1939,7 @@ function loadExampleData() {
         workflow: {
           stages: ['Backlog','Ready','Dev','Dev Done','Review','Done','Rejected'],
           types:  { Backlog:'queue', Ready:'queue', Dev:'process', 'Dev Done':'queue', Review:'process', Done:'queue', Rejected:'discarded' },
-          hidden: ['Rejected'],
+          hidden: ['Backlog','Rejected'],
         },
         filters:   [{ col:'Issue Type', vals:['Epic'], exclude:true }, { col:'Demand Source', val:'' }, { col:'Demand Type', val:'' }],
         dateRange: '0',
@@ -1980,8 +1980,7 @@ function setupConfig() {
 
   workflowStages = detectWorkflowCols();
   workflowStages.forEach(col => { if (!(col in stageTypes)) stageTypes[col] = autoDetectStageType(col); });
-  // Discarded stages start hidden from the CFD — the user can show them with ⊕ if they want the band
-  workflowStages.forEach(col => { if (stageTypes[col] === 'discarded') hiddenStages.add(col); });
+  workflowStages.forEach(col => { if (startsHidden(col)) hiddenStages.add(col); });
   buildWorkflowUI();
   autoDetect();
 
@@ -2104,6 +2103,12 @@ function populateFilterValuesById(id) {
 }
 
 // ── Workflow stages ────────────────────────────────────────────────────────
+// Stages hidden from the CFD by default: Discarded (X) stages, and anything named Backlog / Funnel.
+// The user can bring them back with ⊕ in the stage list or by clicking them in the CFD legend.
+function startsHidden(col) {
+  return stageTypes[col] === 'discarded' || /\b(backlog|funnel)\b/i.test(col);
+}
+
 function autoDetectStageType(col) {
   const lower = col.toLowerCase();
   if (/reject|cancel|not.?done|won'?t|abandon|discard|declin|duplicate|withdr|obsolete|descoped|de-scoped/.test(lower)) return 'discarded';
@@ -3955,23 +3960,20 @@ function renderCFD() {
           position: 'bottom', reverse: true,
           labels: {
             color: '#475569', font: { size: 11 }, boxWidth: 14, padding: 14,
-            // Hidden X stages still listed, struck through, so it's clear they exist but are excluded.
-            // Prepended because the legend is reversed — they end up last.
-            generateLabels: chart => [
-              ...workflowStages.filter(c => stageTypes[c] === 'discarded' && hiddenStages.has(c)).map(c => ({
+            // Hidden stages still listed in their place, struck through, so it's clear they exist but are
+            // excluded. Built in reverse workflow order because the legend is reversed.
+            generateLabels: chart => {
+              const shown = Object.fromEntries(Chart.defaults.plugins.legend.labels.generateLabels(chart).map(l => [l.text, l]));
+              return [...workflowStagesOrdered()].reverse().map(c => shown[c] || {
                 text: c, fillStyle: '#cbd5e1', strokeStyle: '#cbd5e1', fontColor: '#94a3b8', hidden: true, datasetIndex: -1,
-              })),
-              ...Chart.defaults.plugins.legend.labels.generateLabels(chart),
-            ],
+              });
+            },
           },
-          // X stages toggle the band properly (data recalculated) rather than just hiding the series
-          onClick: (e, item, legend) => {
-            if (stageTypes[item.text] === 'discarded') {
-              if (hiddenStages.has(item.text)) hiddenStages.delete(item.text); else hiddenStages.add(item.text);
-              buildWorkflowUI(); renderAll();
-              return;
-            }
-            Chart.defaults.plugins.legend.onClick(e, item, legend);
+          // Clicking a stage shows/hides it for real (same as ⊕/× in the stage list), so the bands are
+          // recalculated and the choice is saved with the config
+          onClick: (e, item) => {
+            if (hiddenStages.has(item.text)) hiddenStages.delete(item.text); else hiddenStages.add(item.text);
+            buildWorkflowUI(); renderAll();
           },
         },
         tooltip: { enabled: false }
@@ -5638,7 +5640,7 @@ function applyConfig(cfg) {
       }, 0);
     }
     if (cfg.workflow.hidden) hiddenStages = new Set(cfg.workflow.hidden);
-    addedStages.forEach(c => { if (stageTypes[c] === 'discarded') hiddenStages.add(c); });
+    addedStages.forEach(c => { if (startsHidden(c)) hiddenStages.add(c); });
     // Configs before version 3 were saved when X stages showed in the CFD by default — hide them now
     if (!cfg.version || cfg.version < 3) workflowStages.forEach(c => { if (stageTypes[c] === 'discarded') hiddenStages.add(c); });
     // Old configs (version < 2) don't encode pre-startCol visibility — apply default auto-hide
