@@ -1534,7 +1534,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-10-19a';
+const VERSION = '2026-10-19b';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -1934,7 +1934,7 @@ function loadExampleData() {
       document.getElementById('upload-area').style.display = 'none';
       setupConfig();
       applyConfig({
-        version: 2,
+        version: 3,
         fields: { startCol:'Ready', endCol:'Done', activeCol:'Dev', idCol:'ID', titleCol:'Title', blockedDaysCol:'Blocked Days', blockedFlagCol:'Currently Blocked', epicCol:'Epic Link' },
         workflow: {
           stages: ['Backlog','Ready','Dev','Dev Done','Review','Done','Rejected'],
@@ -5514,7 +5514,7 @@ function toggleFilterPanel() {
 function buildConfigPayload() {
   const cfg = getConfig();
   return {
-    version:  2,
+    version:  3,
     fields:   { startCol: cfg.startCol, endCol: cfg.endCol, activeCol: cfg.activeCol, idCol: cfg.idCol, titleCol: cfg.titleCol, linkCol: cfg.linkCol, blockedDaysCol: cfg.blockedDaysCol, blockedFlagCol: cfg.blockedFlagCol, epicCol: cfg.epicCol },
     workflow: { stages: workflowStages, types: stageTypes, hidden: [...hiddenStages] },
     filters:  cfg.filters,
@@ -5617,6 +5617,8 @@ function applyConfig(cfg) {
     }
     if (cfg.workflow.hidden) hiddenStages = new Set(cfg.workflow.hidden);
     addedStages.forEach(c => { if (stageTypes[c] === 'discarded') hiddenStages.add(c); });
+    // Configs before version 3 were saved when X stages showed in the CFD by default — hide them now
+    if (!cfg.version || cfg.version < 3) workflowStages.forEach(c => { if (stageTypes[c] === 'discarded') hiddenStages.add(c); });
     // Old configs (version < 2) don't encode pre-startCol visibility — apply default auto-hide
     if (!cfg.version || cfg.version < 2) {
       const startColVal = document.getElementById('col-start').value;
