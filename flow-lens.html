@@ -1534,7 +1534,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-10-19b';
+const VERSION = '2026-10-19c';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -1939,7 +1939,7 @@ function loadExampleData() {
         workflow: {
           stages: ['Backlog','Ready','Dev','Dev Done','Review','Done','Rejected'],
           types:  { Backlog:'queue', Ready:'queue', Dev:'process', 'Dev Done':'queue', Review:'process', Done:'queue', Rejected:'discarded' },
-          hidden: [],
+          hidden: ['Rejected'],
         },
         filters:   [{ col:'Issue Type', vals:['Epic'], exclude:true }, { col:'Demand Source', val:'' }, { col:'Demand Type', val:'' }],
         dateRange: '0',
@@ -3951,7 +3951,29 @@ function renderCFD() {
       responsive: true, maintainAspectRatio: false,
       onClick: handleCFDClick,
       plugins: {
-        legend: { position: 'bottom', reverse: true, labels: { color: '#475569', font: { size: 11 }, boxWidth: 14, padding: 14 } },
+        legend: {
+          position: 'bottom', reverse: true,
+          labels: {
+            color: '#475569', font: { size: 11 }, boxWidth: 14, padding: 14,
+            // Hidden X stages still listed, struck through, so it's clear they exist but are excluded.
+            // Prepended because the legend is reversed — they end up last.
+            generateLabels: chart => [
+              ...workflowStages.filter(c => stageTypes[c] === 'discarded' && hiddenStages.has(c)).map(c => ({
+                text: c, fillStyle: '#cbd5e1', strokeStyle: '#cbd5e1', fontColor: '#94a3b8', hidden: true, datasetIndex: -1,
+              })),
+              ...Chart.defaults.plugins.legend.labels.generateLabels(chart),
+            ],
+          },
+          // X stages toggle the band properly (data recalculated) rather than just hiding the series
+          onClick: (e, item, legend) => {
+            if (stageTypes[item.text] === 'discarded') {
+              if (hiddenStages.has(item.text)) hiddenStages.delete(item.text); else hiddenStages.add(item.text);
+              buildWorkflowUI(); renderAll();
+              return;
+            }
+            Chart.defaults.plugins.legend.onClick(e, item, legend);
+          },
+        },
         tooltip: { enabled: false }
       },
       interaction: { mode: 'index' },
