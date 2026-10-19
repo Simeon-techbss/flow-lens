@@ -1534,7 +1534,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-10-19d';
+const VERSION = '2026-10-19e';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -1939,7 +1939,7 @@ function loadExampleData() {
         workflow: {
           stages: ['Backlog','Ready','Dev','Dev Done','Review','Done','Rejected'],
           types:  { Backlog:'queue', Ready:'queue', Dev:'process', 'Dev Done':'queue', Review:'process', Done:'queue', Rejected:'discarded' },
-          hidden: ['Backlog','Rejected'],
+          hidden: ['Rejected'],
         },
         filters:   [{ col:'Issue Type', vals:['Epic'], exclude:true }, { col:'Demand Source', val:'' }, { col:'Demand Type', val:'' }],
         dateRange: '0',
@@ -2103,10 +2103,10 @@ function populateFilterValuesById(id) {
 }
 
 // ── Workflow stages ────────────────────────────────────────────────────────
-// Stages hidden from the CFD by default: Discarded (X) stages, and anything named Backlog / Funnel.
-// The user can bring them back with ⊕ in the stage list or by clicking them in the CFD legend.
+// Stages hidden from the CFD by default: Discarded (X) stages only. Hiding affects other tabs too,
+// so never auto-hide a stage that isn't X. The user can bring them back with ⊕ or the CFD legend.
 function startsHidden(col) {
-  return stageTypes[col] === 'discarded' || /\b(backlog|funnel)\b/i.test(col);
+  return stageTypes[col] === 'discarded';
 }
 
 function autoDetectStageType(col) {
