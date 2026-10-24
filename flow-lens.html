@@ -374,6 +374,19 @@ License: MIT
     .filter-chip { display:inline-flex; align-items:center; gap:0.2rem; padding:0.12rem 0.55rem; border-radius:20px; font-size:0.72rem; font-weight:500; white-space:nowrap; }
     .filter-chip-exclude { background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; }
     .filter-chip-include { background:#dbeafe; color:#1d4ed8; border:1px solid #93c5fd; }
+    .filter-chip-milestone { background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; }
+    #milestone-bar { display:none; align-items:center; flex-wrap:wrap; gap:0.4rem; margin:0.9rem 0 0.75rem; font-size:0.8rem; color:#475569; }
+    #milestone-bar .ms-label { font-weight:600; margin-right:0.2rem; }
+    .ms-pill { font-size:0.78rem; padding:0.28rem 0.8rem; border-radius:20px; border:1px solid #cbd5e1; background:white; color:#475569; cursor:pointer; }
+    .ms-pill:hover { border-color:#8b5cf6; }
+    .ms-pill.active { background:#7c3aed; border-color:#7c3aed; color:white; font-weight:600; }
+    .ms-pill small { opacity:0.75; font-weight:400; margin-left:0.3rem; }
+    .ms-row { display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap; margin-bottom:0.4rem; font-size:0.8rem; color:#64748b; }
+    .ms-row input { font-size:0.8rem; padding:0.25rem 0.45rem; border:1px solid #d1d5db; border-radius:5px; width:11rem; }
+    .ms-row select { font-size:0.8rem; padding:0.25rem; border:1px solid #d1d5db; border-radius:5px; }
+    .ms-row .ms-del { background:none; border:none; color:#94a3b8; cursor:pointer; font-size:1rem; }
+    .ms-row .ms-del:hover { color:#dc2626; }
+    .ms-row .ms-warn { color:#dc2626; font-size:0.75rem; }
     .bd-table { width:100%; border-collapse:collapse; font-size:0.83rem; }
     .bd-table th { text-align:left; font-size:0.75rem; font-weight:600; color:#94a3b8; text-transform:uppercase; letter-spacing:0.04em; padding:0.4rem 0.6rem; border-bottom:2px solid #f1f5f9; white-space:nowrap; }
     .bd-table td { padding:0.45rem 0.6rem; border-bottom:1px solid #f8fafc; color:#374151; vertical-align:middle; }
@@ -707,6 +720,15 @@ License: MIT
       <div class="stage-list" id="stage-list"></div>
     </div>
 
+    <div class="workflow-section" id="milestone-section" style="display:none">
+      <div class="workflow-section-header">
+        <span>Milestones</span>
+        <small>Measure to a point other than Done — e.g. <strong>Code Complete</strong> = Analysis → Ready for testing. Each milestone shows as a button above the charts; click one and every tab recalculates.</small>
+      </div>
+      <div id="milestone-rows"></div>
+      <button class="filter-add" onclick="addMilestone()">+ Add milestone</button>
+    </div>
+
   </div><!-- /#config-body -->
   </div><!-- /#config-panel -->
 
@@ -733,8 +755,16 @@ License: MIT
     </div>
   </div><!-- /#filter-panel -->
 
+  <div id="milestone-bar"></div>
+  <div class="info-panel" id="info-milestone" style="margin:0 0 0.75rem">
+    <div class="info-row"><strong>What changes</strong>Picking a milestone moves the Start and Finish points. An item counts as finished the first day it reached the milestone's finish stage, or any later stage. Work past that point is no longer WIP.</div>
+    <div class="info-row"><strong>Recalculated</strong>Flow Insights · <em>WIP &amp; Flow:</em> WIP Over Time, Work Split, Aging WIP, Arrival vs Departure · <em>Lead Time:</em> LT Over Time, Histogram, Control Chart, Flow Efficiency, Fuzzy Front End, Time in Stage · <em>Throughput:</em> Throughput, Burn Up, Epic Progress, Forecast · <em>Health:</em> Team Health, Blocked · <em>Data:</em> Breakdown, Data Quality, AI</div>
+    <div class="info-row"><strong>Not changed</strong>CFD — always shows every stage, so the handoff is already visible there. Data — the raw rows from your file.</div>
+    <div class="info-row"><strong>Flow efficiency</strong>Only counts stages up to the milestone's finish. Blocked days can't be split by stage, so all of an item's blocked days still count.</div>
+  </div>
+
   <div id="stats-bar">
-    <div class="stat"><div class="value" id="stat-count">—</div><div class="label">Items completed <a id="stat-dq-link" href="#" onclick="switchToTab('dq');return false;" style="display:none;font-size:0.7rem;font-weight:500;color:#f59e0b;text-decoration:none;margin-left:0.3rem" title="Data quality issues found">⚠</a></div></div>
+    <div class="stat"><div class="value" id="stat-count">—</div><div class="label"><span id="stat-count-label">Items completed</span> <a id="stat-dq-link" href="#" onclick="switchToTab('dq');return false;" style="display:none;font-size:0.7rem;font-weight:500;color:#f59e0b;text-decoration:none;margin-left:0.3rem" title="Data quality issues found">⚠</a></div></div>
     <div class="stat"><div class="value" id="stat-median">—</div><div class="label">Cycle time p50</div></div>
     <div class="stat"><div class="value" id="stat-p85">—</div><div class="label">Cycle time p85</div></div>
     <div class="stat"><div class="value" id="stat-throughput">—</div><div class="label">Throughput avg/wk</div></div>
@@ -1534,7 +1564,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-10-19f';
+const VERSION = '2026-10-24c';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -1543,6 +1573,8 @@ let currentSourceFile = 'flowlens';
 let workflowStages = [];
 let stageTypes = {};
 let hiddenStages = new Set();
+let milestones = [];            // [{ name, start, end }] — alternative Start/End pairs
+let activeMilestone = null;     // name of the selected milestone, null = Full flow
 let filterIdCounter = 0;
 let filterRowIds = [];
 let currentTab = 'insights';
@@ -1593,13 +1625,27 @@ function getDiscardDate(row) {
 // stage an item passes through, so whichever of Done / Discarded comes later in the order wins.
 // Works whether the export puts Withdrawn before or after Done.
 function getDeliveredDate(row, cfg) {
-  const end = cfg.endCol ? getCachedDate(row, cfg.endCol) : null;
+  const end = cfg.milestone ? milestoneReachedDate(row, cfg.endCol) : (cfg.endCol ? getCachedDate(row, cfg.endCol) : null);
   if (!end) return null;
   // Uses the FILE's column order (how the export tool filled dates in), not the stage list order,
   // so an old saved config with a different order can't flip the result.
   const endIdx = columns.indexOf(cfg.endCol);
   const laterDiscard = columns.some((c, i) => i > endIdx && stageTypes[c] === 'discarded' && getCachedDate(row, c));
   return laterDiscard ? null : end;
+}
+
+// Milestone end = first date the item reached that stage OR any later (non-X) stage.
+// Mid-flow stages get skipped (straight to QA) far more often than Done does.
+function milestoneReachedDate(row, col) {
+  const idx = workflowStages.indexOf(col);
+  if (idx < 0) return null;
+  let first = null;
+  workflowStages.slice(idx).forEach(s => {
+    if (stageTypes[s] === 'discarded') return;
+    const d = getCachedDate(row, s);
+    if (d && (!first || d < first)) first = d;
+  });
+  return first;
 }
 
 // When the item left the system — delivered or discarded. Null while still open.
@@ -1719,6 +1765,11 @@ function resetTool() {
   document.getElementById('config-panel').style.display = 'none';
   document.getElementById('filter-panel').style.display = 'none';
   document.getElementById('workflow-section').style.display = 'none';
+  document.getElementById('milestone-section').style.display = 'none';
+  document.getElementById('milestone-bar').style.display = 'none';
+  document.getElementById('info-milestone').classList.remove('open');
+  document.getElementById('filter-ctx-bar').style.display = 'none';
+  lastRenderPayload = null;
   document.getElementById('stats-bar').style.display = '';
   document.getElementById('tabs').style.display = 'none';
   document.getElementById('data-footer').style.display = 'none';
@@ -1951,6 +2002,7 @@ function loadExampleData() {
 // ── Column config ──────────────────────────────────────────────────────────
 function setupConfig() {
   stageTypes = {};
+  milestones = []; activeMilestone = null;
   document.getElementById('config-panel').style.display = 'block';
   const fp = document.getElementById('filter-panel');
   fp.style.display = 'block';
@@ -2159,6 +2211,83 @@ function buildWorkflowUI() {
   }).join('');
 
   initDragSort(list);
+  buildMilestoneUI();
+}
+
+// ── Milestones ─────────────────────────────────────────────────────────────
+function buildMilestoneUI() {
+  const section = document.getElementById('milestone-section');
+  const rows    = document.getElementById('milestone-rows');
+  if (!section) return;
+  section.style.display = workflowStages.length ? 'block' : 'none';
+  const opts = sel => workflowStages.filter(s => stageTypes[s] !== 'discarded')
+    .map(s => `<option value="${s}"${s === sel ? ' selected' : ''}>${s}</option>`).join('');
+  rows.innerHTML = milestones.map((m, i) => {
+    const warn = !m.name ? 'needs a name'
+      : workflowStages.indexOf(m.start) < 0 || workflowStages.indexOf(m.end) < 0 ? 'stage not in this file'
+      : workflowStages.indexOf(m.start) >= workflowStages.indexOf(m.end) ? 'start must come before finish' : '';
+    return `<div class="ms-row">
+      <input type="text" value="${m.name.replace(/"/g, '&quot;')}" placeholder="e.g. Code Complete" oninput="updateMilestone(${i}, 'name', this.value)" onchange="buildMilestoneUI()">
+      starts at <select onchange="updateMilestone(${i}, 'start', this.value)">${opts(m.start)}</select>
+      finishes at <select onchange="updateMilestone(${i}, 'end', this.value)">${opts(m.end)}</select>
+      <button class="ms-del" onclick="removeMilestone(${i})" title="Remove milestone">×</button>
+      ${warn ? `<span class="ms-warn">⚠ ${warn}</span>` : ''}
+    </div>`;
+  }).join('');
+  renderMilestoneBar();
+}
+
+function addMilestone() {
+  const base = getBaseConfig();
+  const endIdx = workflowStages.indexOf(base.endCol);
+  const guess = workflowStages.find(s => /ready for test|code complete|dev done|ready for sit/i.test(s))
+    || (endIdx > 0 ? workflowStages[endIdx - 1] : workflowStages[workflowStages.length - 1]);
+  milestones.push({ name: `Milestone ${milestones.length + 1}`, start: base.startCol || workflowStages[0], end: guess });
+  buildMilestoneUI();
+  const inputs = document.querySelectorAll('#milestone-rows input');
+  const last = inputs[inputs.length - 1];
+  if (last) { last.focus(); last.select(); }
+}
+
+function updateMilestone(i, key, val) {
+  const m = milestones[i];
+  if (!m) return;
+  if (key === 'name' && activeMilestone === m.name) activeMilestone = val.trim() || null;
+  m[key] = key === 'name' ? val.trim() : val;
+  if (key !== 'name') buildMilestoneUI(); else renderMilestoneBar();
+  renderAll();
+}
+
+function removeMilestone(i) {
+  const m = milestones[i];
+  if (m && m.name === activeMilestone) activeMilestone = null;
+  milestones.splice(i, 1);
+  buildMilestoneUI();
+  renderAll();
+}
+
+function selectMilestone(name) {
+  activeMilestone = name || null;
+  renderMilestoneBar();
+  renderAll(true);
+}
+
+function renderMilestoneBar() {
+  const bar = document.getElementById('milestone-bar');
+  if (!bar) return;
+  const valid = milestones.filter(milestoneValid);
+  if (!valid.length || !allRows.length) { bar.style.display = 'none'; document.getElementById('info-milestone').classList.remove('open'); return; }
+  const base = getBaseConfig();
+  const current = getActiveMilestone();
+  const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  const pill = (label, sub, name, on) =>
+    `<button class="ms-pill${on ? ' active' : ''}" onclick="selectMilestone(${name ? `'${esc(name).replace(/'/g, "\\'")}'` : 'null'})" title="${esc(sub)}">${esc(label)}<small>${esc(sub)}</small></button>`;
+  const infoOpen = document.getElementById('info-milestone').classList.contains('open');
+  bar.innerHTML = `<span class="ms-label">Measure to:</span>`
+    + pill('Full flow', `${base.startCol} → ${base.endCol}`, null, !current)
+    + valid.map(m => pill(m.name, `${m.start} → ${m.end}`, m.name, current && current.name === m.name)).join('')
+    + `<button class="info-btn${infoOpen ? ' open' : ''}" data-info="info-milestone" onclick="toggleInfo('info-milestone')" title="Which reports change">ℹ</button>`;
+  bar.style.display = 'flex';
 }
 
 function initDragSort(list) {
@@ -2219,14 +2348,23 @@ function toggleStageType(col, btn) {
   buildWorkflowUI(); renderAll();
 }
 
+// Stages counted for flow efficiency — under a milestone, stop at its finish stage
+// so time spent after the handoff (SIT, UAT…) isn't counted.
+function flowEffStages(cfg) {
+  if (!cfg.milestone) return workflowStages;
+  const endIdx = workflowStages.indexOf(cfg.endCol);
+  return endIdx >= 0 ? workflowStages.slice(0, endIdx + 1) : workflowStages;
+}
+
 function calculateFlowEfficiency(completedItems) {
   if (workflowStages.length < 2) return null;
   const cfg = getConfig();
   const rows = allRows.filter(row => rowMatchesFilters(row, cfg));
   const efficiencies = [];
 
+  const feStages = flowEffStages(cfg);
   rows.forEach(row => {
-    const dates = workflowStages.map(col => stageTypes[col] === 'discarded' ? null : getCachedDate(row, col));
+    const dates = feStages.map(col => stageTypes[col] === 'discarded' ? null : getCachedDate(row, col));
     let processTime = 0, queueTime = 0;
     dates.forEach((d, i) => {
       if (!d) return;
@@ -2235,7 +2373,7 @@ function calculateFlowEfficiency(completedItems) {
       if (!nextDate) return;
       const dur = daysBetween(d, nextDate);
       if (dur <= 0) return;
-      if (stageTypes[workflowStages[i]] === 'process') processTime += dur; else queueTime += dur;
+      if (stageTypes[feStages[i]] === 'process') processTime += dur; else queueTime += dur;
     });
     const blocked = cfg.blockedDaysCol ? (parseFloat(row[cfg.blockedDaysCol]) || 0) : 0;
     const total = processTime + queueTime + blocked;
@@ -2247,11 +2385,41 @@ function calculateFlowEfficiency(completedItems) {
 }
 
 // ── Data processing ────────────────────────────────────────────────────────
-function getConfig() {
+// A milestone is usable only if both its stages exist and start comes before end
+function milestoneValid(m) {
+  const s = workflowStages.indexOf(m.start), e = workflowStages.indexOf(m.end);
+  return !!(m.name && s >= 0 && e >= 0 && s < e);
+}
+
+function getActiveMilestone() {
+  const m = activeMilestone && milestones.find(x => x.name === activeMilestone);
+  return m && milestoneValid(m) ? m : null;
+}
+
+// Full-flow config from the Column mapping panel — what gets saved
+function getBaseConfig() {
   return {
     startCol:       document.getElementById('col-start').value,
     endCol:         document.getElementById('col-end').value,
     activeCol:      document.getElementById('col-active').value || null,
+  };
+}
+
+// Every tab reads this. When a milestone is selected, Start/End are swapped for its stages.
+function getConfig() {
+  const base = getBaseConfig();
+  const m = getActiveMilestone();
+  let { startCol, endCol, activeCol } = base;
+  if (m) {
+    startCol = m.start; endCol = m.end;
+    // Keep Active Work Starts only if it sits inside the milestone; otherwise WIP starts at the milestone's Start
+    const a = workflowStages.indexOf(activeCol);
+    if (a < workflowStages.indexOf(startCol) || a >= workflowStages.indexOf(endCol)) activeCol = null;
+  }
+  return {
+    startCol, endCol, activeCol,
+    milestone:      m ? m.name : null,
+    base,
     idCol:          document.getElementById('col-id').value,
     titleCol:       document.getElementById('col-title').value,
     linkCol:        document.getElementById('col-link').value,
@@ -2371,7 +2539,8 @@ function processData(cfg) {
       const totalTime = (backlogDate && backlogDate <= endDate)  ? daysBetween(backlogDate, endDate)   : null;  // backlog→done (Vacanti total time)
       let flowEfficiency = null;
       if (workflowStages.length >= 2) {
-        const stageDates = workflowStages.map(col => stageTypes[col] === 'discarded' ? null : getCachedDate(row, col));
+        const feStages = flowEffStages(cfg);
+        const stageDates = feStages.map(col => stageTypes[col] === 'discarded' ? null : getCachedDate(row, col));
         let processTime = 0, queueTime = 0;
         stageDates.forEach((d, i) => {
           if (!d) return;
@@ -2380,7 +2549,7 @@ function processData(cfg) {
           if (!nextDate) return;
           const dur = daysBetween(d, nextDate);
           if (dur <= 0) return;
-          if (stageTypes[workflowStages[i]] === 'process') processTime += dur; else queueTime += dur;
+          if (stageTypes[feStages[i]] === 'process') processTime += dur; else queueTime += dur;
         });
         const total = processTime + queueTime + blockedDays;
         if (total > 0) flowEfficiency = processTime / total * 100;
@@ -2467,6 +2636,8 @@ function _doRenderAll() {
   const noStartCount = dqIssues.filter(i => i.type === 'no-start').length;
   const totalCompleted = completed.length + noStartCount;
   document.getElementById('stat-count').textContent = totalCompleted.toLocaleString();
+  document.getElementById('stat-count-label').textContent = cfg.milestone ? `Reached ${cfg.milestone}` : 'Items completed';
+  renderMilestoneBar();
   const dqLink = document.getElementById('stat-dq-link');
   if (dqLink) {
     if (dqIssues.length) { dqLink.style.display = 'inline'; dqLink.title = `${dqIssues.length} data quality issue${dqIssues.length !== 1 ? 's' : ''} — click to view`; }
@@ -3113,7 +3284,7 @@ function updateFilterContextBar() {
   if (!bar) return;
   const cfg = getConfig();
   const active = (cfg.filters || []).filter(f => f.col && f.vals && f.vals.length);
-  if (!active.length) { bar.style.display = 'none'; return; }
+  if (!active.length && !cfg.milestone) { bar.style.display = 'none'; return; }
 
   function fmtVals(vals) {
     return vals.map(v => v === '__BLANK__' ? '(blank)' : v).join(', ');
@@ -3123,7 +3294,10 @@ function updateFilterContextBar() {
   const includeChips = active.filter(f => !f.exclude)
     .map(f => `<span class="filter-chip filter-chip-include">Only: ${f.col} = ${fmtVals(f.vals)}</span>`);
 
-  bar.innerHTML = `<span style="font-weight:600;color:#475569;margin-right:0.2rem">Filters:</span>${[...excludeChips, ...includeChips].join('')}`;
+  const msChip = cfg.milestone
+    ? `<span class="filter-chip filter-chip-milestone">Measured to: ${cfg.milestone} (${cfg.startCol} → ${cfg.endCol})</span>` : '';
+  bar.innerHTML = msChip
+    + (active.length ? `<span style="font-weight:600;color:#475569;margin:0 0.2rem 0 ${msChip ? '0.5rem' : '0'}">Filters:</span>${[...excludeChips, ...includeChips].join('')}` : '');
   bar.style.display = 'flex';
 }
 
@@ -5538,7 +5712,9 @@ function buildConfigPayload() {
   const cfg = getConfig();
   return {
     version:  3,
-    fields:   { startCol: cfg.startCol, endCol: cfg.endCol, activeCol: cfg.activeCol, idCol: cfg.idCol, titleCol: cfg.titleCol, linkCol: cfg.linkCol, blockedDaysCol: cfg.blockedDaysCol, blockedFlagCol: cfg.blockedFlagCol, epicCol: cfg.epicCol },
+    milestones: milestones.filter(m => m.name),
+    activeMilestone: cfg.milestone,
+    fields:   { startCol: cfg.base.startCol, endCol: cfg.base.endCol, activeCol: cfg.base.activeCol, idCol: cfg.idCol, titleCol: cfg.titleCol, linkCol: cfg.linkCol, blockedDaysCol: cfg.blockedDaysCol, blockedFlagCol: cfg.blockedFlagCol, epicCol: cfg.epicCol },
     workflow: { stages: workflowStages, types: stageTypes, hidden: [...hiddenStages] },
     filters:  cfg.filters,
     dateRange: document.getElementById('filter-range').value,
@@ -5669,6 +5845,9 @@ function applyConfig(cfg) {
   }
 
   if (cfg.dateRange !== undefined) document.getElementById('filter-range').value = cfg.dateRange;
+
+  milestones = Array.isArray(cfg.milestones) ? cfg.milestones.map(m => ({ name: m.name || '', start: m.start || '', end: m.end || '' })) : [];
+  activeMilestone = cfg.activeMilestone || null;
 
   buildWorkflowUI();
   renderAll(true);
@@ -5915,12 +6094,14 @@ async function copySnapshot() {
       // Build filter summary text for footer
       const cfg = getConfig();
       const activeFilters = (cfg.filters || []).filter(f => f.col && f.vals && f.vals.length);
-      const filterText = activeFilters.length
+      const msText = cfg.milestone ? `Measured to: ${cfg.milestone} (${cfg.startCol} → ${cfg.endCol})` : '';
+      const fText = activeFilters.length
         ? 'Filters: ' + activeFilters.map(f => {
             const vals = f.vals.map(v => v === '__BLANK__' ? '(blank)' : v).join(', ');
             return (f.exclude ? 'Hide ' : 'Only ') + f.col + ' = ' + vals;
           }).join(' · ')
-        : null;
+        : '';
+      const filterText = [msText, fText].filter(Boolean).join('  ·  ') || null;
 
       const rowH    = 36 * scale;
       const footerH = filterText ? rowH * 2 : rowH;
