@@ -724,7 +724,7 @@ License: MIT
       <h3>Column mapping</h3>
       <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
         <small>Change these anytime — charts update instantly</small>
-        <span id="config-dirty" style="display:none" title="Releases, milestones, filters and stages are only kept when you save the config file">● Unsaved changes</span>
+        <span id="config-dirty" style="display:none" title="Releases, flow segments, filters and stages are only kept when you save the config file">● Unsaved changes</span>
         <button class="config-action-btn" id="btn-save-config" onclick="saveConfig()" style="display:none">Save config</button>
         <button class="config-action-btn" id="btn-load-config" onclick="loadConfig()">Load config</button>
         <button id="btn-toggle-config" onclick="toggleConfigPanel()">Collapse Config</button>
@@ -796,11 +796,11 @@ License: MIT
 
     <div class="workflow-section" id="milestone-section" style="display:none">
       <div class="workflow-section-header">
-        <span>Milestones</span>
-        <small>Measure to a point other than Done — e.g. <strong>Code Complete</strong> = Analysis → Ready for testing. Each milestone shows as a button above the charts; click one and every tab recalculates.</small>
+        <span>Flow segments</span>
+        <small>Measure to a point other than Done — e.g. <strong>Code Complete</strong> = Analysis → Ready for testing. Each flow segment shows as a button above the charts; click one and every tab recalculates.</small>
       </div>
       <div id="milestone-rows"></div>
-      <button class="filter-add" onclick="addMilestone()">+ Add milestone</button>
+      <button class="filter-add" onclick="addMilestone()">+ Add flow segment</button>
     </div>
 
   </div><!-- /#config-body -->
@@ -831,10 +831,10 @@ License: MIT
 
   <div id="milestone-bar"></div>
   <div class="info-panel" id="info-milestone" style="margin:0 0 0.75rem">
-    <div class="info-row"><strong>What changes</strong>Picking a milestone moves the Start and Finish points. An item counts as finished the first day it reached the milestone's finish stage, or any later stage. Work past that point is no longer WIP.</div>
+    <div class="info-row"><strong>What changes</strong>Picking a flow segment moves the Start and Finish points. An item counts as finished the first day it reached the segment's finish stage, or any later stage. Work past that point is no longer WIP.</div>
     <div class="info-row"><strong>Recalculated</strong>Flow Insights · <em>WIP &amp; Flow:</em> WIP Over Time, Work Split, Aging WIP, Arrival vs Departure · <em>Cycle Time:</em> CT Over Time, Histogram, Control Chart, Flow Efficiency, Fuzzy Front End, Time in Stage · <em>Throughput:</em> Throughput, Burn Up, Epic Progress, Releases, Forecast · <em>Health:</em> Team Health, Blocked · <em>Data:</em> Breakdown, Data Quality, AI</div>
     <div class="info-row"><strong>Not changed</strong>CFD — always shows every stage, so the handoff is already visible there. Data — the raw rows from your file.</div>
-    <div class="info-row"><strong>Flow efficiency</strong>Only counts stages up to the milestone's finish. Blocked days can't be split by stage, so all of an item's blocked days still count.</div>
+    <div class="info-row"><strong>Flow efficiency</strong>Only counts stages up to the segment's finish. Blocked days can't be split by stage, so all of an item's blocked days still count.</div>
   </div>
   <div id="release-bar"></div>
   <div class="info-panel" id="info-release-bar" style="margin:0 0 0.75rem">
@@ -1678,7 +1678,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-10-26f';
+const VERSION = '2026-10-26g';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -2388,7 +2388,7 @@ function buildMilestoneUI() {
       <input type="text" value="${m.name.replace(/"/g, '&quot;')}" placeholder="e.g. Code Complete" oninput="updateMilestone(${i}, 'name', this.value)" onchange="buildMilestoneUI()">
       starts at <select onchange="updateMilestone(${i}, 'start', this.value)">${opts(m.start)}</select>
       finishes at <select onchange="updateMilestone(${i}, 'end', this.value)">${opts(m.end)}</select>
-      <button class="ms-del" onclick="removeMilestone(${i})" title="Remove milestone">×</button>
+      <button class="ms-del" onclick="removeMilestone(${i})" title="Remove flow segment">×</button>
       ${warn ? `<span class="ms-warn">⚠ ${warn}</span>` : ''}
     </div>`;
   }).join('');
@@ -2400,7 +2400,7 @@ function addMilestone() {
   const endIdx = workflowStages.indexOf(base.endCol);
   const guess = workflowStages.find(s => /ready for test|code complete|dev done|ready for sit/i.test(s))
     || (endIdx > 0 ? workflowStages[endIdx - 1] : workflowStages[workflowStages.length - 1]);
-  milestones.push({ name: `Milestone ${milestones.length + 1}`, start: base.startCol || workflowStages[0], end: guess });
+  milestones.push({ name: `Segment ${milestones.length + 1}`, start: base.startCol || workflowStages[0], end: guess });
   buildMilestoneUI();
   const inputs = document.querySelectorAll('#milestone-rows input');
   const last = inputs[inputs.length - 1];
@@ -7959,11 +7959,11 @@ function runWhenSimulation() {
     // No named items — show key milestones
     const milestones = [...new Set([1, Math.ceil(N*0.25), Math.ceil(N*0.5), Math.ceil(N*0.75), N])];
     listHTML = `
-      <div style="font-size:0.78rem;color:#64748b;margin-bottom:0.6rem">No named items in your data — showing milestone positions:</div>
+      <div style="font-size:0.78rem;color:#64748b;margin-bottom:0.6rem">No named items in your data — showing checkpoints:</div>
       <div class="mc-item-list">
         <div class="mc-item-row mc-list-header">
           <div class="mc-item-pos">#</div>
-          <div>Milestone</div>
+          <div>Checkpoint</div>
           <div class="mc-date-cell mc-d50">50%</div>
           <div class="mc-date-cell mc-d70">70%</div>
           <div class="mc-date-cell mc-d85">85% ★</div>
