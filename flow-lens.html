@@ -1681,7 +1681,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-10-26h';
+const VERSION = '2026-10-26i';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -2551,6 +2551,11 @@ function relCpShade(b, n) {
   return REL_CP_SHADES[Math.min(REL_CP_SHADES.length - 1, off + b)];
 }
 function relCpLabel(b, cps) { return b === 0 ? `Before ${cps[0].label}` : cps[b - 1].label; }
+// Full name with the short code in brackets, for places with room (release page chips)
+function relCpLongLabel(b, cps) {
+  const full = c => c.label !== c.name ? `${c.name} (${c.label})` : c.name;
+  return b === 0 ? `Before ${full(cps[0])}` : full(cps[b - 1]);
+}
 function relCpTitle(b, cps) {
   return b === 0 ? `Started, not yet reached ${cps[0].end}` : `${cps[b - 1].name}: reached ${cps[b - 1].end}${cps[b] ? `, not yet ${cps[b].end}` : ''}`;
 }
@@ -2743,7 +2748,7 @@ function renderReleaseSummary(rel) {
     ? s.cpCounts.map((n, b) => n ? `<div style="width:${n / s.items.length * 100}%;background:${relCpShade(b, cpN)}" title="In progress · ${relEsc(relCpLabel(b, s.cps))}: ${n}"></div>` : '').join('')
     : stateCount(st) ? `<div style="width:${stateCount(st) / s.items.length * 100}%;background:${barColor[st]}" title="${statusLbl[st]}: ${stateCount(st)}"></div>` : '';
   const subChips = s.cpCounts && s.progress ? `<div class="rel-sub-chips"><span>In progress:</span>
-      ${s.cpCounts.map((n, b) => `<span class="rel-status rel-state-chip rel-status-progress rel-sub-chip${n ? '' : ' zero'}" data-state="progress:${b}" title="${relEsc(relCpTitle(b, s.cps))}" onclick="relFilterState(this)"><i style="background:${relCpShade(b, cpN)}"></i>${relEsc(relCpLabel(b, s.cps))} ${n}</span>`).join('')}</div>` : '';
+      ${s.cpCounts.map((n, b) => `<span class="rel-status rel-state-chip rel-status-progress rel-sub-chip${n ? '' : ' zero'}" data-state="progress:${b}" title="${relEsc(relCpTitle(b, s.cps))}" onclick="relFilterState(this)"><i style="background:${relCpShade(b, cpN)}"></i>${relEsc(relCpLongLabel(b, s.cps))} ${n}</span>`).join('')}</div>` : '';
   const statesHtml = s.items.length ? `<div class="rel-states">
       <div class="rel-state-bar">${stateOrder.map(barSeg).join('')}</div>
       <div class="rel-state-chips">
