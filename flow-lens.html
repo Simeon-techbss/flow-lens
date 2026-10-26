@@ -1667,7 +1667,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-10-26d';
+const VERSION = '2026-10-26e';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -1809,8 +1809,9 @@ function fixMalformedRows(rows, fieldNames) {
 
 function daysBetween(a, b) { return (b - a) / 86400000; }
 
-function percentile(sorted, p) {
-  if (!sorted.length) return 0;
+function percentile(values, p) {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((a, b) => a - b);  // sort here so unsorted input can't give a median above the p85
   const idx = (p / 100) * (sorted.length - 1);
   const lo = Math.floor(idx), hi = Math.ceil(idx);
   if (lo === hi) return sorted[lo];
@@ -3797,9 +3798,9 @@ function renderScatter(data, p50, p70, p85, p95) {
         }}}
       },
       scales: {
-        x: { type: 'time', time: { unit: 'month', displayFormats: { month: 'MMM yy' } },
+        x: { type: 'time', time: { minUnit: 'day', displayFormats: { day: 'd MMM', week: 'd MMM', month: 'MMM yyyy' } },
              title: { display: true, text: 'Completion date', color: '#94a3b8', font: { size: 11 } },
-             grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 11 } } },
+             grid: { color: '#f1f5f9' }, ticks: { maxTicksLimit: 8, maxRotation: 0, color: '#94a3b8', font: { size: 11 } } },
         y: { title: { display: true, text: 'Lead time (days)', color: '#94a3b8', font: { size: 11 } },
              grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 11 } }, min: 0 }
       }
@@ -4717,6 +4718,9 @@ const CFD_COLORS = [
   'rgba(14,165,233,0.92)',  'rgba(34,197,94,0.92)',   'rgba(249,115,22,0.92)',
   'rgba(168,85,247,0.92)',  'rgba(99,102,241,0.92)',   'rgba(236,72,153,0.92)',
   'rgba(234,179,8,0.92)',   'rgba(148,163,184,0.92)',
+  // Extra colours so workflows with 9–14 stages don't repeat a band colour
+  'rgba(20,184,166,0.92)',  'rgba(239,68,68,0.92)',    'rgba(132,204,22,0.92)',
+  'rgba(161,98,7,0.92)',    'rgba(30,58,138,0.92)',    'rgba(87,83,78,0.92)',
 ];
 
 // Binary search: count elements in sorted numeric array that are <= target
@@ -5285,7 +5289,6 @@ function renderTeamHealth() {
       const sign = change > 0 ? '+' : '';
       trendTxt = `${sign}${change.toFixed(1)}% vs previous period`;
     } else if (!na) {
-      cls += ' th-warn';
       trendTxt = 'No previous period data';
     } else {
       cls += ' th-na';
@@ -5320,29 +5323,30 @@ function renderTeamHealth() {
     blockedCard,
   ].join('');
 
-  // Narrative
+  // Narrative — only compare when the previous period actually has data (prev 0 = before the file started)
   const signals = [];
-  if (curTP !== null && prevTP !== null) {
+  const hasPrev = prevItems.length > 0;
+  if (hasPrev && curTP !== null && prevTP !== null) {
     if (curTP > prevTP * 1.05) signals.push('throughput is improving');
     else if (curTP < prevTP * 0.95) signals.push('throughput is declining — investigate capacity or blockers');
     else signals.push('throughput is steady');
   }
-  if (curWIP !== null && prevWIP !== null) {
+  if (hasPrev && curWIP !== null && prevWIP !== null) {
     if (curWIP > prevWIP * 1.1) signals.push('system WIP is growing — more being committed than completed');
     else if (curWIP < prevWIP * 0.9) signals.push('system WIP is reducing — good flow discipline');
     else signals.push('system WIP is stable');
   }
-  if (curCT !== null && prevCT !== null) {
+  if (hasPrev && curCT !== null && prevCT !== null) {
     if (curCT > prevCT * 1.1) signals.push('lead time is lengthening — often caused by rising WIP');
     else if (curCT < prevCT * 0.9) signals.push('lead time is improving');
   }
-  if (curBacklog !== null && prevBacklog !== null) {
+  if (hasPrev && curBacklog !== null && prevBacklog !== null) {
     if (curBacklog > prevBacklog * 1.1) signals.push('backlog is growing — demand exceeding commitment rate');
     else if (curBacklog < prevBacklog * 0.9) signals.push('backlog is shrinking — healthy demand management');
   }
   document.getElementById('th-narrative').innerHTML = signals.length
     ? `<strong>Last ${periodWeeks} weeks:</strong> ${signals.join(' · ')}.`
-    : '<span style="color:#94a3b8">Not enough data to generate a summary for this period.</span>';
+    : `<span style="color:#94a3b8">${hasPrev ? 'Not enough data to generate a summary for this period.' : `Nothing was finished in the ${periodWeeks} weeks before this period, so there's nothing to compare against. Try a shorter period.`}</span>`;
 }
 
 // ── Fuzzy Front End ────────────────────────────────────────────────────────
@@ -5410,7 +5414,7 @@ function renderFFE(completed) {
       ffeWarn.style.display = 'block';
       ffeWarn.innerHTML = `<strong>⚠ FFE data quality issue — ${zeroPct}% of items show 0 days in backlog.</strong>
 <button onclick="document.getElementById('ffe-min-days').value=1;renderFFE(lastRenderPayload&&lastRenderPayload.completed||[])" style="margin-left:0.75rem;padding:0.2rem 0.7rem;border-radius:6px;border:1px solid #b45309;background:#fef3c7;color:#92400e;font-size:0.78rem;font-weight:600;cursor:pointer">Hide 0d items</button><br>
-This usually means the Backlog date and the commitment date (${cfg.startCol || 'Start'}) are being set to the same timestamp. Common causes in ServiceNow:<br>
+This usually means the Backlog date and the commitment date (${cfg.startCol || 'Start'}) are being set to the same timestamp. Common causes:<br>
 • Items were bulk-imported or migrated and all stage dates were stamped at the same time<br>
 • The Backlog field is auto-populated when an item is moved to "${cfg.startCol || 'Start'}", not when it was first created<br>
 • Items were committed immediately on creation with no time spent in the backlog<br>
@@ -6026,7 +6030,7 @@ function renderBlocked(completed, wip, p85) {
   html += `<div class="blocked-compare">`;
 
   html += `<div class="blocked-ccard is-blocked">
-    <div class="blocked-ccard-label">Blocked — ${blockedDone.length} items</div>`;
+    <div class="blocked-ccard-label">Finished, were blocked — ${blockedDone.length} items</div>`;
   if (bSt) {
     const total = Math.round(blockedDone.reduce((s, d) => s + d.blockedDays, 0));
     const avg   = (total / blockedDone.length).toFixed(1);
@@ -6042,7 +6046,7 @@ function renderBlocked(completed, wip, p85) {
   html += `</div>`;
 
   html += `<div class="blocked-ccard is-clean">
-    <div class="blocked-ccard-label">Not blocked — ${cleanDone.length} items</div>`;
+    <div class="blocked-ccard-label">Finished, never blocked — ${cleanDone.length} items</div>`;
   if (cSt) {
     html += statRow('p50 lead time', Math.round(cSt.p50) + 'd');
     html += statRow('p85 lead time', Math.round(cSt.p85) + 'd');
@@ -6429,8 +6433,8 @@ function renderPaceChart(completed) {
         tooltip: { mode: 'index', intersect: false }
       },
       scales: {
-        x: { type: 'time', time: { unit: 'month', displayFormats: { month: 'MM/yyyy' } },
-             grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+        x: { type: 'time', time: { minUnit: 'day', displayFormats: { day: 'd MMM', week: 'd MMM', month: 'MMM yyyy' } },
+             grid: { color: '#f1f5f9' }, ticks: { maxTicksLimit: 8, maxRotation: 0, color: '#94a3b8', font: { size: 10 } } },
         y: { title: { display: true, text: 'Number of items', color: '#94a3b8', font: { size: 10 } },
              grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 10 } }, min: 0 }
       }
@@ -6484,8 +6488,8 @@ function renderWIPAgeChart() {
         tooltip: { mode: 'index', intersect: false }
       },
       scales: {
-        x: { type: 'time', time: { unit: 'month', displayFormats: { month: 'MM/yy' } },
-             grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+        x: { type: 'time', time: { minUnit: 'day', displayFormats: { day: 'd MMM', week: 'd MMM', month: 'MMM yyyy' } },
+             grid: { color: '#f1f5f9' }, ticks: { maxTicksLimit: 8, maxRotation: 0, color: '#94a3b8', font: { size: 10 } } },
         y:  { position: 'left',  title: { display: true, text: 'WIP count', color: '#22c55e', font: { size: 10 } },
               grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 10 } }, min: 0 },
         y2: { position: 'right', title: { display: true, text: 'Avg age (days)', color: '#a78bfa', font: { size: 10 } },
@@ -6882,18 +6886,15 @@ function updateFooter() {
   const footer  = document.getElementById('data-footer');
   const rangeEl = document.getElementById('footer-range');
 
-  // Min of first workflow column → max of last workflow column
+  // Earliest and latest date in any workflow column (the last column can be a sparse
+  // X stage like "Withdrawn", so it can't stand in for the latest date)
   let minDate = null, maxDate = null;
-
-  const firstCol = workflowStages[0];
-  const lastCol  = workflowStages[workflowStages.length - 1];
-
-  if (firstCol) {
-    allRows.forEach(row => { const d = parseDate(row[firstCol]); if (d && (!minDate || d < minDate)) minDate = d; });
-  }
-  if (lastCol) {
-    allRows.forEach(row => { const d = parseDate(row[lastCol]);  if (d && (!maxDate || d > maxDate)) maxDate = d; });
-  }
+  allRows.forEach(row => workflowStages.forEach(col => {
+    const d = getCachedDate(row, col);
+    if (!d) return;
+    if (!minDate || d < minDate) minDate = d;
+    if (!maxDate || d > maxDate) maxDate = d;
+  }));
 
   // Fallback: use configured start/end cols
   if (!minDate || !maxDate) {
