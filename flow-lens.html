@@ -185,6 +185,10 @@ License: MIT
     }
     .stat .value { font-size: 1.6rem; font-weight: 700; color: #38bdf8; line-height: 1; }
     .stat .label { font-size: 0.72rem; color: #64748b; margin-top: 0.25rem; }
+    .fe-scope-btn { font-size:0.8rem; padding:0.3rem 0.75rem; border-radius:14px; border:1px solid #cbd5e1; background:#fff; color:#475569; cursor:pointer; }
+    .fe-scope-btn.active { background:#0f172a; border-color:#0f172a; color:#fff; font-weight:600; }
+    .ct-span-sm { display:block; font-size:0.62rem; color:#475569; margin-top:0.1rem; }
+    .ct-span-h { font-size:0.75rem; font-weight:500; color:#64748b; margin-left:0.4rem; }
     #stats-note { grid-column: 1 / -1; font-size: 0.78rem; color: #94a3b8; border-top: 1px solid #1e293b; padding-top: 0.6rem; }
 
     #tabs { display: none; margin-top: 1.5rem; }
@@ -828,7 +832,7 @@ License: MIT
   <div id="milestone-bar"></div>
   <div class="info-panel" id="info-milestone" style="margin:0 0 0.75rem">
     <div class="info-row"><strong>What changes</strong>Picking a milestone moves the Start and Finish points. An item counts as finished the first day it reached the milestone's finish stage, or any later stage. Work past that point is no longer WIP.</div>
-    <div class="info-row"><strong>Recalculated</strong>Flow Insights · <em>WIP &amp; Flow:</em> WIP Over Time, Work Split, Aging WIP, Arrival vs Departure · <em>Lead Time:</em> LT Over Time, Histogram, Control Chart, Flow Efficiency, Fuzzy Front End, Time in Stage · <em>Throughput:</em> Throughput, Burn Up, Epic Progress, Releases, Forecast · <em>Health:</em> Team Health, Blocked · <em>Data:</em> Breakdown, Data Quality, AI</div>
+    <div class="info-row"><strong>Recalculated</strong>Flow Insights · <em>WIP &amp; Flow:</em> WIP Over Time, Work Split, Aging WIP, Arrival vs Departure · <em>Cycle Time:</em> CT Over Time, Histogram, Control Chart, Flow Efficiency, Fuzzy Front End, Time in Stage · <em>Throughput:</em> Throughput, Burn Up, Epic Progress, Releases, Forecast · <em>Health:</em> Team Health, Blocked · <em>Data:</em> Breakdown, Data Quality, AI</div>
     <div class="info-row"><strong>Not changed</strong>CFD — always shows every stage, so the handoff is already visible there. Data — the raw rows from your file.</div>
     <div class="info-row"><strong>Flow efficiency</strong>Only counts stages up to the milestone's finish. Blocked days can't be split by stage, so all of an item's blocked days still count.</div>
   </div>
@@ -849,11 +853,11 @@ License: MIT
 
   <div id="stats-bar">
     <div class="stat"><div class="value" id="stat-count">—</div><div class="label"><span id="stat-count-label">Items completed</span> <a id="stat-dq-link" href="#" onclick="switchToTab('dq');return false;" style="display:none;font-size:0.7rem;font-weight:500;color:#f59e0b;text-decoration:none;margin-left:0.3rem" title="Data quality issues found">⚠</a></div></div>
-    <div class="stat"><div class="value" id="stat-median">—</div><div class="label">Cycle time p50</div></div>
-    <div class="stat"><div class="value" id="stat-p85">—</div><div class="label">Cycle time p85</div></div>
+    <div class="stat"><div class="value" id="stat-median">—</div><div class="label">Cycle time p50<span class="ct-span ct-span-sm"></span></div></div>
+    <div class="stat"><div class="value" id="stat-p85">—</div><div class="label">Cycle time p85<span class="ct-span ct-span-sm"></span></div></div>
     <div class="stat"><div class="value" id="stat-throughput">—</div><div class="label">Throughput avg/wk</div></div>
     <div class="stat"><div class="value" id="stat-wip">—</div><div class="label">WIP (today)</div></div>
-    <div class="stat"><div class="value" id="stat-fe">—</div><div class="label">Flow efficiency</div></div>
+    <div class="stat"><div class="value" id="stat-fe">—</div><div class="label">Flow efficiency<span class="ct-span-sm" id="stat-fe-scope"></span></div></div>
     <div class="stat" id="stat-blocked-wrap"><div class="value" id="stat-blocked">—</div><div class="label" id="stat-blocked-label">Items blocked</div></div>
     <div id="stats-note" style="display:none"></div>
   </div>
@@ -889,19 +893,19 @@ License: MIT
       </div>
 
       <div class="tab-group" data-group="cycletime">
-        <button class="tab-nav-btn">Lead Time <span class="tab-arrow">▾</span></button>
+        <button class="tab-nav-btn">Cycle Time <span class="tab-arrow">▾</span></button>
         <div class="tab-dropdown">
           <button class="tab-dropdown-item" data-tab="cttime">
-            <span class="item-name">LT Over Time</span>
-            <span class="item-desc">Weekly lead time trend with drill-down</span>
+            <span class="item-name">CT Over Time</span>
+            <span class="item-desc">Weekly cycle time trend with drill-down</span>
           </button>
           <button class="tab-dropdown-item" data-tab="histogram">
             <span class="item-name">Histogram</span>
-            <span class="item-desc">Distribution of lead times — shape of your system</span>
+            <span class="item-desc">Distribution of cycle times — shape of your system</span>
           </button>
           <button class="tab-dropdown-item" data-tab="scatter">
             <span class="item-name">Control Chart</span>
-            <span class="item-desc">Individual item lead times — spot outliers</span>
+            <span class="item-desc">Individual item cycle times — spot outliers</span>
           </button>
           <button class="tab-dropdown-item" data-tab="floweff">
             <span class="item-name">Flow Efficiency</span>
@@ -1007,7 +1011,7 @@ License: MIT
           <div class="ic2-label" style="display:flex;align-items:center;gap:0.4rem">WIP <button class="info-btn" data-info="info-wip-ins" onclick="toggleInfo('info-wip-ins')" style="border-color:#4338ca;color:#a5b4fc" title="How this is calculated">ℹ</button></div>
           <div class="info-panel" id="info-wip-ins" style="margin:0.5rem 0 0.25rem;background:#1e1b4b;border-color:#312e81;color:#c7d2fe">
             <div class="info-row"><strong style="color:#e0e7ff">Work in progress</strong> = items that have entered your start stage but not yet reached your end stage as of today.</div>
-            <div class="info-row"><strong style="color:#e0e7ff">Little's Law:</strong> <span class="info-formula" style="background:#312e81;border-color:#4338ca;color:#e0e7ff">Lead Time = WIP ÷ Throughput</span> High WIP directly causes long lead times. Reducing WIP is usually the fastest lever for improving delivery speed.</div>
+            <div class="info-row"><strong style="color:#e0e7ff">Little's Law:</strong> <span class="info-formula" style="background:#312e81;border-color:#4338ca;color:#e0e7ff">Cycle Time = WIP ÷ Throughput</span> High WIP directly causes long cycle times. Reducing WIP is usually the fastest lever for improving delivery speed.</div>
           </div>
           <div class="ic2-q">How much are we juggling?</div>
           <div class="ic2-sub">Items currently in progress</div>
@@ -1019,11 +1023,11 @@ License: MIT
         <div class="ic2-card ic2-warn">
           <div class="ic2-label" style="display:flex;align-items:center;gap:0.4rem">Risk <button class="info-btn" data-info="info-smelly" onclick="toggleInfo('info-smelly')" style="border-color:#d97706;color:#d97706" title="How this is calculated">ℹ</button></div>
           <div class="info-panel" id="info-smelly" style="margin:0.5rem 0 0.25rem;background:#fffbeb;border-color:#fde68a">
-            <div class="info-row"><strong>Smelly tickets</strong> are WIP items older than your 85th percentile lead time. By definition, 85% of your completed items finished faster than this threshold — so anything still in progress beyond it is a statistical outlier worth reviewing.</div>
+            <div class="info-row"><strong>Smelly tickets</strong> are WIP items older than your 85th percentile cycle time. By definition, 85% of your completed items finished faster than this threshold — so anything still in progress beyond it is a statistical outlier worth reviewing.</div>
             <div class="info-row">The name comes from <em>code smell</em> — not necessarily broken, but worth a closer look. Ask: is it blocked? Forgotten? Too large to finish? The older it gets, the more it is slowing everything else down (Little's Law).</div>
           </div>
           <div class="ic2-q">Smelly tickets</div>
-          <div class="ic2-sub">WIP items in progress longer than your 85th percentile lead time</div>
+          <div class="ic2-sub">WIP items in progress longer than your 85th percentile cycle time</div>
           <div id="ic-smelly-content"><span style="color:#94a3b8;font-size:0.85rem">No data yet</span></div>
         </div>
         <div class="ic2-card ic2-teal">
@@ -1071,12 +1075,12 @@ License: MIT
 
     <div id="tab-scatter" class="tab-pane">
       <div class="chart-card">
-        <h2>Lead Time Control Chart <button class="info-btn" data-info="info-scatter" onclick="toggleInfo('info-scatter')" title="How to read this">ℹ</button></h2>
+        <h2>Cycle Time Control Chart<span class="ct-span ct-span-h"></span> <button class="info-btn" data-info="info-scatter" onclick="toggleInfo('info-scatter')" title="How to read this">ℹ</button></h2>
         <div class="subtitle">Each dot is one completed item. Percentile lines show where most of your work lands — aim to keep items below the 85th.</div>
         <div class="info-panel" id="info-scatter">
-          <div class="info-row"><strong>What is cycle time?</strong>Cycle time is measured from when active work begins (your active stage) to when the item is done. Lead time (commit→done) covers from when the team commits to doing the item through to completion — this is what the customer experiences as wait time. If no separate active stage is configured, cycle time and lead time are the same.</div>
+          <div class="info-row"><strong>What is cycle time?</strong>The time from your Start stage to your End stage (shown next to the title). Change the Start and End in the Column mapping, or pick a different <em>Measure to</em> pill to measure a different part of the flow.</div>
           <div class="info-row"><strong>What do the percentile lines mean?</strong>50% of items complete within the green line. 85% complete within the orange line. Use the 85th as your <em>Service Level Expectation (SLE)</em> — a realistic commitment: "We will deliver 85% of items within X days."</div>
-          <div class="info-row"><strong>Orange dots</strong> were blocked at some point during their journey. Compare blocked vs unblocked dots to see how much blocking inflates lead time.</div>
+          <div class="info-row"><strong>Orange dots</strong> were blocked at some point during their journey. Compare blocked vs unblocked dots to see how much blocking inflates cycle time.</div>
           <div class="info-row"><strong>What to look for:</strong> Dots clustering tightly below the 85th line = predictable team. Outliers above the 95th = worth a conversation. Trend upward over time = system is slowing — check WIP.</div>
         </div>
         <div class="chart-wrap"><canvas id="chart-scatter"></canvas></div>
@@ -1095,7 +1099,7 @@ License: MIT
         <h2>Throughput <button class="info-btn" data-info="info-throughput" onclick="toggleInfo('info-throughput')" title="How to read this">ℹ</button></h2>
         <div class="subtitle">Items completed per week. The orange line is a 4-week rolling average — flat and steady is what you want.</div>
         <div class="info-panel" id="info-throughput">
-          <div class="info-row"><strong>What is throughput?</strong>The number of items completed in a given week. This is the engine of your system — throughput drives forecasts, and combined with WIP it determines lead time (Little's Law).</div>
+          <div class="info-row"><strong>What is throughput?</strong>The number of items completed in a given week. This is the engine of your system — throughput drives forecasts, and combined with WIP it determines cycle time (Little's Law).</div>
           <div class="info-row"><strong>Why use a rolling average?</strong>Weekly counts are noisy (holidays, sprints, batch releases). The 4-week rolling average smooths this out so you can see the real trend.</div>
           <div class="info-row"><strong>What to look for:</strong> Steady or rising average = healthy. A sustained drop = investigate (team capacity, blocking, process issues). Spiky pattern with long gaps = work is being batched rather than flowing continuously.</div>
           <div class="info-row"><strong>Throughput and forecasting:</strong> The Monte Carlo forecast on the Flow Insights tab samples this historical throughput distribution to estimate future completions. More stable throughput = tighter, more reliable forecast range.</div>
@@ -1132,11 +1136,11 @@ License: MIT
         <div class="info-panel" id="info-health">
           <div class="info-row"><strong>What this shows</strong> — key flow metrics for the selected period, compared to the same-length period before it. Each card shows the current value, the direction of change, and a traffic light signal.</div>
           <div class="info-row"><strong>Throughput</strong> — items completed per week. Higher is better. Declining throughput is the first sign of a flow problem.</div>
-          <div class="info-row"><strong>Lead time (p50)</strong> — median time from commitment to done. Lower is better. Rising lead time usually follows rising WIP — Little's Law in action.</div>
+          <div class="info-row"><strong>Cycle time (p50)</strong> — median time from commitment to done. Lower is better. Rising cycle time usually follows rising WIP — Little's Law in action.</div>
           <div class="info-row"><strong>System WIP (avg/wk)</strong> — average number of committed-but-not-done items per week across the period. This is a historical average, not today's live count — it will differ from the WIP number in the summary bar, which shows current items only.</div>
           <div class="info-row"><strong>Backlog size</strong> — items in pre-commitment stages (before your Start column). Only available if you have stages configured before your Start column. Growing backlog means demand is exceeding commitment rate.</div>
           <div class="info-row"><strong>FFE time (p50)</strong> — median time items spend in the backlog before commitment. Only available with pre-commitment stages. Rising FFE means decisions are taking longer — a prioritisation or capacity issue upstream of your flow.</div>
-          <div class="info-row"><strong>Flow efficiency</strong> — percentage of lead time spent in active work vs queues. Requires stages to be marked P (process) or Q (queue) in Config.</div>
+          <div class="info-row"><strong>Flow efficiency</strong> — percentage of cycle time spent in active work vs queues. Requires stages to be marked P (process) or Q (queue) in Config.</div>
           <div class="info-row" style="background:#fffbeb;border-color:#fde68a"><strong>Important:</strong> If your Start column is where work first enters the system (not where the team commits to it), backlog and FFE metrics cannot be separated from system metrics. <a href="https://simeon-techbss.github.io/flow-lens/guide.html#ffe" target="_blank" style="color:#0ea5e9">Learn about the commitment point →</a></div>
         </div>
         <div style="display:flex;align-items:center;gap:0.75rem;margin:1rem 0 1.5rem;flex-wrap:wrap;">
@@ -1183,12 +1187,12 @@ License: MIT
     <div id="tab-breakdown" class="tab-pane">
       <div class="chart-card">
         <h2>Breakdown <button class="info-btn" data-info="info-breakdown" onclick="toggleInfo('info-breakdown')" title="How to read this">ℹ</button></h2>
-        <div class="subtitle">Key metrics split by a column of your choice — lead time, throughput, blocked rate, and WIP per category.</div>
+        <div class="subtitle">Key metrics split by a column of your choice — cycle time, throughput, blocked rate, and WIP per category.</div>
         <div class="info-panel" id="info-breakdown">
           <div class="info-row"><strong>What this shows</strong> — a side-by-side comparison of flow metrics across categories (e.g. ticket type, demand type, priority). Useful for identifying which categories take longer, are blocked more often, or have higher WIP.</div>
           <div class="info-row"><strong>Use this unfiltered.</strong> The point of this tab is comparison — if you filter to a single category, the table collapses to one row. Apply slice filters on the other tabs to drill in once you've identified which category to investigate.</div>
           <div class="info-row"><strong>Exclusion filters are respected</strong> (e.g. "hide Not Done") — those apply everywhere to keep the data clean. Slice filters ("show only Priority: High") are ignored here because they defeat the comparison.</div>
-          <div class="info-row"><strong>LT p50 / p85</strong> — suppressed (shown as —) for categories with fewer than 5 completed items, since percentile stats are unreliable on small samples.</div>
+          <div class="info-row"><strong>CT p50 / p85</strong> — suppressed (shown as —) for categories with fewer than 5 completed items, since percentile stats are unreliable on small samples.</div>
         </div>
         <div id="bd-filter-notice" style="display:none;margin:0.75rem 0;padding:0.55rem 0.85rem;background:#fffbeb;border:1px solid #fde68a;border-radius:7px;font-size:0.8rem;color:#92400e;line-height:1.55"></div>
         <div style="margin-bottom:1rem;display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
@@ -1204,8 +1208,8 @@ License: MIT
         <h2>WIP Over Time <button class="info-btn" data-info="info-wiptime" onclick="toggleInfo('info-wiptime')" title="How to read this">ℹ</button></h2>
         <div class="subtitle">Work in progress count each week, counted from Active Work Starts (or Start Date if not set) until Done. A stable or declining WIP leads to more predictable flow — rising WIP means more is starting than finishing.</div>
         <div class="info-panel" id="info-wiptime">
-          <div class="info-row"><strong>Little's Law</strong>The most important equation in flow metrics: <span class="info-formula">Lead Time = WIP ÷ Throughput</span> If WIP doubles and throughput stays flat, lead time doubles. You cannot improve lead time without managing WIP.</div>
-          <div class="info-row"><strong>Rising WIP</strong> means more is being started than finished. This is the single most common cause of long lead times — not team capacity or skill, but too many things in flight at once.</div>
+          <div class="info-row"><strong>Little's Law</strong>The most important equation in flow metrics: <span class="info-formula">Cycle Time = WIP ÷ Throughput</span> If WIP doubles and throughput stays flat, cycle time doubles. You cannot improve cycle time without managing WIP.</div>
+          <div class="info-row"><strong>Rising WIP</strong> means more is being started than finished. This is the single most common cause of long cycle times — not team capacity or skill, but too many things in flight at once.</div>
           <div class="info-row"><strong>What to look for:</strong> Flat or declining WIP = sustainable system. Steadily rising WIP = overloaded system heading for slowdown. A sudden WIP spike = something got stuck (check Aging WIP for the culprit).</div>
           <div class="info-row"><strong>What to do:</strong> Set a WIP limit. Stop starting, start finishing. Even a soft limit ("flag it if WIP goes above X") creates useful conversation.</div>
         </div>
@@ -1215,11 +1219,11 @@ License: MIT
 
     <div id="tab-cttime" class="tab-pane">
       <div class="chart-card">
-        <h2>Lead Time Over Time <button class="info-btn" data-info="info-cttime" onclick="toggleInfo('info-cttime')" title="How to read this">ℹ</button></h2>
-        <div class="subtitle">Weekly median lead time — rising means delivery is slowing down, falling means it's improving.</div>
+        <h2>Cycle Time Over Time<span class="ct-span ct-span-h"></span> <button class="info-btn" data-info="info-cttime" onclick="toggleInfo('info-cttime')" title="How to read this">ℹ</button></h2>
+        <div class="subtitle">Weekly median cycle time — rising means delivery is slowing down, falling means it's improving.</div>
         <div class="info-panel" id="info-cttime">
           <div class="info-row"><strong>What to look for:</strong> A flat or falling median line = your system is stable or improving. A rising line = work is taking longer — check WIP Over Time to see if rising WIP is the cause (Little's Law: CT = WIP ÷ Throughput).</div>
-          <div class="info-row"><strong>p85 line</strong> — the lead time 85% of items beat that week. Watch the gap between median and p85: if it widens, outliers are getting worse even if the median looks fine.</div>
+          <div class="info-row"><strong>p85 line</strong> — the cycle time 85% of items beat that week. Watch the gap between median and p85: if it widens, outliers are getting worse even if the median looks fine.</div>
           <div class="info-row"><strong>Sparse weeks</strong> — weeks with very few completions produce noisy CT values. The 4-week rolling median smooths this out; trust the trend line more than any single week.</div>
           <div class="info-row"><strong>Weeks with no completions</strong> are shown as gaps — this is normal for quiet periods or holidays.</div>
         </div>
@@ -1287,13 +1291,13 @@ License: MIT
 
     <div id="tab-histogram" class="tab-pane">
       <div class="chart-card">
-        <h2>Lead Time Distribution <button class="info-btn" data-info="info-histogram" onclick="toggleInfo('info-histogram')" title="How to read this">ℹ</button></h2>
+        <h2>Cycle Time Distribution<span class="ct-span ct-span-h"></span> <button class="info-btn" data-info="info-histogram" onclick="toggleInfo('info-histogram')" title="How to read this">ℹ</button></h2>
         <div class="subtitle">How often items take a given number of days. A tight cluster to the left = predictable team. Long tail to the right = outliers worth investigating.</div>
         <div class="info-panel" id="info-histogram">
-          <div class="info-row"><strong>What this shows</strong>The shape of your delivery. Each bar = how many items completed at that lead time. The shaded background regions correspond to percentile bands (50th, 70th, 85th, 95th).</div>
+          <div class="info-row"><strong>What this shows</strong>The shape of your delivery. Each bar = how many items completed at that cycle time. The shaded background regions correspond to percentile bands (50th, 70th, 85th, 95th).</div>
           <div class="info-row"><strong>Tight cluster on the left</strong> means most work completes quickly and consistently — highly predictable. The team has found a reliable way of working.</div>
           <div class="info-row"><strong>Long right tail</strong> means some items take much longer than most. This makes forecasting harder and erodes stakeholder trust. Usually caused by: items being too large, blockers, context switching, or items sitting in queues.</div>
-          <div class="info-row"><strong>Two peaks (bimodal)</strong> suggests two different types of work with different natural lead times — consider whether they should be tracked separately.</div>
+          <div class="info-row"><strong>Two peaks (bimodal)</strong> suggests two different types of work with different natural cycle times — consider whether they should be tracked separately.</div>
         </div>
         <div style="margin:1rem 0 0.5rem; display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
           <label style="display:flex;align-items:center;gap:0.3rem;font-size:0.83rem;color:#374151;cursor:pointer;">
@@ -1317,12 +1321,19 @@ License: MIT
         <h2>Flow Efficiency Distribution <button class="info-btn" data-info="info-floweff" onclick="toggleInfo('info-floweff')" title="How to read this">ℹ</button></h2>
         <div class="subtitle">How much of each item's total time was spent in active (process) stages vs waiting in queues or blocked. High 100% bar usually means items went straight from open to done — filter it out to read the real pattern.</div>
         <div class="info-panel" id="info-floweff">
-          <div class="info-row"><strong>What is flow efficiency?</strong> Active time (stages marked P) divided by total time including queues (stages marked Q) and blocked days. 100% means an item moved continuously with no waiting — in practice this often means dates were entered in a single click rather than reflecting real activity.</div>
+          <div class="info-row"><strong>What is flow efficiency?</strong> Active time (stages marked P) divided by total time including queues (stages marked Q) and blocked days. 100% means an item moved continuously with no waiting — in practice this often means dates were entered in a single click rather than reflecting real activity. It's measured within your cycle time (Start → End), so backlog time before the team commits doesn't count.</div>
+          <div class="info-row"><strong>Finished only, or so far?</strong> <em>Finished work only</em> is the classic measure. <em>Finished + unfinished</em> adds work still in progress, treating today as its end, so you can see how efficient current work is being — useful when little has finished yet. The summary bar follows this choice.</div>
           <div class="info-row"><strong>Why filter out 100% (or near-100%)?</strong> Automation and manual date cleanup inflate the top bar and compress everything else. Hide those items to see where real work actually spends time waiting.</div>
-          <div class="info-row"><strong>What good looks like:</strong> Most flow metrics teams aim for 20–40% flow efficiency — the majority of lead time is wait time, not active work. Higher is better, but a realistic average is more useful than one inflated by data quality issues.</div>
+          <div class="info-row"><strong>What good looks like:</strong> Most flow metrics teams aim for 20–40% flow efficiency — the majority of cycle time is wait time, not active work. Higher is better, but a realistic average is more useful than one inflated by data quality issues.</div>
           <div class="info-row"><strong>Stage types matter:</strong> Mark each stage P (process) or Q (queue) in the workflow configuration above. Queue stages and blocked days count as wait time.</div>
         </div>
-        <div style="margin:1rem 0 0.75rem; display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
+        <div class="fe-scope" style="margin:1rem 0 0; display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; font-size:0.83rem; color:#374151;">
+          <span style="font-weight:600">Include:</span>
+          <button class="fe-scope-btn" id="fe-scope-done" onclick="setFeIncludeWip(false)">Finished work only</button>
+          <button class="fe-scope-btn" id="fe-scope-wip" onclick="setFeIncludeWip(true)">Finished + unfinished (so far)</button>
+          <span style="color:#94a3b8;font-size:0.78rem">Unfinished work counts today as its end — how efficient are we so far?</span>
+        </div>
+        <div style="margin:0.75rem 0 0.75rem; display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
           <label style="font-size:0.83rem;color:#374151;font-weight:600;">Hide items &ge;</label>
           <input type="number" id="fe-threshold" value="100" min="0" max="100" step="0.1"
                  style="width:80px;padding:0.3rem 0.55rem;border:1px solid #d1d5db;border-radius:6px;font-size:0.83rem;color:#1e293b;"
@@ -1347,10 +1358,10 @@ License: MIT
     <div id="tab-aging" class="tab-pane">
       <div class="chart-card">
         <h2>Aging WIP <button class="info-btn" data-info="info-aging" onclick="toggleInfo('info-aging')" title="How to read this">ℹ</button></h2>
-        <div class="subtitle">Items in progress by current workflow stage and age. Colour shows where each item sits against your completed lead time percentiles.</div>
+        <div class="subtitle">Items in progress by current workflow stage and age. Colour shows where each item sits against your completed cycle time percentiles.</div>
         <div class="info-panel" id="info-aging">
           <div class="info-row"><strong>What this shows</strong>Every dot is a work item currently in progress. X-axis = which stage it is currently in. Y-axis = how many days it has been in the system (age from start date to today).</div>
-          <div class="info-row"><strong>Colour = risk level</strong> compared to your historical lead time percentiles:
+          <div class="info-row"><strong>Colour = risk level</strong> compared to your historical cycle time percentiles:
             <br>🟢 <strong>Green</strong> — below your 50th percentile. On track, no concern.
             <br>🟡 <strong>Yellow</strong> — between 50th and 70th. Worth keeping an eye on.
             <br>🟠 <strong>Orange</strong> — between 70th and 85th. At risk. Consider a conversation.
@@ -1367,12 +1378,12 @@ License: MIT
 
     <div id="tab-ffe" class="tab-pane">
       <div class="chart-card">
-        <h2>Fuzzy Front End &amp; Lead Time <button class="info-btn" data-info="info-ffe" onclick="toggleInfo('info-ffe')" title="How to read this">ℹ</button></h2>
-        <div class="subtitle">How long items wait in the backlog before commitment, and total lead time from creation to completion.</div>
+        <h2>Fuzzy Front End &amp; Cycle Time <button class="info-btn" data-info="info-ffe" onclick="toggleInfo('info-ffe')" title="How to read this">ℹ</button></h2>
+        <div class="subtitle">How long items wait in the backlog before commitment, and total cycle time from creation to completion.</div>
         <div class="info-panel" id="info-ffe">
           <div class="info-row"><strong>Fuzzy Front End (FFE)</strong> is the time from when an item enters the backlog to when the team commits to doing it (your Start column). This is the prioritisation and selection phase — it reflects how quickly your team makes decisions, not how fast it delivers.</div>
-          <div class="info-row"><strong>Commitment point</strong> is the moment the team signals intent to work on an item. Lead time is measured from this point to done. Items can sit in the backlog for months before commitment — including that time in your lead time figure hides delivery capability. FFE (Fuzzy Front End) captures that pre-commitment phase separately.</div>
-          <div class="info-row"><strong>Total time</strong> = FFE time + lead time (commit→done). FFE is the pre-commitment phase; lead time covers from commitment to done. Cycle time (active→done) is a subset of lead time and excludes any queue time between commitment and active work starting.</div>
+          <div class="info-row"><strong>Commitment point</strong> is the moment the team signals intent to work on an item. Cycle time is measured from this point to done. Items can sit in the backlog for months before commitment — including that time in your cycle time figure hides delivery capability. FFE (Fuzzy Front End) captures that pre-commitment phase separately.</div>
+          <div class="info-row"><strong>Total time</strong> = FFE time + cycle time (commit→done). FFE is the pre-commitment phase; cycle time covers from commitment to done.</div>
           <div class="info-row"><strong>Slice by</strong> — use the dropdown to break FFE down by any column in your data (demand type, team, assignment group). This reveals which types of work sit longest before commitment.</div>
         </div>
         <div id="ffe-no-col" style="padding:2rem 0;color:#94a3b8;font-size:0.88rem;max-width:560px">
@@ -1383,7 +1394,7 @@ License: MIT
           <div class="ffe-section-label">Fuzzy Front End — time from backlog to commitment</div>
           <div class="ffe-summary" id="ffe-pct-cards"></div>
           <div id="ffe-data-warning" style="display:none;margin:0.5rem 0 1rem;padding:0.75rem 1rem;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;font-size:0.82rem;color:#78350f;line-height:1.6"></div>
-          <div class="ffe-section-label">Total Time — full elapsed time from backlog to done (FFE + Lead Time)</div>
+          <div class="ffe-section-label">Total Time — full elapsed time from backlog to done (FFE + Cycle Time)</div>
           <div class="ffe-summary" id="ffe-lead-cards"></div>
           <div class="ffe-slice-row">
             <label>Slice by</label>
@@ -1415,7 +1426,7 @@ License: MIT
     <div id="tab-blocked" class="tab-pane">
       <div class="chart-card">
         <h2>Blocked Items</h2>
-        <div class="subtitle">Impact of blocking on lead time, and which items are currently stuck.</div>
+        <div class="subtitle">Impact of blocking on cycle time, and which items are currently stuck.</div>
         <div id="blocked-content"></div>
       </div>
     </div>
@@ -1630,7 +1641,7 @@ License: MIT
           <div class="info-row"><strong>P85 bar</strong> — 85% of items left this stage within this many days. A wide gap between P50 and P85 means high variability — investigate why items get stuck there.</div>
           <div class="info-row"><strong>Colours</strong> — blue = active work stage, amber = queue (waiting). Stage type is also shown in the label. Configure in Column Mapping.</div>
           <div class="info-row"><strong>Blocked time row</strong> — shown in red at the bottom when blocked data exists. This is the P50 and P85 of total blocked days per item across all completed work. It's shown separately because blocked time is recorded per item, not per stage — we can't tell which stage the block happened in.</div>
-          <div class="info-row"><strong>What to look for</strong> — stages with the highest P50 are your bottlenecks. Queue stages where P85 dwarfs P50 are where work sits unattended. A high blocked P85 relative to stage times means blocking is a significant drag on lead time.</div>
+          <div class="info-row"><strong>What to look for</strong> — stages with the highest P50 are your bottlenecks. Queue stages where P85 dwarfs P50 are where work sits unattended. A high blocked P85 relative to stage times means blocking is a significant drag on cycle time.</div>
         </div>
         <canvas id="chart-stagetime"></canvas>
         <div id="stagetime-empty" class="empty-state" style="display:none">No completed items to analyse.</div>
@@ -1667,7 +1678,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-10-26e';
+const VERSION = '2026-10-26f';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -1711,7 +1722,7 @@ function getCachedDate(row, col) {
 
 // Discarded stages (stage type 'discarded', shown as X in the workflow list): the item left the
 // system without being delivered — Rejected, Cancelled, Not done, Won't do. From that date it is
-// no longer WIP or backlog, but it never counts towards throughput, lead time or forecasts.
+// no longer WIP or backlog, but it never counts towards throughput, cycle time or forecasts.
 function workflowStagesOrdered() {
   return [...workflowStages.filter(c => stageTypes[c] !== 'discarded'), ...workflowStages.filter(c => stageTypes[c] === 'discarded')];
 }
@@ -1824,6 +1835,41 @@ function weekStart(date) {
   const day = d.getDay();
   d.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
   return d;
+}
+
+// Local yyyy-mm-dd (toISOString shifts local midnight back a day in BST)
+function dayKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Latest date in any workflow column of the file — the "as of" date of the export
+let _dataEndCache = { rows: null, date: null };
+function dataEndDate() {
+  if (_dataEndCache.rows === allRows) return _dataEndCache.date;
+  let max = null;
+  allRows.forEach(row => workflowStages.forEach(col => { const d = getCachedDate(row, col); if (d && (!max || d > max)) max = d; }));
+  _dataEndCache = { rows: allRows, date: max };
+  return max;
+}
+
+// THE throughput calculation — every tab uses this so the numbers agree.
+// Weekly finish counts (Monday weeks), zero weeks included, from the week of the first finish
+// to the week of the latest date in the file. Weeks before the data begins are never counted.
+function weeklyThroughput(dates) {
+  if (!dates.length) return [];
+  const byKey = {};
+  let first = null;
+  dates.forEach(d => { const w = weekStart(d); const k = dayKey(w); byKey[k] = (byKey[k] || 0) + 1; if (!first || w < first) first = w; });
+  const end = dataEndDate();
+  const last = weekStart(end && end > first ? end : first);
+  const out = [];
+  for (const w = new Date(first); w <= last; w.setDate(w.getDate() + 7)) out.push({ week: new Date(w), key: dayKey(w), count: byKey[dayKey(w)] || 0 });
+  return out;
+}
+
+function avgThroughput(dates) {
+  const wk = weeklyThroughput(dates);
+  return wk.length ? wk.reduce((s, w) => s + w.count, 0) / wk.length : null;
 }
 
 function fmtDate(d) {
@@ -3141,38 +3187,58 @@ function toggleStageType(col, btn) {
 
 // Stages counted for flow efficiency — under a milestone, stop at its finish stage
 // so time spent after the handoff (SIT, UAT…) isn't counted.
+// Flow efficiency is measured inside the cycle time span (Start → End, so a milestone narrows it);
+// backlog time before the commitment point doesn't count
 function flowEffStages(cfg) {
-  if (!cfg.milestone) return workflowStages;
+  const startIdx = Math.max(0, workflowStages.indexOf(cfg.startCol));
   const endIdx = workflowStages.indexOf(cfg.endCol);
-  return endIdx >= 0 ? workflowStages.slice(0, endIdx + 1) : workflowStages;
+  return workflowStages.slice(startIdx, endIdx >= 0 ? endIdx + 1 : workflowStages.length);
 }
 
-function calculateFlowEfficiency(completedItems) {
+// One item's flow efficiency: active (P) time ÷ (all stage time + blocked days).
+// untilDate is for unfinished work: the last stage it reached runs until then ("so far").
+function rowFlowEff(row, cfg, blockedDays, untilDate) {
   if (workflowStages.length < 2) return null;
-  const cfg = getConfig();
-  const rows = allRows.filter(row => rowMatchesFilters(row, cfg));
-  const efficiencies = [];
-
   const feStages = flowEffStages(cfg);
-  rows.forEach(row => {
-    const dates = feStages.map(col => stageTypes[col] === 'discarded' ? null : getCachedDate(row, col));
-    let processTime = 0, queueTime = 0;
-    dates.forEach((d, i) => {
-      if (!d) return;
-      let nextDate = null;
-      for (let j = i + 1; j < dates.length; j++) { if (dates[j]) { nextDate = dates[j]; break; } }
-      if (!nextDate) return;
-      const dur = daysBetween(d, nextDate);
-      if (dur <= 0) return;
-      if (stageTypes[feStages[i]] === 'process') processTime += dur; else queueTime += dur;
-    });
-    const blocked = cfg.blockedDaysCol ? (parseFloat(row[cfg.blockedDaysCol]) || 0) : 0;
-    const total = processTime + queueTime + blocked;
-    if (total > 0) efficiencies.push(processTime / total * 100);
+  const dates = feStages.map(col => stageTypes[col] === 'discarded' ? null : getCachedDate(row, col));
+  let processTime = 0, queueTime = 0;
+  dates.forEach((d, i) => {
+    if (!d) return;
+    let nextDate = null;
+    for (let j = i + 1; j < dates.length; j++) { if (dates[j]) { nextDate = dates[j]; break; } }
+    if (!nextDate) { if (!untilDate) return; nextDate = untilDate; }
+    const dur = daysBetween(d, nextDate);
+    if (dur <= 0) return;
+    if (stageTypes[feStages[i]] === 'process') processTime += dur; else queueTime += dur;
   });
+  const total = processTime + queueTime + (blockedDays || 0);
+  return total > 0 ? processTime / total * 100 : null;
+}
 
-  if (!efficiencies.length) return null;
-  return efficiencies.reduce((a, b) => a + b, 0) / efficiencies.length;
+// Include unfinished work in flow efficiency ("so far", today as the end)? Viewer preference.
+let feIncludeWip = false;
+try { feIncludeWip = localStorage.getItem('fl-fe-wip') === '1'; } catch (e) {}
+function setFeIncludeWip(on) {
+  feIncludeWip = on;
+  try { localStorage.setItem('fl-fe-wip', on ? '1' : '0'); } catch (e) {}
+  renderAll(true);
+}
+
+// The items flow efficiency is averaged over — the summary bar and the Flow Efficiency tab both use this
+function feItems(payload) {
+  const done = (payload.completed || []).filter(d => d.flowEfficiency !== null && d.flowEfficiency !== undefined);
+  if (!feIncludeWip) return done;
+  const cfg = getConfig();
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const open = [...(payload.wip || []), ...(payload.committedQueue || [])]
+    .map(d => ({ ...d, open: true, leadTime: d.age || 0, flowEfficiency: rowFlowEff(d._row, cfg, d.blockedDays || 0, today) }))
+    .filter(d => d.flowEfficiency !== null);
+  return done.concat(open);
+}
+
+function calculateFlowEfficiency(payload) {
+  const items = feItems(payload);
+  return items.length ? items.reduce((s, d) => s + d.flowEfficiency, 0) / items.length : null;
 }
 
 // ── Data processing ────────────────────────────────────────────────────────
@@ -3312,7 +3378,7 @@ function processData(cfg) {
 
     if (startDate && endDate && endDate >= startDate) {
       const activeDate = cfg.activeCol ? getCachedDate(row, cfg.activeCol) : null;
-      const leadTime = daysBetween(startDate, endDate);  // commit→done (Vacanti lead time)
+      const leadTime = daysBetween(startDate, endDate);  // commit→done (Vacanti cycle time)
       const cycleTime = (activeDate && activeDate >= startDate) ? daysBetween(activeDate, endDate) : leadTime;  // active→done (Vacanti cycle time)
       if (leadTime < 0) return;
       if (cutoff && endDate < cutoff) return;
@@ -3330,23 +3396,7 @@ function processData(cfg) {
       }
       const ffeTime  = (backlogDate && backlogDate <= startDate) ? daysBetween(backlogDate, startDate) : null;
       const totalTime = (backlogDate && backlogDate <= endDate)  ? daysBetween(backlogDate, endDate)   : null;  // backlog→done (Vacanti total time)
-      let flowEfficiency = null;
-      if (workflowStages.length >= 2) {
-        const feStages = flowEffStages(cfg);
-        const stageDates = feStages.map(col => stageTypes[col] === 'discarded' ? null : getCachedDate(row, col));
-        let processTime = 0, queueTime = 0;
-        stageDates.forEach((d, i) => {
-          if (!d) return;
-          let nextDate = null;
-          for (let j = i + 1; j < stageDates.length; j++) { if (stageDates[j]) { nextDate = stageDates[j]; break; } }
-          if (!nextDate) return;
-          const dur = daysBetween(d, nextDate);
-          if (dur <= 0) return;
-          if (stageTypes[feStages[i]] === 'process') processTime += dur; else queueTime += dur;
-        });
-        const total = processTime + queueTime + blockedDays;
-        if (total > 0) flowEfficiency = processTime / total * 100;
-      }
+      const flowEfficiency = rowFlowEff(row, cfg, blockedDays);
       completed.push({ id, title, link, startDate, endDate, cycleTime, leadTime, totalTime, blockedDays, flowEfficiency, backlogDate, ffeTime, _row: row });
     } else if (!endDate && discardDate) {
       // Discarded — left the system without being delivered. Not WIP, not backlog, not throughput.
@@ -3444,8 +3494,9 @@ function _doRenderAll() {
   document.getElementById('stat-median').textContent   = completed.length ? p50.toFixed(1) + 'd' : '—';
   document.getElementById('stat-p85').textContent      = completed.length ? p85.toFixed(1) + 'd' : '—';
   document.getElementById('stat-wip').textContent      = wip.length;
-  const fe = calculateFlowEfficiency(completed);
+  const fe = calculateFlowEfficiency({ completed, wip, committedQueue });
   document.getElementById('stat-fe').textContent = fe !== null ? fe.toFixed(0) + '%' : '—';
+  document.getElementById('stat-fe-scope').textContent = feIncludeWip ? 'incl. unfinished, so far' : 'finished work';
 
   const totalBlockedDays = Math.round(completed.reduce((s, d) => s + (d.blockedDays || 0), 0));
   const currentlyBlockedCount = cfg.blockedFlagCol ? wip.filter(i => i.currentlyBlocked).length : null;
@@ -3464,18 +3515,17 @@ function _doRenderAll() {
     blockedEl.textContent = '—';
     blockedLbl.textContent = 'Blocked';
   }
+  const spanTxt = `${cfg.startCol} → ${cfg.endCol}`;
+  document.querySelectorAll('.ct-span').forEach(el => { el.textContent = el.classList.contains('ct-span-h') ? `· ${spanTxt}` : spanTxt; });
+
   // Say why the cycle time / throughput boxes are blank, rather than leaving bare dashes
   const statsNote = document.getElementById('stats-note');
   if (!totalCompleted && (wip.length || committedQueue.length || backlog.length)) {
     statsNote.textContent = `Nothing in this selection has reached ${cfg.endCol} yet, so cycle time and throughput have nothing to measure. WIP and blocked still count work in progress.`;
     statsNote.style.display = '';
   } else statsNote.style.display = 'none';
-  if (completed.length > 1) {
-    const spanWeeks = daysBetween(completed[0].endDate, completed[completed.length-1].endDate) / 7;
-    document.getElementById('stat-throughput').textContent = spanWeeks > 0 ? (completed.length / spanWeeks).toFixed(1) : '—';
-  } else {
-    document.getElementById('stat-throughput').textContent = '—';
-  }
+  const tpAvg = avgThroughput(completed.map(d => d.endDate));
+  document.getElementById('stat-throughput').textContent = tpAvg !== null ? tpAvg.toFixed(1) : '—';
 
   document.getElementById('legend-p50').textContent = `50th — ${p50.toFixed(1)}d`;
   document.getElementById('legend-p70').textContent = `70th — ${p70.toFixed(1)}d`;
@@ -3582,7 +3632,7 @@ function showScatterBreakdown(pts, panelId = 'scatter-click-info') {
       ? `<span style="font-size:0.7rem;background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:3px;padding:0.05rem 0.4rem;margin-left:0.4rem;white-space:nowrap">✓ done ${item.endDate.toISOString().slice(0,10)}</span>`
       : `<span style="font-size:0.7rem;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:3px;padding:0.05rem 0.4rem;margin-left:0.4rem;white-space:nowrap">⏳ in progress · est. as of today</span>`;
     // cycleTime = active→done, leadTime = commit→done (Vacanti definitions)
-    const ctLabel = `${item.cycleTime.toFixed(1)}d Cycle Time` + (item.leadTime !== item.cycleTime ? ` · ${item.leadTime.toFixed(1)}d Lead Time` : '') + (item.totalTime ? ` · ${item.totalTime.toFixed(1)}d Total Time` : '') + doneBadge;
+    const ctLabel = `${item.leadTime.toFixed(1)}d cycle time` + (item.leadTime !== item.cycleTime ? ` · ${item.cycleTime.toFixed(1)}d from active work` : '') + (item.totalTime ? ` · ${item.totalTime.toFixed(1)}d total time` : '') + doneBadge;
 
     return `<div style="margin-bottom:${pts.length > 1 ? '1rem' : '0'}">
       <div class="sb-header">
@@ -3801,7 +3851,7 @@ function renderScatter(data, p50, p70, p85, p95) {
         x: { type: 'time', time: { minUnit: 'day', displayFormats: { day: 'd MMM', week: 'd MMM', month: 'MMM yyyy' } },
              title: { display: true, text: 'Completion date', color: '#94a3b8', font: { size: 11 } },
              grid: { color: '#f1f5f9' }, ticks: { maxTicksLimit: 8, maxRotation: 0, color: '#94a3b8', font: { size: 11 } } },
-        y: { title: { display: true, text: 'Lead time (days)', color: '#94a3b8', font: { size: 11 } },
+        y: { title: { display: true, text: 'Cycle time (days)', color: '#94a3b8', font: { size: 11 } },
              grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 11 } }, min: 0 }
       }
     }
@@ -3811,7 +3861,7 @@ function renderScatter(data, p50, p70, p85, p95) {
 // ── Throughput week drill-down ─────────────────────────────────────────────
 function renderWeekDrilldown(weekKey, completed, panel) {
   const cfg = getConfig();
-  const items = completed.filter(d => weekStart(d.endDate).toISOString().slice(0,10) === weekKey);
+  const items = completed.filter(d => dayKey(weekStart(d.endDate)) === weekKey);
   if (!items.length) { panel.style.display = 'none'; return; }
 
   const weekDate = new Date(weekKey + 'T00:00:00');
@@ -3872,14 +3922,10 @@ function renderThroughput(data) {
   if (weekPanel) { weekPanel.style.display = 'none'; weekPanel.dataset.activeWeek = ''; }
   if (!data.length) return;
 
-  const byWeek = {};
-  data.forEach(d => {
-    const k = weekStart(d.endDate).toISOString().slice(0,10);
-    byWeek[k] = (byWeek[k] || 0) + 1;
-  });
-  const keys   = Object.keys(byWeek).sort();
-  const values = keys.map(k => byWeek[k]);
-  const labels = keys.map(k => new Date(k + 'T00:00:00'));
+  const weekly = weeklyThroughput(data.map(d => d.endDate));
+  const keys   = weekly.map(w => w.key);
+  const values = weekly.map(w => w.count);
+  const labels = weekly.map(w => w.week);
   const rolling = values.map((_, i) => {
     const slice = values.slice(Math.max(0, i-3), i+1);
     return +(slice.reduce((a,b) => a+b, 0) / slice.length).toFixed(2);
@@ -4312,10 +4358,7 @@ function renderBreakdown() {
   });
 
   // Span weeks for throughput
-  const endMs = completedItems.map(d => d.endD.getTime());
-  const spanWeeks = endMs.length > 1
-    ? Math.max(1, (Math.max(...endMs) - Math.min(...endMs)) / (7 * 86400000))
-    : 1;
+  const spanWeeks = Math.max(1, weeklyThroughput(completedItems.map(d => d.endD)).length);
 
   const showCommitted = committedItems.length > 0;
   const showBacklog   = backlogItems.length > 0;
@@ -4359,8 +4402,8 @@ function renderBreakdown() {
     <th>WIP</th>
     <th>Done</th>
     <th>Throughput/wk</th>
-    <th>LT p50</th>
-    <th>LT p85</th>
+    <th>CT p50</th>
+    <th>CT p85</th>
     ${showBlockedCol ? '<th>Blocked %</th>' : ''}
   </tr></thead><tbody>`;
 
@@ -4647,11 +4690,11 @@ function renderCTOverTime() {
     data: {
       labels: weeks,
       datasets: [
-        { type: 'line', label: 'p85 LT', data: p85s,
+        { type: 'line', label: 'p85 CT', data: p85s,
           borderColor: 'rgba(251,146,60,0.7)', backgroundColor: 'transparent',
           borderWidth: 1.5, borderDash: [4, 3], pointRadius: 2, pointHoverRadius: 5,
           tension: 0.3, spanGaps: true, order: 3 },
-        { type: 'line', label: 'Median LT', data: medians,
+        { type: 'line', label: 'Median CT', data: medians,
           borderColor: 'rgba(56,189,248,0.9)', backgroundColor: 'rgba(56,189,248,0.08)',
           borderWidth: 2, fill: true, pointRadius: 2, pointHoverRadius: 5,
           tension: 0.3, spanGaps: true, order: 2 },
@@ -4680,7 +4723,7 @@ function renderCTOverTime() {
       scales: {
         x: { type: 'time', time: { unit: 'week', displayFormats: { week: 'd MMM yy' } },
              grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 11 } } },
-        y: { title: { display: true, text: 'Lead time (days)', color: '#94a3b8', font: { size: 11 } },
+        y: { title: { display: true, text: 'Cycle time (days)', color: '#94a3b8', font: { size: 11 } },
              grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 11 } }, min: 0 }
       },
       onHover(evt, elements) {
@@ -5081,10 +5124,6 @@ function cfdWip(si, wi) {
   return stageCounts[si][wi] - (si + 1 < visibleStages.length ? stageCounts[si + 1][wi] : 0);
 }
 
-function fmtDate(d) {
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-}
-
 function updateCFDAnalysis() {
   const panel   = document.getElementById('cfd-analysis');
   const panels  = document.getElementById('cfd-panels');
@@ -5227,9 +5266,15 @@ function renderTeamHealth() {
   function med(arr) { if (!arr.length) return null; const s=[...arr].sort((a,b)=>a-b); return percentile(s,50); }
   function avg(arr) { return arr.length ? arr.reduce((s,v)=>s+v,0)/arr.length : null; }
 
-  // Throughput
-  const curTP  = curItems.length  / periodWeeks;
-  const prevTP = prevItems.length / periodWeeks;
+  // Throughput — the shared weekly counts, averaged over the weeks inside each period
+  // (weeks before the first finish aren't counted, so a short file doesn't dilute it)
+  const weekly = weeklyThroughput(completed.map(d => d.endDate));
+  const tpIn = (from, to) => {
+    const wk = weekly.filter(w => w.week >= weekStart(from) && w.week < to);
+    return wk.length ? wk.reduce((s, w) => s + w.count, 0) / wk.length : null;
+  };
+  const curTP  = tpIn(curStart, curEnd);
+  const prevTP = tpIn(prevStart, prevEnd);
 
   // Cycle time p50
   const curCT  = med(curItems.map(d=>d.leadTime));
@@ -5315,7 +5360,7 @@ function renderTeamHealth() {
 
   document.getElementById('th-cards').innerHTML = [
     card('Throughput',        curTP,       prevTP,       '/wk', true,  v => v.toFixed(1)),
-    card('Lead Time (p50)',   curCT,       prevCT,       'd',   false, v => Math.round(v)),
+    card('Cycle Time (p50)',   curCT,       prevCT,       'd',   false, v => Math.round(v)),
     card('System WIP (avg/wk)', curWIP,   prevWIP,      '',    false, v => Math.round(v)),
     card('Backlog Size (avg)',curBacklog,  prevBacklog,  '',    false, v => Math.round(v)),
     card('FFE Time (p50)',   curFFE,      prevFFE,      'd',   false, v => Math.round(v)),
@@ -5337,8 +5382,8 @@ function renderTeamHealth() {
     else signals.push('system WIP is stable');
   }
   if (hasPrev && curCT !== null && prevCT !== null) {
-    if (curCT > prevCT * 1.1) signals.push('lead time is lengthening — often caused by rising WIP');
-    else if (curCT < prevCT * 0.9) signals.push('lead time is improving');
+    if (curCT > prevCT * 1.1) signals.push('cycle time is lengthening — often caused by rising WIP');
+    else if (curCT < prevCT * 0.9) signals.push('cycle time is improving');
   }
   if (hasPrev && curBacklog !== null && prevBacklog !== null) {
     if (curBacklog > prevBacklog * 1.1) signals.push('backlog is growing — demand exceeding commitment rate');
@@ -5602,7 +5647,7 @@ function renderHistogram(data, p50, p70, p85, p95) {
   });
   const hidden    = data.length - filtered.length;
   const hiddenParts = [];
-  if (hideZero) { const n = data.filter(d => d.leadTime === 0).length; if (n) hiddenParts.push(`${n} zero-LT`); }
+  if (hideZero) { const n = data.filter(d => d.leadTime === 0).length; if (n) hiddenParts.push(`${n} zero-CT`); }
   if (minCTcap !== null) { const n = data.filter(d => d.leadTime > 0 && d.leadTime < minCTcap).length; if (n) hiddenParts.push(`${n} below min`); }
   if (maxCTcap !== null) { const n = data.filter(d => d.leadTime > maxCTcap).length; if (n) hiddenParts.push(`${n} above max`); }
   const infoEl   = document.getElementById('hist-filter-info');
@@ -5612,7 +5657,7 @@ function renderHistogram(data, p50, p70, p85, p95) {
   const maxCT = Math.ceil(Math.max(...cycleTimes));
 
   if (maxCT === 0) {
-    wrap.innerHTML = `<div class="empty-state">All ${data.length} completed items have a 0-day lead time.<br>This usually means the start and end columns are the same date in your data.</div>`;
+    wrap.innerHTML = `<div class="empty-state">All ${data.length} completed items have a 0-day cycle time.<br>This usually means the start and end columns are the same date in your data.</div>`;
     return;
   }
 
@@ -5676,9 +5721,12 @@ function renderFlowEff(completed) {
   const warning = document.getElementById('fe-config-warning');
   if (warning) { warning.style.display = 'none'; warning.innerHTML = ''; }
 
-  if (!completed.length) return;
+  document.getElementById('fe-scope-done')?.classList.toggle('active', !feIncludeWip);
+  document.getElementById('fe-scope-wip')?.classList.toggle('active', feIncludeWip);
 
-  const withFE = completed.filter(d => d.flowEfficiency !== null && d.flowEfficiency !== undefined);
+  const p = lastRenderPayload || {};
+  const withFE = feItems({ completed, wip: p.wip, committedQueue: p.committedQueue });
+  if (!withFE.length && !completed.length) return;
   if (!withFE.length) {
     const hasStages = workflowStages.length >= 2;
     const msg = hasStages
@@ -5735,11 +5783,11 @@ function renderFlowEff(completed) {
     wrap.innerHTML = '<canvas id="chart-floweff"></canvas>';
   }
 
-  // 10-percentage-point bins: 0–10, 10–20, …, 90–100
-  const bins = Array(10).fill(0);
+  // 10-percentage-point bins: 0–10, 10–20, …, 90–100 — finished and unfinished stacked
+  const bins = Array(10).fill(0), openBins = Array(10).fill(0);
   visible.forEach(d => {
     const b = Math.min(9, Math.floor(d.flowEfficiency / 10));
-    bins[b]++;
+    (d.open ? openBins : bins)[b]++;
   });
   const labels = bins.map((_, i) => `${i * 10}–${(i + 1) * 10}%`);
   const colors = bins.map((_, i) => {
@@ -5750,26 +5798,31 @@ function renderFlowEff(completed) {
   });
 
   const avg = visible.reduce((s, d) => s + d.flowEfficiency, 0) / visible.length;
+  const avgAll = withFE.reduce((s, d) => s + d.flowEfficiency, 0) / withFE.length;
+  if (info) info.textContent = [info.textContent, hiddenCount ? `average of all ${withFE.length}: ${avgAll.toFixed(0)}% (the summary bar figure)` : ''].filter(Boolean).join(' · ');
 
   const ctx = document.getElementById('chart-floweff').getContext('2d');
   charts.floweff = new Chart(ctx, {
     type: 'bar',
-    data: { labels, datasets: [{ label: 'Items', data: bins, backgroundColor: colors, borderWidth: 0 }] },
+    data: { labels, datasets: [
+      { label: 'Finished', data: bins, backgroundColor: colors, borderWidth: 0, stack: 'fe' },
+      ...(feIncludeWip ? [{ label: 'Unfinished (so far)', data: openBins, backgroundColor: colors.map(c => c.replace('0.75)', '0.3)')), borderColor: colors.map(c => c.replace('0.75)', '0.9)')), borderWidth: 1, borderDash: [3, 2], stack: 'fe' }] : []),
+    ] },
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: {
-        legend: { display: false },
+        legend: { display: feIncludeWip, position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
         tooltip: {
           callbacks: {
             title: items => items[0].label,
-            label: items => ` ${items.raw} item${items.raw !== 1 ? 's' : ''}`,
+            label: items => ` ${items.dataset.label}: ${items.raw} item${items.raw !== 1 ? 's' : ''}`,
           }
         },
       },
       scales: {
-        x: { title: { display: true, text: 'Flow efficiency', color: '#94a3b8', font: { size: 11 } },
+        x: { stacked: true, title: { display: true, text: 'Flow efficiency', color: '#94a3b8', font: { size: 11 } },
              grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10 } } },
-        y: { title: { display: true, text: 'Number of items', color: '#94a3b8', font: { size: 11 } },
+        y: { stacked: true, title: { display: true, text: 'Number of items', color: '#94a3b8', font: { size: 11 } },
              grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 11 }, stepSize: 1 }, min: 0 }
       }
     },
@@ -5971,7 +6024,7 @@ function renderAging(wip, p50, p70, p85, p95) {
   legendEl.innerHTML = `
     ${wip.length} items in progress &nbsp;·&nbsp; ${overP85} over 85th percentile
     ${blockedNow > 0 ? ` &nbsp;·&nbsp; <span style="color:#ef4444;font-weight:600">⊘ ${blockedNow} currently blocked</span>` : ''}
-    &nbsp;·&nbsp; Age vs completed lead time:
+    &nbsp;·&nbsp; Age vs completed cycle time:
     <span style="color:#16a34a">≤50th</span> ·
     <span style="color:#a16207">≤70th</span> ·
     <span style="color:#ea580c">≤85th</span> ·
@@ -6034,9 +6087,9 @@ function renderBlocked(completed, wip, p85) {
   if (bSt) {
     const total = Math.round(blockedDone.reduce((s, d) => s + d.blockedDays, 0));
     const avg   = (total / blockedDone.length).toFixed(1);
-    html += statRow('p50 lead time', Math.round(bSt.p50) + 'd');
-    html += statRow('p85 lead time', Math.round(bSt.p85) + 'd');
-    html += statRow('p95 lead time', Math.round(bSt.p95) + 'd');
+    html += statRow('p50 cycle time', Math.round(bSt.p50) + 'd');
+    html += statRow('p85 cycle time', Math.round(bSt.p85) + 'd');
+    html += statRow('p95 cycle time', Math.round(bSt.p95) + 'd');
     html += `<div style="height:0.5rem"></div>`;
     html += statRow('Total blocked days', total + 'd');
     html += statRow('Avg blocked per item', avg + 'd');
@@ -6048,9 +6101,9 @@ function renderBlocked(completed, wip, p85) {
   html += `<div class="blocked-ccard is-clean">
     <div class="blocked-ccard-label">Finished, never blocked — ${cleanDone.length} items</div>`;
   if (cSt) {
-    html += statRow('p50 lead time', Math.round(cSt.p50) + 'd');
-    html += statRow('p85 lead time', Math.round(cSt.p85) + 'd');
-    html += statRow('p95 lead time', Math.round(cSt.p95) + 'd');
+    html += statRow('p50 cycle time', Math.round(cSt.p50) + 'd');
+    html += statRow('p85 cycle time', Math.round(cSt.p85) + 'd');
+    html += statRow('p95 cycle time', Math.round(cSt.p95) + 'd');
   } else {
     html += `<div style="font-size:0.84rem;color:#94a3b8">No clean items found</div>`;
   }
@@ -6096,9 +6149,9 @@ function renderBlocked(completed, wip, p85) {
       { label: 'ID',           render: d => idCell(d) },
       { label: 'Title',        render: d => d.title || '—', style: 'style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"' },
       { label: 'Done',         render: d => fmtDate(d.endDate), style: 'style="white-space:nowrap"' },
-      { label: 'Lead time',    render: d => d.leadTime.toFixed(1) + 'd' },
+      { label: 'Cycle time',    render: d => d.leadTime.toFixed(1) + 'd' },
       { label: 'Blocked days', render: d => `<span style="color:#dc2626;font-weight:600">${d.blockedDays.toFixed(1)}d</span>` },
-      { label: '% of LT',      render: d => {
+      { label: '% of CT',      render: d => {
           if (!d.leadTime) return '—';
           const p = Math.round(d.blockedDays / d.leadTime * 100);
           const c = p > 100 ? '#7c2d12' : p > 50 ? '#dc2626' : p > 25 ? '#d97706' : '#475569';
@@ -6168,12 +6221,7 @@ function runMonteCarlo(completed, days) {
   days = days || 30;
   if (completed.length < 4) return null;
 
-  const byWeek = {};
-  completed.forEach(d => {
-    const k = weekStart(d.endDate).toISOString().slice(0, 10);
-    byWeek[k] = (byWeek[k] || 0) + 1;
-  });
-  const rates = Object.values(byWeek);
+  const rates = weeklyThroughput(completed.map(d => d.endDate)).map(w => w.count);
   if (rates.length < 2) return null;
 
   const weeks = days / 7;
@@ -6266,7 +6314,7 @@ function renderInsights(completed, wip, committedQueue, backlog, p50, p70, p85, 
     smellyEl.innerHTML = `
       <div class="ic2-bignum">${smellyItems.length}</div>
       <div style="font-size:0.78rem;color:#92400e;margin:0.4rem 0 0.75rem">
-        item${smellyItems.length > 1 ? 's' : ''} older than ${Math.ceil(p85)}d — your 85th percentile lead time
+        item${smellyItems.length > 1 ? 's' : ''} older than ${Math.ceil(p85)}d — your 85th percentile cycle time
       </div>
       ${top5.map(i => {
         const label = `${i.id ? `<strong>${i.id}</strong> ` : ''}${(i.title || 'Untitled').slice(0, 40)}${(i.title||'').length > 40 ? '…' : ''}`;
@@ -6332,11 +6380,11 @@ function renderPipeline(completed, wip, committedQueue, backlog, cfg) {
   let spansHtml = '';
   if (hasFfe)  spansHtml += `<div class="pl-span pl-span-ffe" style="grid-column:1/${startIdx+1}">FFE</div>`;
   if (ctSameAsLt) {
-    // No separate active stage — CT and Lead Time span the same columns
-    spansHtml += `<div class="pl-span pl-span-ct" style="grid-column:${startIdx+1}/${endIdx+2}" title="No separate active stage configured — Cycle Time = Lead Time">Cycle Time = Lead Time</div>`;
+    // No separate active stage — both cycle times span the same columns
+    spansHtml += `<div class="pl-span pl-span-ct" style="grid-column:${startIdx+1}/${endIdx+2}">Cycle time · ${visStages[startIdx]} → ${visStages[endIdx]}</div>`;
   } else {
     if (startIdx < activeIdx) spansHtml += `<div style="grid-column:${startIdx+1}/${activeIdx+1}"></div>`;
-    spansHtml += `<div class="pl-span pl-span-ct" style="grid-column:${activeIdx+1}/${endIdx+2}">Cycle Time</div>`;
+    spansHtml += `<div class="pl-span pl-span-ct" style="grid-column:${activeIdx+1}/${endIdx+2}">Cycle time · ${visStages[activeIdx]} → ${visStages[endIdx]}</div>`;
   }
   if (endIdx < n-1) spansHtml += `<div style="grid-column:${endIdx+2}/${n+1}"></div>`;
 
@@ -6349,10 +6397,10 @@ function renderPipeline(completed, wip, committedQueue, backlog, cfg) {
     wipHtml += `<div style="grid-column:${endIdx+1}/${n+1}"></div>`;
   }
 
-  // Span row 3: Lead Time (commit→done) — spans from startCol to Done
+  // Span row 3: the headline cycle time (startCol→endCol)
   let ltHtml = '';
   if (hasFfe) ltHtml += `<div style="grid-column:1/${startIdx+1}"></div>`;
-  ltHtml += `<div class="pl-span pl-span-lt" style="grid-column:${startIdx+1}/${endIdx+2}">Lead Time</div>`;
+  ltHtml += `<div class="pl-span pl-span-lt" style="grid-column:${startIdx+1}/${endIdx+2}">Cycle time · ${visStages[startIdx]} → ${visStages[endIdx]}</div>`;
   if (endIdx < n-1) ltHtml += `<div style="grid-column:${endIdx+2}/${n+1}"></div>`;
 
   // Span row 4: Total Time (backlog→done) — only shown when there are pre-start stages
@@ -6369,14 +6417,14 @@ function renderPipeline(completed, wip, committedQueue, backlog, cfg) {
   const avgCT   = completed.length ? completed.reduce((s,d) => s + d.cycleTime, 0) / completed.length : null;
   const ltItems = completed.filter(d => d.leadTime !== null);
   const avgLT   = ltItems.length   ? ltItems.reduce((s,d) => s + d.leadTime, 0)   / ltItems.length   : null;
-  // leadTime is commit→done (Vacanti lead time), cycleTime is active→done (Vacanti cycle time)
+  // leadTime = start→end (the headline cycle time everywhere); cycleTime = active→end
 
   const stats = [
     hasFfe            ? { label:'In FFE',       val: backlog.length.toLocaleString()        } : null,
     hasQueue          ? { label:'Committed, not started', val: committedQueue.length.toLocaleString() } : null,
                         { label:'WIP',           val: wip.length.toLocaleString()            },
-    avgCT  !== null   ? { label:'Avg cycle time',val: Math.round(avgCT)  + 'd'              } : null,
-                        { label:'Avg lead time', val: avgLT !== null ? Math.round(avgLT) + 'd' : '—' },
+    !ctSameAsLt && avgCT !== null ? { label:`Avg cycle time ${visStages[activeIdx]} → ${visStages[endIdx]}`, val: Math.round(avgCT) + 'd' } : null,
+                        { label:`Avg cycle time ${visStages[startIdx]} → ${visStages[endIdx]}`, val: avgLT !== null ? Math.round(avgLT) + 'd' : '—' },
   ].filter(Boolean);
 
   document.getElementById('pipeline-stats').innerHTML =
@@ -6710,11 +6758,9 @@ function generateAIPrompt() {
 
   // ── Core metrics ──
   const sortedCT = completed.map(d => d.leadTime).sort((a, b) => a - b);
-  const spanWeeks = completed.length > 1
-    ? daysBetween(completed[0].endDate, completed[completed.length-1].endDate) / 7
-    : 0;
-  const avgThroughput = spanWeeks > 0 ? (completed.length / spanWeeks).toFixed(1) : 'N/A';
-  const fe = calculateFlowEfficiency(completed);
+  const tpAvg = avgThroughput(completed.map(d => d.endDate));
+  const avgThroughputTxt = tpAvg !== null ? tpAvg.toFixed(1) : 'N/A';
+  const fe = calculateFlowEfficiency(lastRenderPayload);
   const totalBlockedDays = Math.round(completed.reduce((s, d) => s + (d.blockedDays || 0), 0));
   const blockedItems = completed.filter(d => (d.blockedDays || 0) > 0);
   const currentlyBlocked = cfg.blockedFlagCol ? wip.filter(i => i.currentlyBlocked) : null;
@@ -6742,10 +6788,10 @@ function generateAIPrompt() {
     const parts = [];
     if (fields.id   && d.id)    parts.push(`ID: ${d.id}`);
     if (fields.title && d.title) parts.push(`"${d.title}"`);
-    if (fields.ct)   parts.push(`lead time: ${d.leadTime.toFixed(1)}d`);
+    if (fields.ct)   parts.push(`cycle time: ${d.leadTime.toFixed(1)}d`);
     if (fields.age)  parts.push(`age: ${d.age.toFixed(1)}d`);
     if (fields.stage && d.currentStage) parts.push(`stage: ${d.currentStage}`);
-    if (fields.bd && d.blockedDays)  parts.push(`blocked: ${d.blockedDays.toFixed(1)}d (${d.leadTime > 0 ? (d.blockedDays/d.leadTime*100).toFixed(0)+'% of LT' : '?'})`);
+    if (fields.bd && d.blockedDays)  parts.push(`blocked: ${d.blockedDays.toFixed(1)}d (${d.leadTime > 0 ? (d.blockedDays/d.leadTime*100).toFixed(0)+'% of CT' : '?'})`);
     return '  • ' + parts.join(' | ');
   };
 
@@ -6789,7 +6835,7 @@ CYCLE TIME (completed items only)
   Note: p85 is the key threshold — 85% of work completes within this time. Items above it are outliers.
 
 THROUGHPUT
-  Average: ${avgThroughput} items/week
+  Average: ${avgThroughputTxt} items/week
   Range:   ${minWk} to ${maxWk} items/week
   Note: High variance in throughput makes forecasting unreliable.
 
@@ -6801,7 +6847,7 @@ WIP
   if (fe !== null) {
     prompt += `
 FLOW EFFICIENCY
-  ${fe.toFixed(1)}% — the proportion of lead time spent actively working (vs waiting)
+  ${fe.toFixed(1)}% — the proportion of cycle time spent actively working (vs waiting)
   Typical range: 5–40%. Below 15% suggests significant queuing or blocking.
 `;
   }
@@ -7106,15 +7152,9 @@ async function saveSnapshot() {
 // ── Monte Carlo Forecast ───────────────────────────────────────────────────
 
 function mcWeeklyRates(completed, weeksBack) {
-  const cutoff = weeksBack ? new Date(Date.now() - weeksBack * 7 * 86400000) : null;
-  const filtered = cutoff ? completed.filter(d => d.endDate >= cutoff) : completed;
-  const byWeek = {};
-  filtered.forEach(d => {
-    const k = weekStart(d.endDate).toISOString().slice(0, 10);
-    byWeek[k] = (byWeek[k] || 0) + 1;
-  });
-  const weeks = Object.keys(byWeek).sort();
-  return { rates: Object.values(byWeek), from: weeks[0] || null, to: weeks[weeks.length - 1] || null };
+  let weekly = weeklyThroughput(completed.map(d => d.endDate));
+  if (weeksBack) weekly = weekly.slice(-weeksBack);
+  return { rates: weekly.map(w => w.count), from: weekly[0]?.key || null, to: weekly[weekly.length - 1]?.key || null };
 }
 
 function mcAddDays(baseDate, days) {
@@ -7436,12 +7476,9 @@ function renderBurnUpTab() {
 
   // Average weekly throughput over selected window
   const throughputWeeks = parseInt(document.getElementById('bu-throughput-weeks')?.value ?? 8);
-  const win = Math.min(throughputWeeks, histLabels.length - 1);
-  let totalDelta = 0;
-  for (let i = histLabels.length - win; i < histLabels.length; i++) {
-    totalDelta += doneValues[i] - doneValues[i - 1];
-  }
-  const avgThroughput = win > 0 ? totalDelta / win : 0;
+  const tpWeeks = weeklyThroughput(doneDates).slice(-throughputWeeks);
+  const win = tpWeeks.length;
+  const avgThroughput = win ? tpWeeks.reduce((s, w) => s + w.count, 0) / win : 0;
 
   // Two-point projection — Chart.js draws a perfectly straight line between two {x,y} points
   function buildProjection(slope) {
@@ -8265,12 +8302,12 @@ function renderDataQuality() {
   let breakdownHtml = `<div class="dq-breakdown">
     <div class="dq-breakdown-title">Where did all ${total.toLocaleString()} ${filteredOut > 0 ? 'filtered ' : ''}rows go?</div>
     ${filterNote}
-    ${brow('#2563eb', completed.length, 'Completed', 'Has start and end date — feeds lead time, throughput, CFD and all percentile stats.')}
+    ${brow('#2563eb', completed.length, 'Completed', 'Has start and end date — feeds cycle time, throughput, CFD and all percentile stats.')}
     ${noStartCount ? brow('#93c5fd', noStartCount, 'Done, no start date', 'Reached Done but no Start Date recorded — counted in completions, excluded from cycle time.') : ''}
     ${brow('#059669', wip.length, 'Active WIP', 'Has Active Work Starts date, not yet done — drives WIP count and aging chart.')}
     ${committedQueue.length ? brow('#7c3aed', committedQueue.length, 'Committed, not started', 'Has a Start Date but not yet at Active Work Starts stage — shows in pipeline visual.') : ''}
     ${brow('#d97706', backlog.length, 'In backlog / FFE', 'Pre-commitment stage only — counted in Fuzzy Front End metrics.')}
-    ${discarded.length ? brow('#94a3b8', discarded.length, 'Discarded', 'Reached a stage marked X (e.g. Rejected, Cancelled) without being delivered — left WIP on that date, not counted in throughput or lead time.') : ''}
+    ${discarded.length ? brow('#94a3b8', discarded.length, 'Discarded', 'Reached a stage marked X (e.g. Rejected, Cancelled) without being delivered — left WIP on that date, not counted in throughput or cycle time.') : ''}
     ${invisible ? brow('#94a3b8', invisible, 'Not in any metric', 'No readable dates in any column — completely invisible to all analysis. See issues below.') : ''}
   </div>`;
 
@@ -8312,10 +8349,10 @@ function renderDataQuality() {
     },
     {
       type: 'blocked-exceeds-ct',
-      title: 'Blocked Days exceed Lead Time',
+      title: 'Blocked Days exceed Cycle Time',
       badge: 'red',
-      desc: 'The recorded blocked days are greater than the item\'s lead time (first recorded date to Done). An item cannot be blocked for longer than it existed in the system — even if blocked while still in a queue stage. Usually a data entry error in the Blocked Days column.',
-      headers: ['Item', 'Lead time', 'Blocked days'],
+      desc: 'The recorded blocked days are greater than the item\'s cycle time (first recorded date to Done). An item cannot be blocked for longer than it existed in the system — even if blocked while still in a queue stage. Usually a data entry error in the Blocked Days column.',
+      headers: ['Item', 'Cycle time', 'Blocked days'],
       row: i => `${itemCell(i.id, i.title, i.link)}<td>${fmtDays(i.leadTime)}d</td><td style="color:#dc2626">${fmtDays(i.blockedDays)}d</td>`,
     },
     {
