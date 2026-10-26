@@ -185,6 +185,7 @@ License: MIT
     }
     .stat .value { font-size: 1.6rem; font-weight: 700; color: #38bdf8; line-height: 1; }
     .stat .label { font-size: 0.72rem; color: #64748b; margin-top: 0.25rem; }
+    #stats-note { grid-column: 1 / -1; font-size: 0.78rem; color: #94a3b8; border-top: 1px solid #1e293b; padding-top: 0.6rem; }
 
     #tabs { display: none; margin-top: 1.5rem; }
     .tab-nav { display: flex; align-items: stretch; gap: 0; border-bottom: 2px solid #e2e8f0; margin-bottom: 1.5rem; }
@@ -854,6 +855,7 @@ License: MIT
     <div class="stat"><div class="value" id="stat-wip">—</div><div class="label">WIP (today)</div></div>
     <div class="stat"><div class="value" id="stat-fe">—</div><div class="label">Flow efficiency</div></div>
     <div class="stat" id="stat-blocked-wrap"><div class="value" id="stat-blocked">—</div><div class="label" id="stat-blocked-label">Items blocked</div></div>
+    <div id="stats-note" style="display:none"></div>
   </div>
 
   <div id="tabs">
@@ -1665,7 +1667,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-10-26c';
+const VERSION = '2026-10-26d';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -3461,6 +3463,12 @@ function _doRenderAll() {
     blockedEl.textContent = '—';
     blockedLbl.textContent = 'Blocked';
   }
+  // Say why the cycle time / throughput boxes are blank, rather than leaving bare dashes
+  const statsNote = document.getElementById('stats-note');
+  if (!totalCompleted && (wip.length || committedQueue.length || backlog.length)) {
+    statsNote.textContent = `Nothing in this selection has reached ${cfg.endCol} yet, so cycle time and throughput have nothing to measure. WIP and blocked still count work in progress.`;
+    statsNote.style.display = '';
+  } else statsNote.style.display = 'none';
   if (completed.length > 1) {
     const spanWeeks = daysBetween(completed[0].endDate, completed[completed.length-1].endDate) / 7;
     document.getElementById('stat-throughput').textContent = spanWeeks > 0 ? (completed.length / spanWeeks).toFixed(1) : '—';
