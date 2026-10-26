@@ -391,6 +391,7 @@ License: MIT
     .ms-row select { font-size:0.8rem; padding:0.25rem; border:1px solid #d1d5db; border-radius:5px; }
     .ms-row .ms-del { background:none; border:none; color:#94a3b8; cursor:pointer; font-size:1rem; }
     .ms-row .ms-del:hover { color:#dc2626; }
+    .ms-row input.ms-short { width:4.5rem; }
     .ms-row .ms-warn { color:#dc2626; font-size:0.75rem; }
     #release-bar { display:none; align-items:center; flex-wrap:wrap; gap:0.4rem; margin:0.6rem 0 0.75rem; font-size:0.8rem; color:#475569; }
     .ms-pill.rel-pill.active { background:#0f766e; border-color:#0f766e; }
@@ -429,6 +430,8 @@ License: MIT
     .rel-state-chip { cursor:pointer; border:1px solid transparent; font-size:0.8rem; padding:0.2rem 0.65rem; }
     .rel-state-chip.active { border-color:currentColor; }
     .rel-state-chip.zero { opacity:0.5; }
+    .rel-sub-chips { display:flex; gap:0.35rem; flex-wrap:wrap; align-items:center; font-size:0.75rem; color:#64748b; }
+    .rel-sub-chip i { display:inline-block; width:0.55rem; height:0.55rem; border-radius:2px; margin-right:0.3rem; vertical-align:baseline; }
     .rel-row-excluded td:nth-child(-n+2) { text-decoration:line-through; }
     #rel-content .bd-table td:first-child, #rel-content .bd-table td:last-child { white-space:nowrap; }
     #rel-b-list .bd-table td:nth-child(4) { white-space:nowrap; }
@@ -1678,7 +1681,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-10-26g';
+const VERSION = '2026-10-26h';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -2386,6 +2389,7 @@ function buildMilestoneUI() {
       : workflowStages.indexOf(m.start) >= workflowStages.indexOf(m.end) ? 'start must come before finish' : '';
     return `<div class="ms-row">
       <input type="text" value="${m.name.replace(/"/g, '&quot;')}" placeholder="e.g. Code Complete" oninput="updateMilestone(${i}, 'name', this.value)" onchange="buildMilestoneUI()">
+      <input type="text" class="ms-short" value="${(m.short || '').replace(/"/g, '&quot;')}" placeholder="Short, e.g. CC" maxlength="10" title="Short code — used on the release status chips" oninput="updateMilestone(${i}, 'short', this.value)">
       starts at <select onchange="updateMilestone(${i}, 'start', this.value)">${opts(m.start)}</select>
       finishes at <select onchange="updateMilestone(${i}, 'end', this.value)">${opts(m.end)}</select>
       <button class="ms-del" onclick="removeMilestone(${i})" title="Remove flow segment">×</button>
@@ -2411,8 +2415,8 @@ function updateMilestone(i, key, val) {
   const m = milestones[i];
   if (!m) return;
   if (key === 'name' && activeMilestone === m.name) activeMilestone = val.trim() || null;
-  m[key] = key === 'name' ? val.trim() : val;
-  if (key !== 'name') buildMilestoneUI(); else renderMilestoneBar();
+  m[key] = key === 'name' || key === 'short' ? val.trim() : val;
+  if (key === 'name') renderMilestoneBar(); else if (key !== 'short') buildMilestoneUI();
   renderAll();
 }
 
@@ -2522,6 +2526,35 @@ function relItemStatus(row, cfg) {
   return 'notstarted';
 }
 
+// Release checkpoints inside "In progress": the finish stage of each flow segment that sits between Active and End
+function relCheckpoints(cfg) {
+  const from = workflowStages.indexOf(cfg.activeCol || cfg.startCol);
+  const to = workflowStages.indexOf(cfg.endCol);
+  const seen = new Set();
+  return milestones.filter(milestoneValid)
+    .map(m => ({ label: m.short || m.name, name: m.name, end: m.end, idx: workflowStages.indexOf(m.end) }))
+    .filter(c => c.idx > from && (to < 0 || c.idx < to) && !seen.has(c.idx) && seen.add(c.idx))
+    .sort((a, b) => a.idx - b.idx);
+}
+
+// Furthest checkpoint an item has reached (its stage or any later one); -1 = started, none reached yet
+function relCheckpointOf(row, cps) {
+  for (let k = cps.length - 1; k >= 0; k--)
+    if (workflowStages.some((s, i) => i >= cps[k].idx && stageTypes[s] !== 'discarded' && getCachedDate(row, s))) return k;
+  return -1;
+}
+
+const REL_CP_SHADES = ['#bae6fd', '#7dd3fc', '#38bdf8', '#0ea5e9', '#0284c7', '#0369a1', '#075985'];
+// Shade for bucket b (0 = before the first checkpoint) of n buckets — darker = further along
+function relCpShade(b, n) {
+  const off = Math.max(0, REL_CP_SHADES.length - n);
+  return REL_CP_SHADES[Math.min(REL_CP_SHADES.length - 1, off + b)];
+}
+function relCpLabel(b, cps) { return b === 0 ? `Before ${cps[0].label}` : cps[b - 1].label; }
+function relCpTitle(b, cps) {
+  return b === 0 ? `Started, not yet reached ${cps[0].end}` : `${cps[b - 1].name}: reached ${cps[b - 1].end}${cps[b] ? `, not yet ${cps[b].end}` : ''}`;
+}
+
 function relCurrentStage(row) {
   for (let i = workflowStages.length - 1; i >= 0; i--) {
     const s = workflowStages[i];
@@ -2532,10 +2565,13 @@ function relCurrentStage(row) {
 
 function releaseStats(rel) {
   const cfg = { ...getConfig(), release: rel };
+  const cps = relCheckpoints(cfg);
   const items = allRows.filter(r => rowMatchesFilters(r, cfg)).map(row => {
     const status = relItemStatus(row, cfg);
     const started = getCachedDate(row, cfg.activeCol || cfg.startCol) || getCachedDate(row, cfg.startCol);
-    return { row, status, started, done: status === 'done' ? getDeliveredDate(row, cfg) : null };
+    // cp = bucket inside In progress: 0 = before the first checkpoint, k = reached checkpoint k
+    const cp = status === 'progress' && cps.length ? relCheckpointOf(row, cps) + 1 : null;
+    return { row, status, started, cp, done: status === 'done' ? getDeliveredDate(row, cfg) : null };
   });
   const live = items.filter(i => i.status !== 'discarded');
   const count = s => live.filter(i => i.status === s).length;
@@ -2572,6 +2608,7 @@ function releaseStats(rel) {
   return {
     rel, cfg, items, live, total, done, remaining,
     progress: count('progress'), notstarted: count('notstarted'), discarded: items.length - live.length,
+    cps, cpCounts: cps.length ? Array.from({ length: cps.length + 1 }, (_, b) => live.filter(i => i.cp === b).length) : null,
     rates, pace, share, firstWeek, mc,
   };
 }
@@ -2634,7 +2671,7 @@ function renderReleases() {
 function relProgressBar(s) {
   const pct = n => s.total ? (n / s.total * 100) : 0;
   return `<div class="rel-bar" role="img" aria-label="${s.done} done, ${s.progress} in progress, ${s.notstarted} not started">
-    <div style="width:${pct(s.done)}%;background:#16a34a"></div><div style="width:${pct(s.progress)}%;background:#0ea5e9"></div><div style="width:${pct(s.notstarted)}%;background:#e2e8f0"></div></div>`;
+    <div style="width:${pct(s.done)}%;background:#16a34a"></div>${s.cpCounts ? s.cpCounts.map((n, b) => `<div style="width:${pct(n)}%;background:${relCpShade(b, s.cpCounts.length)}" title="${relEsc(relCpLabel(b, s.cps))}: ${n}"></div>`).reverse().join('') : `<div style="width:${pct(s.progress)}%;background:#0ea5e9"></div>`}<div style="width:${pct(s.notstarted)}%;background:#e2e8f0"></div></div>`;
 }
 
 function renderReleaseOverview() {
@@ -2655,7 +2692,7 @@ function renderReleaseOverview() {
     const fc = allDone ? 'Done' : s.mc ? fmtDate(s.mc.p85) : '<span class="muted">needs 3+ done</span>';
     return `<tr onclick="selectRelease(${i})" title="Show this release">
       <td><strong>${relEsc(r.name)}</strong><div class="muted" style="font-size:0.72rem;margin-top:0.15rem">${relEsc(relRuleSummary(r, cfg))}</div></td>
-      <td style="min-width:200px">${relProgressBar(s)}<div class="muted" style="font-size:0.72rem;margin-top:0.2rem">${s.done} done · ${s.progress} in progress · ${s.notstarted} not started${s.discarded ? ` · ${s.discarded} discarded` : ''}</div></td>
+      <td style="min-width:200px">${relProgressBar(s)}<div class="muted" style="font-size:0.72rem;margin-top:0.2rem">${s.done} done · ${s.progress} in progress${s.cpCounts && s.progress ? ` (${s.cpCounts.map((n, b) => n ? `${n} ${relEsc(relCpLabel(b, s.cps))}` : '').filter(Boolean).join(' · ')})` : ''} · ${s.notstarted} not started${s.discarded ? ` · ${s.discarded} discarded` : ''}</div></td>
       <td style="text-align:right">${s.done} / ${s.total}</td>
       <td style="text-align:right">${s.pace !== null ? s.pace.toFixed(1) : '—'}</td>
       <td style="text-align:right">${fc}</td>
@@ -2696,17 +2733,23 @@ function renderReleaseSummary(rel) {
   const statusLbl = { progress: 'In progress', notstarted: 'Not started', done: 'Done', discarded: 'Discarded' };
   const today = new Date();
   const list = [...s.items].sort((a, b) => statusOrder[a.status] - statusOrder[b.status]
-      || (a.status === 'progress' ? (a.started || today) - (b.started || today) : 0));
+      || (a.status === 'progress' ? (b.cp || 0) - (a.cp || 0) || (a.started || today) - (b.started || today) : 0));
   const p85 = lastRenderPayload ? lastRenderPayload.p85 : null;
   const stateCount = st => s.items.filter(i => i.status === st).length;
   const stateOrder = ['notstarted', 'progress', 'done', 'discarded'];
   const barColor = { notstarted: '#cbd5e1', progress: '#38bdf8', done: '#16a34a', discarded: '#fca5a5' };
+  const cpN = s.cpCounts ? s.cpCounts.length : 0;
+  const barSeg = st => st === 'progress' && s.cpCounts
+    ? s.cpCounts.map((n, b) => n ? `<div style="width:${n / s.items.length * 100}%;background:${relCpShade(b, cpN)}" title="In progress · ${relEsc(relCpLabel(b, s.cps))}: ${n}"></div>` : '').join('')
+    : stateCount(st) ? `<div style="width:${stateCount(st) / s.items.length * 100}%;background:${barColor[st]}" title="${statusLbl[st]}: ${stateCount(st)}"></div>` : '';
+  const subChips = s.cpCounts && s.progress ? `<div class="rel-sub-chips"><span>In progress:</span>
+      ${s.cpCounts.map((n, b) => `<span class="rel-status rel-state-chip rel-status-progress rel-sub-chip${n ? '' : ' zero'}" data-state="progress:${b}" title="${relEsc(relCpTitle(b, s.cps))}" onclick="relFilterState(this)"><i style="background:${relCpShade(b, cpN)}"></i>${relEsc(relCpLabel(b, s.cps))} ${n}</span>`).join('')}</div>` : '';
   const statesHtml = s.items.length ? `<div class="rel-states">
-      <div class="rel-state-bar">${stateOrder.map(st => stateCount(st) ? `<div style="width:${stateCount(st) / s.items.length * 100}%;background:${barColor[st]}" title="${statusLbl[st]}: ${stateCount(st)}"></div>` : '').join('')}</div>
+      <div class="rel-state-bar">${stateOrder.map(barSeg).join('')}</div>
       <div class="rel-state-chips">
         <span class="rel-status rel-state-chip active" data-state="" style="background:#fff;color:#334155;border-color:#cbd5e1" onclick="relFilterState(this)">All ${s.items.length}</span>
         ${stateOrder.map(st => `<span class="rel-status rel-state-chip rel-status-${st}${stateCount(st) ? '' : ' zero'}" data-state="${st}" onclick="relFilterState(this)">${statusLbl[st]} ${stateCount(st)}</span>`).join('')}
-      </div></div>` : '';
+      </div>${subChips}</div>` : '';
   const rowsHtml = list.map(it => {
     const id = cfg.idCol ? (it.row[cfg.idCol] || '') : '';
     const link = cfg.linkCol ? (it.row[cfg.linkCol] || '') : '';
@@ -2714,12 +2757,12 @@ function renderReleaseSummary(rel) {
     const epicId = cfg.epicCol ? cellValues(it.row[cfg.epicCol])[0] || '' : '';
     const age = it.status === 'progress' && it.started ? Math.round(daysBetween(it.started, today)) : null;
     const old = age !== null && p85 && age > p85;
-    return `<tr data-state="${it.status}" class="${it.status === 'discarded' ? 'rel-row-discarded' : ''}">
+    return `<tr data-state="${it.status}"${it.cp !== null ? ` data-sub="progress:${it.cp}"` : ''} class="${it.status === 'discarded' ? 'rel-row-discarded' : ''}">
       <td>${link ? `<a href="${relEsc(link)}" target="_blank" rel="noopener">${relEsc(id)}</a>` : relEsc(id)}</td>
       <td>${relEsc(title)}</td>
       ${cfg.epicCol ? `<td class="muted">${relEsc(titleById[epicId] || epicId)}</td>` : ''}
       <td>${relEsc(relCurrentStage(it.row))}</td>
-      <td><span class="rel-status rel-status-${it.status}">${statusLbl[it.status]}</span></td>
+      <td><span class="rel-status rel-status-${it.status}">${statusLbl[it.status]}${it.cp !== null ? ` · ${relEsc(relCpLabel(it.cp, s.cps))}` : ''}</span></td>
       <td style="text-align:right${old ? ';color:#b91c1c;font-weight:600' : ''}">${age !== null ? `${age}d${old ? ' · over p85' : ''}` : ''}</td>
     </tr>`;
   }).join('');
@@ -2777,7 +2820,7 @@ function relFilterState(chip) {
   const st = chip.dataset.state;
   document.querySelectorAll('.rel-state-chip').forEach(c => c.classList.toggle('active', c === chip));
   document.querySelectorAll('#rel-ticket-table tbody tr[data-state]').forEach(tr => {
-    tr.style.display = !st || tr.dataset.state === st ? '' : 'none';
+    tr.style.display = !st || tr.dataset.state === st || tr.dataset.sub === st ? '' : 'none';
   });
 }
 
@@ -6730,7 +6773,7 @@ function applyConfig(cfg) {
 
   if (cfg.dateRange !== undefined) document.getElementById('filter-range').value = cfg.dateRange;
 
-  milestones = Array.isArray(cfg.milestones) ? cfg.milestones.map(m => ({ name: m.name || '', start: m.start || '', end: m.end || '' })) : [];
+  milestones = Array.isArray(cfg.milestones) ? cfg.milestones.map(m => ({ name: m.name || '', short: m.short || '', start: m.start || '', end: m.end || '' })) : [];
   activeMilestone = cfg.activeMilestone || null;
   releases = Array.isArray(cfg.releases) ? cfg.releases.map(r => ({
     name: r.name || '', target: r.target || '',
