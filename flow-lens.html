@@ -1665,7 +1665,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-10-26b';
+const VERSION = '2026-10-26c';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -6910,6 +6910,9 @@ function captureSnapshot(pane, scale) {
   const tall = [...pane.querySelectorAll('*')].filter(el => el.scrollHeight > el.clientHeight + 2
     && /auto|scroll/.test(getComputedStyle(el).overflowY));
   tall.forEach(el => el.setAttribute('data-snap-expand', ''));
+  // Browsers can't make canvases much taller than ~16,000px, so drop the resolution for very long lists
+  const fullH = pane.scrollHeight + tall.reduce((sum, el) => sum + el.scrollHeight - el.clientHeight, 0);
+  scale = Math.max(0.5, Math.min(scale, 16000 / fullH));
   return html2canvas(pane, {
     backgroundColor: '#f8fafc', scale, useCORS: true, logging: false,
     onclone: doc => doc.querySelectorAll('[data-snap-expand]').forEach(el => {
@@ -6944,8 +6947,9 @@ async function copySnapshot() {
   // Defined before the clipboard.write call so Safari's user-activation
   // window is not consumed by an await before the write.
   function buildBlob() {
-    const scale = 2;
+    let scale = 2;
     return captureSnapshot(activePane, scale).then(captured => {
+      scale = captured.width / activePane.getBoundingClientRect().width;  // may be lower for very long lists
       const filterText = snapshotFilterText(getConfig());
 
       const rowH    = 36 * scale;
@@ -7024,8 +7028,9 @@ async function saveSnapshot() {
 
   try {
     // Build same composite as copySnapshot
-    const scale = 2;
+    let scale = 2;
     const captured = await captureSnapshot(activePane, scale);
+    scale = captured.width / activePane.getBoundingClientRect().width;  // may be lower for very long lists
     const cfg = getConfig();
     const activeFilters = (cfg.filters || []).filter(f => f.col && f.vals && f.vals.length);
     const filterText = snapshotFilterText(cfg);
