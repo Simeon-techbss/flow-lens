@@ -1665,7 +1665,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-10-26a';
+const VERSION = '2026-10-26b';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -6904,6 +6904,34 @@ function updateFooter() {
   }
 }
 
+// Capture a tab pane. Scroll boxes (ticket lists, tables) are expanded in html2canvas's
+// hidden copy of the page, so the picture shows every row while the screen stays as it is.
+function captureSnapshot(pane, scale) {
+  const tall = [...pane.querySelectorAll('*')].filter(el => el.scrollHeight > el.clientHeight + 2
+    && /auto|scroll/.test(getComputedStyle(el).overflowY));
+  tall.forEach(el => el.setAttribute('data-snap-expand', ''));
+  return html2canvas(pane, {
+    backgroundColor: '#f8fafc', scale, useCORS: true, logging: false,
+    onclone: doc => doc.querySelectorAll('[data-snap-expand]').forEach(el => {
+      el.style.maxHeight = 'none'; el.style.height = 'auto'; el.style.overflowY = 'visible';
+    }),
+  }).finally(() => tall.forEach(el => el.removeAttribute('data-snap-expand')));
+}
+
+// Footer text for snapshots: release, milestone and filters
+function snapshotFilterText(cfg) {
+  const activeFilters = (cfg.filters || []).filter(f => f.col && f.vals && f.vals.length);
+  const msText = cfg.milestone ? `Measured to: ${cfg.milestone} (${cfg.startCol} → ${cfg.endCol})` : '';
+  const fText = activeFilters.length
+    ? 'Filters: ' + activeFilters.map(f => {
+        const vals = f.vals.map(v => v === '__BLANK__' ? '(blank)' : v).join(', ');
+        return (f.exclude ? 'Hide ' : 'Only ') + f.col + ' = ' + vals;
+      }).join(' · ')
+    : '';
+  const relText = cfg.release ? `Release: ${cfg.release.name}` : '';
+  return [relText, msText, fText].filter(Boolean).join('  ·  ') || null;
+}
+
 async function copySnapshot() {
   const btn        = document.querySelector('#data-footer .copy-btn');
   const activePane = document.querySelector('.tab-pane.active');
@@ -6917,24 +6945,8 @@ async function copySnapshot() {
   // window is not consumed by an await before the write.
   function buildBlob() {
     const scale = 2;
-    return html2canvas(activePane, {
-      backgroundColor: '#f8fafc',
-      scale,
-      useCORS: true,
-      logging: false,
-    }).then(captured => {
-      // Build filter summary text for footer
-      const cfg = getConfig();
-      const activeFilters = (cfg.filters || []).filter(f => f.col && f.vals && f.vals.length);
-      const msText = cfg.milestone ? `Measured to: ${cfg.milestone} (${cfg.startCol} → ${cfg.endCol})` : '';
-      const fText = activeFilters.length
-        ? 'Filters: ' + activeFilters.map(f => {
-            const vals = f.vals.map(v => v === '__BLANK__' ? '(blank)' : v).join(', ');
-            return (f.exclude ? 'Hide ' : 'Only ') + f.col + ' = ' + vals;
-          }).join(' · ')
-        : '';
-      const relText = cfg.release ? `Release: ${cfg.release.name}` : '';
-      const filterText = [relText, msText, fText].filter(Boolean).join('  ·  ') || null;
+    return captureSnapshot(activePane, scale).then(captured => {
+      const filterText = snapshotFilterText(getConfig());
 
       const rowH    = 36 * scale;
       const footerH = filterText ? rowH * 2 : rowH;
@@ -7013,15 +7025,10 @@ async function saveSnapshot() {
   try {
     // Build same composite as copySnapshot
     const scale = 2;
-    const captured = await html2canvas(activePane, { backgroundColor: '#f8fafc', scale, useCORS: true, logging: false });
+    const captured = await captureSnapshot(activePane, scale);
     const cfg = getConfig();
     const activeFilters = (cfg.filters || []).filter(f => f.col && f.vals && f.vals.length);
-    const filterText = activeFilters.length
-      ? 'Filters: ' + activeFilters.map(f => {
-          const vals = f.vals.map(v => v === '__BLANK__' ? '(blank)' : v).join(', ');
-          return (f.exclude ? 'Hide ' : 'Only ') + f.col + ' = ' + vals;
-        }).join(' · ')
-      : null;
+    const filterText = snapshotFilterText(cfg);
     const rowH = 36 * scale;
     const footerH = filterText ? rowH * 2 : rowH;
     const out = document.createElement('canvas');
