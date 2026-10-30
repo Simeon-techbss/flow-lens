@@ -412,6 +412,11 @@ License: MIT
     .rel-card { background:white; border:1px solid #e2e8f0; border-radius:10px; padding:0.8rem 1rem; }
     .rel-card-val { font-size:1.5rem; font-weight:700; color:#0f172a; }
     .rel-card-lbl { font-size:0.75rem; color:#64748b; margin-top:0.15rem; }
+    .rel-close-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:0.5rem; margin-top:0.9rem; }
+    .rel-close-tile { background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:0.5rem 0.65rem; }
+    .rel-close-val { font-size:1.15rem; font-weight:700; color:#0f172a; }
+    .rel-close-lbl { font-size:0.75rem; font-weight:600; color:#334155; }
+    .rel-close-sub { font-size:0.68rem; color:#64748b; margin-top:0.1rem; line-height:1.3; }
     .rel-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:1rem; }
     .rel-fc-row { display:flex; justify-content:space-between; padding:0.45rem 0; border-bottom:1px solid #f1f5f9; font-size:0.92rem; }
     .rel-target { display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; margin-top:0.8rem; padding:0.6rem 0.75rem; background:#f0fdfa; border:1px solid #99f6e4; border-radius:8px; font-size:0.85rem; }
@@ -1684,7 +1689,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-10-30a';
+const VERSION = '2026-10-30b';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -2543,6 +2548,36 @@ function blockedBadge(b) {
   return `<span class="blk-badge${b.now ? ' blk-now' : ''}" title="${b.now ? 'Blocked right now' : 'Was blocked, not now'}${b.days ? ` · ${d} blocked in total` : ''}">⛔ ${txt}</span>`;
 }
 
+// Close-out stats for a finished release (every live ticket done)
+function releaseCloseStats(s) {
+  const cfg = s.cfg;
+  const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
+  const starts = s.live.map(i => milestoneReachedDate(i.row, cfg.startCol)).filter(Boolean);
+  const firstStart = starts.length ? new Date(Math.min(...starts)) : null;
+  const cts = s.live.map(i => { const st = milestoneReachedDate(i.row, cfg.startCol); return st && i.done >= st ? daysBetween(st, i.done) : null; }).filter(v => v !== null);
+  const endIdx = workflowStages.indexOf(cfg.endCol);
+  const segs = milestones.filter(milestoneValid)
+    .filter(m => workflowStages.indexOf(m.end) <= endIdx && !(m.start === cfg.startCol && m.end === cfg.endCol))
+    .map(m => {
+      const v = s.live.map(i => {
+        const a = milestoneReachedDate(i.row, m.start), b = milestoneReachedDate(i.row, m.end);
+        return a && b && b >= a ? daysBetween(a, b) : null;
+      }).filter(x => x !== null);
+      return { m, avg: avg(v), n: v.length };
+    }).filter(x => x.n);
+  let proc = 0, queue = 0, blkDays = 0, blkItems = 0;
+  const fes = [];
+  s.live.forEach(i => {
+    const t = rowFlowTimes(i.row, cfg);
+    if (t) { proc += t.processTime; queue += t.queueTime; }
+    blkDays += i.blk.days; if (i.blk.days > 0) blkItems++;
+    const fe = rowFlowEff(i.row, cfg, i.blk.days);
+    if (fe !== null) fes.push(fe);
+  });
+  return { firstStart, leadDays: firstStart ? daysBetween(firstStart, s.finishedOn) : null, avgCt: avg(cts), segs,
+           fe: avg(fes), proc, queue, blkDays, blkItems };
+}
+
 // Release checkpoints inside "In progress": the finish stage of each flow segment that sits between Active and End
 function relCheckpoints(cfg) {
   const from = workflowStages.indexOf(cfg.activeCol || cfg.startCol);
@@ -2747,8 +2782,23 @@ function renderReleaseSummary(rel) {
   else if (!s.remaining) {
     const tgt = rel.target ? new Date(rel.target + 'T00:00:00') : null;
     const diff = tgt && s.finishedOn ? Math.round((new Date(s.finishedOn).setHours(0, 0, 0, 0) - tgt) / 86400000) : null;
+    const c = releaseCloseStats(s);
+    const d1 = v => v === null ? '—' : `${Math.round(v * 10) / 10}d`;
+    const timeTot = c.proc + c.queue + c.blkDays;
+    const pctOf = v => timeTot ? ` · ${Math.round(v / timeTot * 100)}%` : '';
+    const tile = (val, lbl, sub) => `<div class="rel-close-tile"><div class="rel-close-val">${val}</div><div class="rel-close-lbl">${lbl}</div>${sub ? `<div class="rel-close-sub">${sub}</div>` : ''}</div>`;
     forecast = `<div style="font-size:1.05rem;font-weight:600;color:#16a34a">All ${s.total} ${cfg.milestone ? `reached ${relEsc(cfg.milestone)}` : 'done'} on ${fmtDate(s.finishedOn)}</div>
-      <div class="muted" style="font-size:0.8rem;margin-top:0.3rem">The day the last ticket ${cfg.milestone ? `reached ${relEsc(cfg.endCol)}` : 'finished'}${diff === null ? '' : diff === 0 ? ' · on the target date' : ` · ${Math.abs(diff)} day${Math.abs(diff) === 1 ? '' : 's'} ${diff > 0 ? 'after' : 'before'} the target (${fmtDate(tgt)})`}.</div>`;
+      <div class="muted" style="font-size:0.8rem;margin-top:0.3rem">The day the last ticket ${cfg.milestone ? `reached ${relEsc(cfg.endCol)}` : 'finished'}${diff === null ? '' : diff === 0 ? ' · on the target date' : ` · ${Math.abs(diff)} day${Math.abs(diff) === 1 ? '' : 's'} ${diff > 0 ? 'after' : 'before'} the target (${fmtDate(tgt)})`}.</div>
+      <div class="rel-close-grid">
+        ${tile(s.total, 'Tickets done', s.discarded ? `+${s.discarded} discarded` : '')}
+        ${tile(c.leadDays === null ? '—' : `${Math.round(c.leadDays)}d`, 'Release lead time', c.firstStart ? `First start ${c.firstStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} → last finish` : '')}
+        ${tile(d1(c.avgCt), 'Avg cycle time', `${relEsc(cfg.startCol)} → ${relEsc(cfg.endCol)}`)}
+        ${c.segs.map(x => tile(d1(x.avg), `Avg ${relEsc(x.m.name)}${x.m.short ? ` (${relEsc(x.m.short)})` : ''}`, `${relEsc(x.m.start)} → ${relEsc(x.m.end)}${x.n < s.total ? ` · ${x.n} of ${s.total} tickets` : ''}`)).join('')}
+        ${tile(c.fe === null ? '—' : `${Math.round(c.fe)}%`, 'Flow efficiency', 'Avg per ticket · in-progress time ÷ total')}
+        ${tile(`${Math.round(c.proc)}d`, 'In-progress time', `All tickets added up${pctOf(c.proc)}`)}
+        ${tile(`${Math.round(c.queue)}d`, 'Queue time', `Waiting in Q stages${pctOf(c.queue)}`)}
+        ${tile(c.blkItems ? `${Math.round(c.blkDays)}d` : '0', 'Blocked', c.blkItems ? `${c.blkItems} ticket${c.blkItems === 1 ? '' : 's'} blocked${pctOf(c.blkDays)}` : 'Nothing was blocked')}
+      </div>`;
   }
   else if (!s.mc) forecast = `<div class="muted" style="line-height:1.5">Not enough history to forecast yet. It needs at least 3 tickets in this release done${s.done < 3 ? ` (${s.done} so far)` : ' and some done in the last few weeks'}.</div>`;
   else forecast = `
@@ -2821,7 +2871,7 @@ function renderReleaseSummary(rel) {
     </div>
     <div class="rel-grid">
       <div class="chart-card">
-        <h2>${s.remaining ? `When will the remaining ${s.remaining} be done?` : s.finishedOn ? 'Finished' : 'Forecast'}</h2>
+        <h2>${s.remaining ? `When will the remaining ${s.remaining} be done?` : s.finishedOn ? 'Finished — release summary' : 'Forecast'}</h2>
         ${s.finishedOn ? '' : `<div class="subtitle">Monte Carlo on this release's own weekly pace — not the whole team's${s.share && s.share < 0.9 ? `, which matters here: the release gets about ${Math.round(s.share * 100)}% of what the team finishes` : ''}.</div>`}
         ${forecast}
       </div>
@@ -3273,7 +3323,8 @@ function flowEffStages(cfg) {
 
 // One item's flow efficiency: active (P) time ÷ (all stage time + blocked days).
 // untilDate is for unfinished work: the last stage it reached runs until then ("so far").
-function rowFlowEff(row, cfg, blockedDays, untilDate) {
+// Days spent in process (P) and queue (Q) stages inside Start → End
+function rowFlowTimes(row, cfg, untilDate) {
   if (workflowStages.length < 2) return null;
   const feStages = flowEffStages(cfg);
   const dates = feStages.map(col => stageTypes[col] === 'discarded' ? null : getCachedDate(row, col));
@@ -3287,6 +3338,12 @@ function rowFlowEff(row, cfg, blockedDays, untilDate) {
     if (dur <= 0) return;
     if (stageTypes[feStages[i]] === 'process') processTime += dur; else queueTime += dur;
   });
+  return { processTime, queueTime };
+}
+function rowFlowEff(row, cfg, blockedDays, untilDate) {
+  const t = rowFlowTimes(row, cfg, untilDate);
+  if (!t) return null;
+  const { processTime, queueTime } = t;
   const total = processTime + queueTime + (blockedDays || 0);
   return total > 0 ? processTime / total * 100 : null;
 }
