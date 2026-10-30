@@ -1689,7 +1689,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-10-30b';
+const VERSION = '2026-10-30c';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -2791,7 +2791,7 @@ function renderReleaseSummary(rel) {
       <div class="muted" style="font-size:0.8rem;margin-top:0.3rem">The day the last ticket ${cfg.milestone ? `reached ${relEsc(cfg.endCol)}` : 'finished'}${diff === null ? '' : diff === 0 ? ' · on the target date' : ` · ${Math.abs(diff)} day${Math.abs(diff) === 1 ? '' : 's'} ${diff > 0 ? 'after' : 'before'} the target (${fmtDate(tgt)})`}.</div>
       <div class="rel-close-grid">
         ${tile(s.total, 'Tickets done', s.discarded ? `+${s.discarded} discarded` : '')}
-        ${tile(c.leadDays === null ? '—' : `${Math.round(c.leadDays)}d`, 'Release lead time', c.firstStart ? `First start ${c.firstStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} → last finish` : '')}
+        ${tile(c.leadDays === null ? '—' : `${Math.round(c.leadDays)}d`, 'Release lead time', c.firstStart ? `First ticket into ${relEsc(cfg.startCol)} (${c.firstStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}) → last into ${relEsc(cfg.endCol)}` : '')}
         ${tile(d1(c.avgCt), 'Avg cycle time', `${relEsc(cfg.startCol)} → ${relEsc(cfg.endCol)}`)}
         ${c.segs.map(x => tile(d1(x.avg), `Avg ${relEsc(x.m.name)}${x.m.short ? ` (${relEsc(x.m.short)})` : ''}`, `${relEsc(x.m.start)} → ${relEsc(x.m.end)}${x.n < s.total ? ` · ${x.n} of ${s.total} tickets` : ''}`)).join('')}
         ${tile(c.fe === null ? '—' : `${Math.round(c.fe)}%`, 'Flow efficiency', 'Avg per ticket · in-progress time ÷ total')}
