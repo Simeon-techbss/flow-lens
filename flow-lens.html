@@ -1684,7 +1684,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-10-28a';
+const VERSION = '2026-10-30a';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -2631,6 +2631,8 @@ function releaseStats(rel) {
     rel, cfg, items, live, total, done, remaining,
     progress: count('progress'), notstarted: count('notstarted'), discarded: items.length - live.length,
     blockedNow: live.filter(i => i.blk.now).length,
+    // All done → the day the last ticket finished (follows the Measure-to pill)
+    finishedOn: total && !remaining ? new Date(Math.max(...live.map(i => i.done))) : null,
     cps, cpCounts: cps.length ? Array.from({ length: cps.length + 1 }, (_, b) => live.filter(i => i.cp === b).length) : null,
     rates, pace, share, firstWeek, mc,
   };
@@ -2712,7 +2714,7 @@ function renderReleaseOverview() {
   const rows = usable.map(({ r, i }) => {
     const s = releaseStats(r);
     const allDone = s.total > 0 && s.remaining === 0;
-    const fc = allDone ? 'Done' : s.mc ? fmtDate(s.mc.p85) : '<span class="muted">needs 3+ done</span>';
+    const fc = allDone ? `<span style="color:#16a34a;font-weight:600">Done ${fmtDate(s.finishedOn)}</span>` : s.mc ? fmtDate(s.mc.p85) : '<span class="muted">needs 3+ done</span>';
     return `<tr onclick="selectRelease(${i})" title="Show this release">
       <td><strong>${relEsc(r.name)}</strong><div class="muted" style="font-size:0.72rem;margin-top:0.15rem">${relEsc(relRuleSummary(r, cfg))}</div></td>
       <td style="min-width:200px">${relProgressBar(s)}<div class="muted" style="font-size:0.72rem;margin-top:0.2rem">${s.done} done · ${s.progress} in progress${s.cpCounts && s.progress ? ` (${s.cpCounts.map((n, b) => n ? `${n} ${relEsc(relCpLabel(b, s.cps))}` : '').filter(Boolean).join(' · ')})` : ''} · ${s.notstarted} not started${s.discarded ? ` · ${s.discarded} discarded` : ''}${s.blockedNow ? ` · <span style="color:#b91c1c;font-weight:600">⛔ ${s.blockedNow} blocked now</span>` : ''}</div></td>
@@ -2742,7 +2744,12 @@ function renderReleaseSummary(rel) {
 
   let forecast;
   if (!s.total) forecast = `<div class="muted">No tickets match this release with the current filters.</div>`;
-  else if (!s.remaining) forecast = `<div style="font-size:1.05rem;font-weight:600;color:#16a34a">All ${s.total} done.</div>`;
+  else if (!s.remaining) {
+    const tgt = rel.target ? new Date(rel.target + 'T00:00:00') : null;
+    const diff = tgt && s.finishedOn ? Math.round((new Date(s.finishedOn).setHours(0, 0, 0, 0) - tgt) / 86400000) : null;
+    forecast = `<div style="font-size:1.05rem;font-weight:600;color:#16a34a">All ${s.total} ${cfg.milestone ? `reached ${relEsc(cfg.milestone)}` : 'done'} on ${fmtDate(s.finishedOn)}</div>
+      <div class="muted" style="font-size:0.8rem;margin-top:0.3rem">The day the last ticket ${cfg.milestone ? `reached ${relEsc(cfg.endCol)}` : 'finished'}${diff === null ? '' : diff === 0 ? ' · on the target date' : ` · ${Math.abs(diff)} day${Math.abs(diff) === 1 ? '' : 's'} ${diff > 0 ? 'after' : 'before'} the target (${fmtDate(tgt)})`}.</div>`;
+  }
   else if (!s.mc) forecast = `<div class="muted" style="line-height:1.5">Not enough history to forecast yet. It needs at least 3 tickets in this release done${s.done < 3 ? ` (${s.done} so far)` : ' and some done in the last few weeks'}.</div>`;
   else forecast = `
     <div class="rel-fc-row"><span>50% chance by</span><strong>${fmtDate(s.mc.p50)}</strong></div>
@@ -2814,8 +2821,8 @@ function renderReleaseSummary(rel) {
     </div>
     <div class="rel-grid">
       <div class="chart-card">
-        <h2>${s.remaining ? `When will the remaining ${s.remaining} be done?` : 'Forecast'}</h2>
-        <div class="subtitle">Monte Carlo on this release's own weekly pace — not the whole team's${s.share && s.share < 0.9 ? `, which matters here: the release gets about ${Math.round(s.share * 100)}% of what the team finishes` : ''}.</div>
+        <h2>${s.remaining ? `When will the remaining ${s.remaining} be done?` : s.finishedOn ? 'Finished' : 'Forecast'}</h2>
+        ${s.finishedOn ? '' : `<div class="subtitle">Monte Carlo on this release's own weekly pace — not the whole team's${s.share && s.share < 0.9 ? `, which matters here: the release gets about ${Math.round(s.share * 100)}% of what the team finishes` : ''}.</div>`}
         ${forecast}
       </div>
       <div class="chart-card">
