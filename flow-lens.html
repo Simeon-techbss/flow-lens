@@ -422,6 +422,12 @@ License: MIT
     .rel-lines tr.rel-line-on td { background:#f0f9ff; }
     .rel-lines a { color:#0f172a; font-weight:600; text-decoration:none; }
     .rel-lines a:hover { text-decoration:underline; }
+    .rel-ms-grid td, .rel-ms-grid th { white-space:nowrap; }
+    .rel-ms-cell { cursor:pointer; }
+    .rel-ms-cell:hover { background:#f8fafc; }
+    .rel-ms-icon { font-size:1rem; font-weight:700; }
+    .rel-ms-sub { font-size:0.72rem; margin-top:0.1rem; }
+    .rel-ms-legend { display:flex; flex-wrap:wrap; gap:0.4rem 1.2rem; font-size:0.75rem; color:#475569; margin-top:0.5rem; }
     .rel-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:1rem; }
     .rel-fc-row { display:flex; justify-content:space-between; padding:0.45rem 0; border-bottom:1px solid #f1f5f9; font-size:0.92rem; }
     .rel-target { display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; margin-top:0.8rem; padding:0.6rem 0.75rem; background:#f0fdfa; border:1px solid #99f6e4; border-radius:8px; font-size:0.85rem; }
@@ -1696,7 +1702,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-10-30d';
+const VERSION = '2026-11-02a';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -2773,6 +2779,164 @@ function relProgressBar(s) {
     <div style="width:${pct(s.done)}%;background:#16a34a"></div>${s.cpCounts ? s.cpCounts.map((n, b) => `<div style="width:${pct(n)}%;background:${relCpShade(b, s.cpCounts.length)}" title="${relEsc(relCpLabel(b, s.cps))}: ${n}"></div>`).reverse().join('') : `<div style="width:${pct(s.progress)}%;background:#0ea5e9"></div>`}<div style="width:${pct(s.notstarted)}%;background:#e2e8f0"></div></div>`;
 }
 
+// Finish lines in flow order: Full flow + each valid flow segment, sorted by where they finish
+function relFinishLines() {
+  const base = getBaseConfig();
+  const at = c => workflowStages.indexOf(c);
+  return [{ seg: null, label: 'Full flow', short: base.endCol || 'Done', span: `${base.startCol} → ${base.endCol}`, endIdx: at(base.endCol) }]
+    .concat(milestones.filter(milestoneValid).map(m => ({ seg: m.name, label: m.short ? `${m.name} (${m.short})` : m.name, short: m.short || m.name, span: `${m.start} → ${m.end}`, endIdx: at(m.end) })))
+    .sort((a, b) => a.endIdx - b.endIdx);
+}
+
+// How a release is doing against one finish line's target. ls = releaseStatsFor(rel, seg).
+// state: empty | done | passed (target gone, work left) | open
+function relMilestone(rel, seg, ls) {
+  const tg = getRelTarget(rel, seg);
+  const tgD = tg ? new Date(tg + 'T00:00:00') : null;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const base = { tg, tgD, done: ls.done, total: ls.total, remaining: ls.remaining, p85: ls.mc ? ls.mc.p85 : null };
+  if (!ls.total) return { ...base, state: 'empty', colour: '#94a3b8' };
+  if (ls.finishedOn) {
+    const diff = tgD ? Math.round((new Date(ls.finishedOn).setHours(0, 0, 0, 0) - tgD) / 86400000) : null;
+    return { ...base, state: 'done', at: ls.finishedOn, diff, colour: diff > 0 ? '#d97706' : '#16a34a' };
+  }
+  if (tgD && tgD < today) return { ...base, state: 'passed', colour: '#dc2626' };
+  const hit = relTargetHit(ls, tg);
+  return { ...base, state: 'open', hit, colour: hit === null ? '#94a3b8' : hit >= 0.85 ? '#16a34a' : hit >= 0.5 ? '#d97706' : '#dc2626' };
+}
+
+function relShortDate(d) { return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' }); }
+
+// One line of text for a milestone result (used by Finish lines and the milestone grid)
+function relMilestoneText(m) {
+  if (m.state === 'empty') return '<span class="muted">—</span>';
+  if (m.state === 'done') return `<span style="color:#16a34a;font-weight:600">Done ${relShortDate(m.at)}</span>`
+    + (m.diff === null ? '' : m.diff === 0 ? ' · on target' : ` · <span style="color:${m.colour};font-weight:600">${Math.abs(m.diff)}d ${m.diff > 0 ? 'late' : 'early'}</span>`);
+  return `${m.done} of ${m.total} done`
+    + (m.state === 'passed' ? ` · <span style="color:#b91c1c;font-weight:600">target passed, ${m.remaining} left</span>`
+      : m.hit != null ? ` · <strong style="color:${m.colour}">${Math.round(m.hit * 100)}% chance</strong> of target` : '')
+    + (m.p85 ? ` <span class="muted">· 85% by ${relShortDate(m.p85)}</span>` : m.tg && m.state !== 'passed' ? ' <span class="muted">· needs 3+ done to forecast</span>' : '');
+}
+
+// Open a release measured to one finish line (from the milestone grid / chart)
+function relOpenMilestone(i, seg) {
+  activeMilestone = seg || null;
+  renderMilestoneBar();
+  selectRelease(i);
+}
+
+// Milestone grid + timeline on the Releases overview: every release × every finish line
+function relMilestoneSection(usable) {
+  const lines = relFinishLines();
+  const data = usable.map(({ r, i }) => ({ r, i, ms: lines.map(L => relMilestone(r, L.seg, releaseStatsFor(r, L.seg))) }));
+  if (!data.some(d => d.ms.some(m => m.tg))) {
+    return { html: `<div class="muted" style="font-size:0.8rem;margin:0 0 0.9rem">Add target dates to a release (Edit → Target dates, or <em>Finish lines</em> on the release page) to see a milestone chart here.</div>`, data: null, lines };
+  }
+  const segArg = L => L.seg ? `'${relEsc(L.seg).replace(/'/g, "\\'")}'` : 'null';
+  const cell = (d, L, m) => {
+    if (m.state === 'empty') return `<td class="muted">—</td>`;
+    const icon = m.state === 'done' ? '✓' : m.state === 'passed' ? '●' : '○';
+    const main = m.tg ? relShortDate(m.tgD) : m.state === 'done' ? relShortDate(m.at) : '<span class="muted">no target</span>';
+    const sub = m.state === 'done' ? (m.diff === null ? 'done' : m.diff === 0 ? 'on time' : `done ${relShortDate(m.at)} · ${Math.abs(m.diff)}d ${m.diff > 0 ? 'late' : 'early'}`)
+      : m.state === 'passed' ? `passed · ${m.done}/${m.total} done`
+      : m.hit != null ? `${Math.round(m.hit * 100)}% chance · ${m.done}/${m.total}`
+      : m.tg ? `${m.done}/${m.total} · too early to forecast` : `${m.done}/${m.total}${m.p85 ? ` · 85% by ${relShortDate(m.p85)}` : ''}`;
+    return `<td class="rel-ms-cell" onclick="relOpenMilestone(${d.i}, ${segArg(L)})" title="Open ${relEsc(d.r.name)} measured to ${relEsc(L.label)}">
+      <span class="rel-ms-icon" style="color:${m.colour}">${icon}</span> <strong>${main}</strong><div class="rel-ms-sub" style="color:${m.state === 'open' && m.hit == null ? '#64748b' : m.colour}">${sub}</div></td>`;
+  };
+  const grid = `<table class="bd-table rel-ms-grid"><thead><tr><th>Release</th>${lines.map(L => `<th title="${relEsc(L.span)}">${relEsc(L.short)}<div class="muted" style="font-weight:400;text-transform:none;font-size:0.68rem">${relEsc(L.span)}</div></th>`).join('')}</tr></thead>
+    <tbody>${data.map(d => `<tr><td><strong>${relEsc(d.r.name)}</strong></td>${lines.map((L, k) => cell(d, L, d.ms[k])).join('')}</tr>`).join('')}</tbody></table>`;
+  const html = `<div class="chart-card" style="margin-bottom:1rem">
+      <h2>Milestones</h2>
+      <div class="subtitle">Each release against its target date for every finish line. ✓ reached · ○ still open, coloured by the forecast's chance of making the date · ● date passed with work left. Click a cell to open that release measured to that point.</div>
+      <div style="overflow-x:auto">${grid}</div>
+      <div style="position:relative;height:${Math.max(180, 70 + data.length * (60 + lines.length * 6))}px;margin-top:1rem"><canvas id="rel-ms-chart"></canvas></div>
+      <div class="rel-ms-legend"><span><b style="color:#64748b">◇</b> target</span><span><b style="color:#16a34a">◆</b> reached (green on time, amber late)</span><span><b style="color:#d97706">━</b> slip under each lane: from the target to the 85% forecast (or to when it was reached)</span><span><b style="color:#0f172a">┃</b> today</span></div>
+    </div>`;
+  return { html, data, lines };
+}
+
+function renderReleaseMilestoneChart(ms) {
+  if (charts.relMs) { charts.relMs.destroy(); charts.relMs = null; }
+  const canvas = document.getElementById('rel-ms-chart');
+  if (!canvas || !ms || !ms.data) return;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const targets = [], reached = [], slips = [], all = [today];
+  ms.data.forEach((d, y) => d.ms.forEach((m, k) => {
+    const L = ms.lines[k];
+    const tip = `${d.r.name} · ${L.label}: ${m.tg ? `target ${relShortDate(m.tgD)}` : 'no target'} — ${relMilestoneText(m).replace(/<[^>]+>/g, '')}`;
+    if (m.tgD) { targets.push({ x: m.tgD, y, lbl: L.short, c: m.colour, tip, i: d.i, seg: L.seg }); all.push(m.tgD); }
+    if (m.state === 'done') {
+      reached.push({ x: m.at, y, lbl: m.tgD ? '' : L.short, c: m.colour, tip, i: d.i, seg: L.seg }); all.push(m.at);
+      if (m.tgD && m.diff) slips.push({ from: m.tgD, to: m.at, y, k, c: m.colour });
+    } else if (m.tgD) {
+      const end = m.p85 && m.p85 > m.tgD ? m.p85 : m.state === 'passed' ? today : null;
+      if (end && end > m.tgD) { slips.push({ from: m.tgD, to: end, y, k, c: m.colour }); all.push(end); }
+    }
+  }));
+  const minX = new Date(Math.min(...all)); minX.setDate(minX.getDate() - 10);
+  const maxX = new Date(Math.max(...all)); maxX.setDate(maxX.getDate() + 14);
+  const n = ms.data.length;
+  const datasets = [
+    // Slips run on thin tracks under the lane (one per finish line) so they never cross other diamonds
+    ...slips.map(s => {
+      const ty = s.y + 0.2 + s.k * 0.1;
+      return { type: 'line', data: [{ x: s.from, y: ty }, { x: s.to, y: ty }], borderColor: s.c, borderWidth: 3, pointRadius: [3, 0], pointBackgroundColor: s.c, pointBorderWidth: 0, pointHitRadius: 0, order: 3 };
+    }),
+    { type: 'scatter', label: 'Target', data: targets, pointStyle: 'rectRot', pointRadius: 8, pointHoverRadius: 10, borderWidth: 2,
+      pointBorderColor: targets.map(p => p.c), pointBackgroundColor: '#fff', order: 2 },
+    { type: 'scatter', label: 'Reached', data: reached, pointStyle: 'rectRot', pointRadius: 8, pointHoverRadius: 10, borderWidth: 2,
+      pointBorderColor: reached.map(p => p.c), pointBackgroundColor: reached.map(p => p.c), order: 1 },
+  ];
+  const labelPlugin = {
+    id: 'relMsLabels',
+    afterDatasetsDraw(chart) {
+      const { ctx, chartArea, scales } = chart;
+      const tx = scales.x.getPixelForValue(today);
+      ctx.save();
+      ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]);
+      ctx.beginPath(); ctx.moveTo(tx, chartArea.top); ctx.lineTo(tx, chartArea.bottom); ctx.stroke();
+      ctx.setLineDash([]); ctx.fillStyle = '#0f172a'; ctx.font = '600 10px system-ui, sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('today', tx, chartArea.top - 4);
+      ctx.font = '600 11px system-ui, sans-serif';
+      chart.data.datasets.forEach((ds, di) => {
+        if (ds.type !== 'scatter') return;
+        chart.getDatasetMeta(di).data.forEach((pt, j) => {
+          const raw = ds.data[j];
+          if (!raw.lbl) return;
+          ctx.fillStyle = raw.c; ctx.fillText(raw.lbl, pt.x, pt.y - 13);
+        });
+      });
+      ctx.restore();
+    },
+  };
+  charts.relMs = new Chart(canvas.getContext('2d'), {
+    data: { datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      layout: { padding: { top: 18 } },
+      onClick: (e, els) => {
+        const el = els[0];
+        if (!el) return;
+        const raw = datasets[el.datasetIndex].data[el.index];
+        if (raw && raw.i !== undefined) relOpenMilestone(raw.i, raw.seg);
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: { filter: it => it.dataset.type === 'scatter', callbacks: { label: it => it.raw.tip } },
+      },
+      scales: {
+        x: { type: 'time', min: minX, max: maxX, time: { minUnit: 'day', displayFormats: { day: 'd MMM', week: 'd MMM', month: 'MMM yyyy' } },
+             ticks: { maxTicksLimit: 10, maxRotation: 0 }, grid: { color: '#f1f5f9' } },
+        y: { type: 'linear', min: -0.6, max: n - 0.6 + 0.3 + ms.lines.length * 0.1, reverse: true, grid: { display: false },
+             afterBuildTicks: ax => { ax.ticks = ms.data.map((_, y) => ({ value: y })); },
+             ticks: { callback: v => (ms.data[v] ? ms.data[v].r.name : ''), font: { weight: '600' }, color: '#0f172a' } },
+      },
+    },
+    plugins: [labelPlugin],
+  });
+}
+
 function renderReleaseOverview() {
   const el = document.getElementById('rel-content');
   const cfg = getConfig();
@@ -2785,6 +2949,7 @@ function renderReleaseOverview() {
       <button class="rel-btn rel-btn-primary" onclick="newRelease()">+ New release</button></div>`;
     return;
   }
+  const msSec = relMilestoneSection(usable);
   const rows = usable.map(({ r, i }) => {
     const s = releaseStats(r);
     const allDone = s.total > 0 && s.remaining === 0;
@@ -2800,13 +2965,15 @@ function renderReleaseOverview() {
       <td style="text-align:right"><button class="rel-btn" onclick="event.stopPropagation();editRelease(${i})">Edit</button></td>
     </tr>`;
   }).join('');
-  el.innerHTML = head + `<div style="overflow-x:auto"><table class="bd-table rel-table">
+  el.innerHTML = head + msSec.html + `<div style="overflow-x:auto"><table class="bd-table rel-table">
     <thead><tr><th>Release</th><th>Progress</th><th style="text-align:right">Done</th><th style="text-align:right">Pace / wk</th><th style="text-align:right">85% forecast</th><th></th></tr></thead>
     <tbody>${rows}</tbody></table></div>`;
+  renderReleaseMilestoneChart(msSec);
 }
 
 function renderReleaseSummary(rel) {
   const el = document.getElementById('rel-content');
+  if (charts.relMs) { charts.relMs.destroy(); charts.relMs = null; }
   const s = releaseStats(rel);
   lastRelStats = s;
   const cfg = s.cfg;
@@ -2853,30 +3020,11 @@ function renderReleaseSummary(rel) {
     <div class="muted" style="font-size:0.75rem;margin-top:0.4rem">Target dates and the chance of hitting them are under <em>Finish lines</em> below.</div>`;
 
   // Finish lines: Full flow + each flow segment, each with its own target date and result
-  const base = getBaseConfig();
-  const lines = [{ seg: null, label: 'Full flow', span: `${base.startCol} → ${base.endCol}` }]
-    .concat(milestones.filter(milestoneValid).map(m => ({ seg: m.name, label: m.short ? `${m.name} (${m.short})` : m.name, span: `${m.start} → ${m.end}` })));
-  const short = d => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
-  const todayMid = new Date(); todayMid.setHours(0, 0, 0, 0);
+  const lines = relFinishLines();
   const lineRows = lines.map(L => {
     const ls = (L.seg || null) === (cfg.milestone || null) ? s : releaseStatsFor(rel, L.seg);
-    const tg = getRelTarget(rel, L.seg);
-    const tgD = tg ? new Date(tg + 'T00:00:00') : null;
-    let result;
-    if (!ls.total) result = '<span class="muted">—</span>';
-    else if (ls.finishedOn) {
-      const diff = tgD ? Math.round((new Date(ls.finishedOn).setHours(0, 0, 0, 0) - tgD) / 86400000) : null;
-      result = `<span style="color:#16a34a;font-weight:600">Done ${short(ls.finishedOn)}</span>`
-        + (diff === null ? '' : diff === 0 ? ' · on target' : ` · <span style="color:${diff > 0 ? '#b91c1c' : '#16a34a'}">${Math.abs(diff)}d ${diff > 0 ? 'late' : 'early'}</span>`);
-    } else {
-      const hit = relTargetHit(ls, tg);
-      const passed = tgD && tgD < todayMid;
-      result = `${ls.done} of ${ls.total} done`
-        + (passed ? ` · <span style="color:#b91c1c;font-weight:600">target passed, ${ls.remaining} left</span>`
-          : hit !== null ? ` · <strong style="color:${hit >= 0.85 ? '#16a34a' : hit >= 0.5 ? '#b45309' : '#b91c1c'}">${Math.round(hit * 100)}% chance</strong> of target`
-          : '')
-        + (ls.mc ? ` <span class="muted">· 85% by ${short(ls.mc.p85)}</span>` : tg && !passed ? ' <span class="muted">· needs 3+ done to forecast</span>' : '');
-    }
+    const m = relMilestone(rel, L.seg, ls);
+    const tg = m.tg, result = relMilestoneText(m);
     const on = (L.seg || null) === (cfg.milestone || null);
     const segArg = L.seg ? `'${relEsc(L.seg).replace(/'/g, "\\'")}'` : 'null';
     return `<tr class="${on ? 'rel-line-on' : ''}">
