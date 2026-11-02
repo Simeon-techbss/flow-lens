@@ -1707,7 +1707,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-11-02c';
+const VERSION = '2026-11-02d';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -2985,10 +2985,16 @@ function renderReleaseMilestoneChart(ms) {
   const targets = [], reached = [], slips = [], all = [today];
   ms.data.forEach((d, y) => d.ms.forEach((m, k) => {
     const L = ms.lines[k];
-    const tip = `${d.r.name} · ${L.label}: ${m.tg ? `target ${relShortDate(m.tgD)}` : 'no target'} — ${relMilestoneText(m).replace(/<[^>]+>/g, '')}`;
-    if (m.tgD) { targets.push({ x: m.tgD, y, lbl: L.short, c: m.colour, tip, i: d.i, seg: L.seg }); all.push(m.tgD); }
+    // Tooltip as short lines; key lets target + reached diamonds on the same spot show once
+    const plain = relMilestoneText({ ...m, note: '' }).replace(/<[^>]+>/g, '');
+    const tip = [`${d.r.name} · ${L.label}`, m.tg ? `Target ${relShortDate(m.tgD)}` : 'No target', ...plain.split(' · ').reduce((out, part) => {
+      if (out.length && (out[out.length - 1] + ' · ' + part).length <= 48) out[out.length - 1] += ' · ' + part; else out.push(part);
+      return out;
+    }, []), ...(m.note ? [`“${m.note.length > 60 ? m.note.slice(0, 57) + '…' : m.note}”`] : [])];
+    const key = `${y}|${k}`;
+    if (m.tgD) { targets.push({ x: m.tgD, y, lbl: L.short, c: m.colour, tip, key, i: d.i, seg: L.seg }); all.push(m.tgD); }
     if (m.state === 'done' || m.state === 'signed') {
-      reached.push({ x: m.at, y, lbl: m.tgD ? '' : L.short, c: m.colour, tip, i: d.i, seg: L.seg }); all.push(m.at);
+      reached.push({ x: m.at, y, lbl: m.tgD ? '' : L.short, c: m.colour, tip, key, i: d.i, seg: L.seg }); all.push(m.at);
       if (m.tgD && m.diff) slips.push({ from: m.tgD, to: m.at, y, k, c: m.colour });
     } else if (m.tgD) {
       const end = m.p85 && m.p85 > m.tgD ? m.p85 : m.state === 'passed' ? today : null;
@@ -3044,7 +3050,11 @@ function renderReleaseMilestoneChart(ms) {
       },
       plugins: {
         legend: { display: false },
-        tooltip: { filter: it => it.dataset.type === 'scatter', callbacks: { label: it => it.raw.tip } },
+        tooltip: {
+          filter: (it, n, items) => it.dataset.type === 'scatter' && items.findIndex(o => o.raw && o.raw.key === it.raw.key) === n,
+          displayColors: false,
+          callbacks: { title: items => items.length ? items[0].raw.tip[0] : '', label: it => it.raw.tip.slice(1) },
+        },
       },
       scales: {
         x: { type: 'time', min: minX, max: maxX, time: { minUnit: 'day', displayFormats: { day: 'd MMM', week: 'd MMM', month: 'MMM yyyy' } },
