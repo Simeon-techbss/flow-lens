@@ -428,6 +428,11 @@ License: MIT
     .rel-ms-icon { font-size:1rem; font-weight:700; }
     .rel-ms-sub { font-size:0.72rem; margin-top:0.1rem; }
     .rel-ms-legend { display:flex; flex-wrap:wrap; gap:0.4rem 1.2rem; font-size:0.75rem; color:#475569; margin-top:0.5rem; }
+    .rel-so-form { display:flex; gap:0.35rem; flex-wrap:wrap; justify-content:flex-end; align-items:center; }
+    .rel-so-form input { font-size:0.78rem; padding:0.2rem 0.35rem; border:1px solid #cbd5e1; border-radius:5px; }
+    .rel-so-form input[type=text] { width:16rem; }
+    .rel-after-so { background:#fef3c7; color:#92400e; margin-left:0.25rem; }
+    .rel-so-banner { background:#f0fdf4; border:1px solid #bbf7d0; color:#166534; font-weight:600; border-radius:8px; padding:0.5rem 0.7rem; }
     .rel-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:1rem; }
     .rel-fc-row { display:flex; justify-content:space-between; padding:0.45rem 0; border-bottom:1px solid #f1f5f9; font-size:0.92rem; }
     .rel-target { display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; margin-top:0.8rem; padding:0.6rem 0.75rem; background:#f0fdfa; border:1px solid #99f6e4; border-radius:8px; font-size:0.85rem; }
@@ -1702,7 +1707,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-11-02a';
+const VERSION = '2026-11-02b';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -2438,6 +2443,7 @@ function updateMilestone(i, key, val) {
   if (key === 'name' && activeMilestone === m.name) activeMilestone = val.trim() || null;
   if (key === 'name' && m.name && val.trim()) releases.forEach(r => {   // release target dates follow a renamed segment
     if (r.targets && r.targets[m.name] !== undefined) { r.targets[val.trim()] = r.targets[m.name]; delete r.targets[m.name]; }
+    if (r.signoffs && r.signoffs[m.name] !== undefined) { r.signoffs[val.trim()] = r.signoffs[m.name]; delete r.signoffs[m.name]; }
   });
   m[key] = key === 'name' || key === 'short' ? val.trim() : val;
   if (key === 'name') renderMilestoneBar(); else if (key !== 'short') buildMilestoneUI();
@@ -2532,6 +2538,32 @@ function setRelTarget(seg, v) {
   else rel.target = v || '';
   renderReleases();
 }
+// Sign-off: the team/client agreed a finish line is reached on a date, even with tickets still being refined.
+// rel.signoffs[seg || ''] = { date: 'yyyy-mm-dd', note }. Single releases only (not combined selections).
+function getRelSignoff(rel, seg) {
+  if (!rel || rel.parts) return null;
+  const so = (rel.signoffs || {})[seg || ''];
+  return so && so.date ? so : null;
+}
+let relSignoffEdit = undefined;   // finish line whose sign-off form is open (null = Full flow)
+function relSignoffOpen(seg) { relSignoffEdit = seg; renderReleases(); }
+function relSignoffSave(seg) {
+  const rel = getActiveRelease();
+  const date = document.getElementById('rel-so-date').value;
+  if (!rel || rel.parts || !date) return;
+  rel.signoffs = rel.signoffs || {};
+  rel.signoffs[seg || ''] = { date, note: document.getElementById('rel-so-note').value.trim() };
+  relSignoffEdit = undefined;
+  renderAll(true);
+}
+function relSignoffUndo(seg) {
+  const rel = getActiveRelease();
+  if (!rel || !rel.signoffs) return;
+  delete rel.signoffs[seg || ''];
+  relSignoffEdit = undefined;
+  renderAll(true);
+}
+
 // Release stats as if a different Measure-to were picked (null = Full flow)
 function releaseStatsFor(rel, seg) {
   const keep = activeMilestone;
@@ -2800,6 +2832,15 @@ function relMilestone(rel, seg, ls) {
     const diff = tgD ? Math.round((new Date(ls.finishedOn).setHours(0, 0, 0, 0) - tgD) / 86400000) : null;
     return { ...base, state: 'done', at: ls.finishedOn, diff, colour: diff > 0 ? '#d97706' : '#16a34a' };
   }
+  const so = getRelSignoff(rel, seg);
+  if (so) {
+    const at = new Date(so.date + 'T00:00:00');
+    const diff = tgD ? Math.round((at - tgD) / 86400000) : null;
+    // Still-open tickets should be finished by the release's final (Full flow) target
+    const finalTg = seg ? getRelTarget(rel, null) : '';
+    return { ...base, state: 'signed', at, diff, note: so.note || '', finalTg: finalTg ? new Date(finalTg + 'T00:00:00') : null,
+             colour: diff > 0 ? '#d97706' : '#16a34a' };
+  }
   if (tgD && tgD < today) return { ...base, state: 'passed', colour: '#dc2626' };
   const hit = relTargetHit(ls, tg);
   return { ...base, state: 'open', hit, colour: hit === null ? '#94a3b8' : hit >= 0.85 ? '#16a34a' : hit >= 0.5 ? '#d97706' : '#dc2626' };
@@ -2810,6 +2851,10 @@ function relShortDate(d) { return d.toLocaleDateString('en-GB', { day: 'numeric'
 // One line of text for a milestone result (used by Finish lines and the milestone grid)
 function relMilestoneText(m) {
   if (m.state === 'empty') return '<span class="muted">—</span>';
+  if (m.state === 'signed') return `<span style="color:#16a34a;font-weight:600">Signed off ${relShortDate(m.at)}</span>`
+    + (m.diff === null ? '' : m.diff === 0 ? ' · on target' : ` · <span style="color:${m.colour};font-weight:600">${Math.abs(m.diff)}d ${m.diff > 0 ? 'late' : 'early'}</span>`)
+    + (m.remaining ? ` · <span style="color:#b45309">${m.remaining} still open${m.finalTg ? `, due by ${relShortDate(m.finalTg)}` : ''}</span>` : '')
+    + (m.note ? `<div class="muted" style="font-size:0.72rem;margin-top:0.15rem">“${relEsc(m.note)}”</div>` : '');
   if (m.state === 'done') return `<span style="color:#16a34a;font-weight:600">Done ${relShortDate(m.at)}</span>`
     + (m.diff === null ? '' : m.diff === 0 ? ' · on target' : ` · <span style="color:${m.colour};font-weight:600">${Math.abs(m.diff)}d ${m.diff > 0 ? 'late' : 'early'}</span>`);
   return `${m.done} of ${m.total} done`
@@ -2835,9 +2880,10 @@ function relMilestoneSection(usable) {
   const segArg = L => L.seg ? `'${relEsc(L.seg).replace(/'/g, "\\'")}'` : 'null';
   const cell = (d, L, m) => {
     if (m.state === 'empty') return `<td class="muted">—</td>`;
-    const icon = m.state === 'done' ? '✓' : m.state === 'passed' ? '●' : '○';
-    const main = m.tg ? relShortDate(m.tgD) : m.state === 'done' ? relShortDate(m.at) : '<span class="muted">no target</span>';
-    const sub = m.state === 'done' ? (m.diff === null ? 'done' : m.diff === 0 ? 'on time' : `done ${relShortDate(m.at)} · ${Math.abs(m.diff)}d ${m.diff > 0 ? 'late' : 'early'}`)
+    const icon = m.state === 'done' || m.state === 'signed' ? '✓' : m.state === 'passed' ? '●' : '○';
+    const main = m.tg ? relShortDate(m.tgD) : m.state === 'done' || m.state === 'signed' ? relShortDate(m.at) : '<span class="muted">no target</span>';
+    const sub = m.state === 'signed' ? `signed off ${relShortDate(m.at)}${m.diff ? ` · ${Math.abs(m.diff)}d ${m.diff > 0 ? 'late' : 'early'}` : ''}${m.remaining ? ` · <span style="color:#b45309">${m.remaining} still open</span>` : ''}`
+      : m.state === 'done' ? (m.diff === null ? 'done' : m.diff === 0 ? 'on time' : `done ${relShortDate(m.at)} · ${Math.abs(m.diff)}d ${m.diff > 0 ? 'late' : 'early'}`)
       : m.state === 'passed' ? `passed · ${m.done}/${m.total} done`
       : m.hit != null ? `${Math.round(m.hit * 100)}% chance · ${m.done}/${m.total}`
       : m.tg ? `${m.done}/${m.total} · too early to forecast` : `${m.done}/${m.total}${m.p85 ? ` · 85% by ${relShortDate(m.p85)}` : ''}`;
@@ -2866,7 +2912,7 @@ function renderReleaseMilestoneChart(ms) {
     const L = ms.lines[k];
     const tip = `${d.r.name} · ${L.label}: ${m.tg ? `target ${relShortDate(m.tgD)}` : 'no target'} — ${relMilestoneText(m).replace(/<[^>]+>/g, '')}`;
     if (m.tgD) { targets.push({ x: m.tgD, y, lbl: L.short, c: m.colour, tip, i: d.i, seg: L.seg }); all.push(m.tgD); }
-    if (m.state === 'done') {
+    if (m.state === 'done' || m.state === 'signed') {
       reached.push({ x: m.at, y, lbl: m.tgD ? '' : L.short, c: m.colour, tip, i: d.i, seg: L.seg }); all.push(m.at);
       if (m.tgD && m.diff) slips.push({ from: m.tgD, to: m.at, y, k, c: m.colour });
     } else if (m.tgD) {
@@ -2986,6 +3032,7 @@ function renderReleaseSummary(rel) {
   const weeksLbl = s.rates.length ? `last ${s.rates.length} wk${s.rates.length === 1 ? '' : 's'}` : 'no history yet';
 
   let forecast;
+  const soNow = getRelSignoff(rel, cfg.milestone);
   if (!s.total) forecast = `<div class="muted">No tickets match this release with the current filters.</div>`;
   else if (!s.remaining) {
     const tgtStr = getRelTarget(rel, cfg.milestone);
@@ -3012,6 +3059,15 @@ function renderReleaseSummary(rel) {
       </div>
       <div class="muted" style="font-size:0.72rem;margin-top:0.6rem;line-height:1.4">Only as good as the stage dates in your export — skipped stages, back-filled dates or a missed Blocked flag all change these numbers.${dqN ? ` <a href="#" onclick="switchToTab('dq');return false" style="color:#b45309">${dqN} data quality issue${dqN === 1 ? '' : 's'} in this release →</a>` : ''}</div>`;
   }
+  if (soNow && s.remaining && forecast === undefined) forecast = `<div class="rel-so-banner">✓ ${cfg.milestone ? relEsc(cfg.milestone) : 'Release'} signed off on ${fmtDate(new Date(soNow.date + 'T00:00:00'))}${soNow.note ? ` — “${relEsc(soNow.note)}”` : ''}<div style="font-weight:400;font-size:0.78rem;margin-top:0.2rem">${s.remaining} ticket${s.remaining === 1 ? '' : 's'} still being refined. The forecast below is for those.</div></div>`;
+  if (forecast !== undefined && !(soNow && s.remaining)) { /* set above: no tickets / all done */ }
+  else if (soNow && s.remaining) {
+    const rest = !s.mc ? `<div class="muted" style="line-height:1.5;margin-top:0.6rem">Not enough history to forecast the rest yet.</div>` : `
+    <div class="rel-fc-row"><span>50% chance by</span><strong>${fmtDate(s.mc.p50)}</strong></div>
+    <div class="rel-fc-row"><span>85% chance by</span><strong>${fmtDate(s.mc.p85)}</strong></div>
+    <div class="rel-fc-row"><span>95% chance by</span><strong>${fmtDate(s.mc.p95)}</strong></div>`;
+    forecast += rest;
+  }
   else if (!s.mc) forecast = `<div class="muted" style="line-height:1.5">Not enough history to forecast yet. It needs at least 3 tickets in this release done${s.done < 3 ? ` (${s.done} so far)` : ' and some done in the last few weeks'}.</div>`;
   else forecast = `
     <div class="rel-fc-row"><span>50% chance by</span><strong>${fmtDate(s.mc.p50)}</strong></div>
@@ -3027,17 +3083,26 @@ function renderReleaseSummary(rel) {
     const tg = m.tg, result = relMilestoneText(m);
     const on = (L.seg || null) === (cfg.milestone || null);
     const segArg = L.seg ? `'${relEsc(L.seg).replace(/'/g, "\\'")}'` : 'null';
+    const editing = relSignoffEdit !== undefined && (relSignoffEdit || null) === (L.seg || null);
+    const soCell = rel.parts ? '' : m.state === 'signed'
+      ? `<button class="rel-btn" onclick="relSignoffUndo(${segArg})" title="Go back to what the data says">Undo sign-off</button>`
+      : m.state === 'done' || m.state === 'empty' ? ''
+      : editing ? `<div class="rel-so-form"><input type="date" id="rel-so-date" value="${tg && new Date(tg + 'T00:00:00') <= new Date() ? tg : dayKey(new Date())}" aria-label="Sign-off date">
+          <input type="text" id="rel-so-note" placeholder="Note, e.g. agreed with client; 3 bugs carried" maxlength="140">
+          <button class="rel-btn rel-btn-primary" onclick="relSignoffSave(${segArg})">Save</button><button class="rel-btn" onclick="relSignoffOpen(undefined)">Cancel</button></div>`
+      : `<button class="rel-btn" onclick="relSignoffOpen(${segArg})" title="Agreed as reached, even though some tickets are still open">Sign off…</button>`;
     return `<tr class="${on ? 'rel-line-on' : ''}">
       <td><a href="#" onclick="selectMilestone(${segArg});return false" title="Measure to this">${relEsc(L.label)}</a><div class="muted" style="font-size:0.7rem">${relEsc(L.span)}</div></td>
       <td><input type="date" value="${tg}" onchange="setRelTarget(${segArg}, this.value)" aria-label="Target date for ${relEsc(L.label)}"></td>
-      <td>${result}</td></tr>`;
+      <td>${result}</td>${rel.parts ? '' : `<td style="text-align:right">${soCell}</td>`}</tr>`;
   }).join('');
   const finishLinesHtml = `<div class="chart-card" style="margin-top:1rem">
       <h2>Finish lines</h2>
-      <div class="subtitle">A target date for each stopping point — e.g. code complete in October, live in January. Click a name to measure to it. Saved with the release in your config.</div>
-      <table class="bd-table rel-lines"><thead><tr><th>Measure to</th><th>Target</th><th>Result</th></tr></thead><tbody>${lineRows}</tbody></table>
+      <div class="subtitle">A target date for each stopping point — e.g. code complete in October, live in January. Click a name to measure to it. <strong>Sign off</strong> when it's agreed as reached even though some tickets are still being refined — they stay listed, tagged “after sign-off”, and should be finished by the Full flow target. Saved with the release in your config.</div>
+      <table class="bd-table rel-lines"><thead><tr><th>Measure to</th><th>Target</th><th>Result</th>${rel.parts ? '' : '<th></th>'}</tr></thead><tbody>${lineRows}</tbody></table>
     </div>`;
 
+  const curSo = getRelSignoff(rel, cfg.milestone);
   const statusOrder = { progress: 0, notstarted: 1, done: 2, discarded: 3 };
   const statusLbl = { progress: 'In progress', notstarted: 'Not started', done: 'Done', discarded: 'Discarded' };
   const today = new Date();
@@ -3073,7 +3138,7 @@ function renderReleaseSummary(rel) {
       <td>${relEsc(title)}</td>
       ${cfg.epicCol ? `<td class="muted">${relEsc(titleById[epicId] || epicId)}</td>` : ''}
       <td>${relEsc(relCurrentStage(it.row))}</td>
-      <td><span class="rel-status rel-status-${it.status}">${statusLbl[it.status]}${it.cp !== null ? ` · ${relEsc(relCpLabel(it.cp, s.cps))}` : ''}</span></td>
+      <td><span class="rel-status rel-status-${it.status}">${statusLbl[it.status]}${it.cp !== null ? ` · ${relEsc(relCpLabel(it.cp, s.cps))}` : ''}</span>${curSo && (it.status === 'progress' || it.status === 'notstarted') ? ' <span class="rel-status rel-after-so" title="Still open when this finish line was signed off">after sign-off</span>' : ''}</td>
       ${hasBlk ? `<td>${blockedBadge(it.blk)}</td>` : ''}
       <td style="text-align:right${old ? ';color:#b91c1c;font-weight:600' : ''}">${age !== null ? `${age}d${old ? ' · over p85' : ''}` : ''}</td>
     </tr>`;
@@ -7104,6 +7169,7 @@ function applyConfig(cfg) {
   releases = Array.isArray(cfg.releases) ? cfg.releases.map(r => ({
     name: r.name || '', target: r.target || '',
     targets: r.targets && typeof r.targets === 'object' ? { ...r.targets } : {},
+    signoffs: r.signoffs && typeof r.signoffs === 'object' ? JSON.parse(JSON.stringify(r.signoffs)) : {},
     rules: (r.rules || []).map(x => ({ mode: x.mode === 'out' ? 'out' : 'in', col: x.col || REL_ID, vals: Array.isArray(x.vals) ? x.vals : [] })),
   })) : [];
   activeReleases = Array.isArray(cfg.activeReleases) ? cfg.activeReleases : (cfg.activeRelease ? [cfg.activeRelease] : []);
