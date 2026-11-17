@@ -475,6 +475,7 @@ License: MIT
     .rel-status-progress { background:#e0f2fe; color:#075985; }
     .rel-status-notstarted { background:#f1f5f9; color:#475569; }
     .rel-status-discarded { background:#fef2f2; color:#991b1b; }
+    .rel-status-deferred { background:#faf5ff; color:#7e22ce; }
     .rel-row-discarded td, .rel-row-excluded td { color:#94a3b8; }
     .rel-states { display:flex; flex-direction:column; gap:0.4rem; margin:0.2rem 0 0.8rem; }
     .rel-state-bar { display:flex; height:10px; border-radius:5px; overflow:hidden; background:#f1f5f9; }
@@ -871,6 +872,11 @@ License: MIT
       </div>
       <div id="defect-rows"></div>
       <button class="filter-add" onclick="addDefectType()">+ Add type</button>
+      <div class="workflow-section-header" style="margin-top:0.9rem">
+        <span style="font-size:0.85rem">Deferred to future work</span>
+        <small>Tickets taken out of this release, e.g. moved to a <strong>change request</strong>. Mark them in Jira with a label (e.g. <strong>Deferred-CR</strong>) or a field — moving a ticket back to Backlog isn't enough, because the export keeps its old dates. Deferred tickets leave WIP, throughput and the release's remaining work, but stay visible as Deferred. Applies to any ticket, not just bugs.</small>
+      </div>
+      <div id="defer-rows"></div>
       <div class="df-cond df-fixcol" style="margin:0.6rem 0 0">
         <span class="df-and" style="min-width:auto">Fix type column</span>
         <select id="defect-fix-col" onchange="defectFixCol = this.value; renderAll()"><option value="">— none —</option></select>
@@ -1766,7 +1772,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-11-17c';
+const VERSION = '2026-11-17d';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -1781,7 +1787,8 @@ let releases = [];              // [{ name, target, rules: [{ mode:'in'|'out', c
 let activeReleases = [];        // names of the selected releases, [] = All work (several = combined)
 let relComboTargets = {};       // target dates for combined selections, keyed by "R1 + R2"
 let defectTypes = [];           // [{ name, conds: [{ col, vals }] }] — testing work (bugs / defects); a ticket matches when ALL conds match
-let defectFixCol = '';          // optional column saying how a bug/defect was fixed (Code, Config, Data…)
+let defectFixCol = '';
+let deferRule = { name: 'Deferred (CR)', conds: [{ col: '', vals: [] }] };   // tickets moved out to future work / a change request          // optional column saying how a bug/defect was fixed (Code, Config, Data…)
 let testingMode = 'include';    // 'include' | 'hide' | 'only' — the Bugs & defects switch above the reports
 let filterIdCounter = 0;
 let filterRowIds = [];
@@ -1819,6 +1826,8 @@ function workflowStagesOrdered() {
 }
 
 function getDiscardDate(row) {
+  const df = rowDeferredDate(row);   // deferred to future work (CR) = left this flow, like a discard
+  if (df) return df;
   let first = null;
   workflowStages.forEach(col => {
     if (stageTypes[col] !== 'discarded') return;
@@ -1833,6 +1842,7 @@ function getDiscardDate(row) {
 // stage an item passes through, so whichever of Done / Discarded comes later in the order wins.
 // Works whether the export puts Withdrawn before or after Done.
 function getDeliveredDate(row, cfg) {
+  if (isDeferred(row)) return null;
   const end = cfg.milestone ? milestoneReachedDate(row, cfg.endCol) : (cfg.endCol ? getCachedDate(row, cfg.endCol) : null);
   if (!end) return null;
   // Uses the FILE's column order (how the export tool filled dates in), not the stage list order,
@@ -2007,7 +2017,8 @@ function resetTool() {
   allRows = []; columns = []; workflowStages = []; stageTypes = {}; hiddenStages = new Set();
   milestones = []; activeMilestone = null;
   releases = []; activeReleases = []; relComboTargets = {}; relDraft = null; relView = 'auto';
-  defectTypes = []; defectFixCol = ''; testingMode = 'include'; defectCache = new WeakMap(); defectView = ''; defectListState = '';
+  defectTypes = []; defectFixCol = ''; testingMode = 'include';
+  deferRule = { name: 'Deferred (CR)', conds: [{ col: '', vals: [] }] }; deferCache = new WeakMap(); defectCache = new WeakMap(); defectView = ''; defectListState = '';
   Object.values(charts).forEach(c => c.destroy());
   charts = {};
   document.getElementById('config-panel').style.display = 'none';
@@ -2240,6 +2251,7 @@ function loadExampleData() {
     // Currently blocked stories in an in-flight release
     kids.filter(r => r.Dev && !r.Done).slice(0, spec.blockedNow || 0).forEach((r, j) => { r['Blocked Days'] = 4 + j * 3; r['Currently Blocked'] = 'Yes'; });
     kids.forEach((r, j) => { if (r.Labels === 'UAT' && r.Done) r['Fix Type'] = ['Code', 'Config'][j % 2]; });
+    if (spec.fix === 'R3 Single Sign-On') { const last = kids.filter(r => !r['Ready for Test']).pop(); if (last) { last.Labels = 'Deferred-CR'; last['Currently Blocked'] = 'No'; } }   // descoped to a CR
     relRows.push(...kids);
     relRows.push({ ID: spec.epic, Title: spec.epicTitle, 'Issue Type': 'Epic', 'Epic Link': '', 'Fix Version': spec.fix,
       'Demand Source': 'Feature', 'Demand Type': 'Value Demand', 'Blocked Days': 0, 'Currently Blocked': 'No',
@@ -2280,6 +2292,8 @@ function loadExampleData() {
       r.Labels = internal ? 'QA' : 'UAT';
       if (r.Done && Math.random() < 0.9) r['Fix Type'] = pick(fixTypes);
       else if (r.Dev && !r.Done && Math.random() < 0.3) r['Fix Type'] = pick(fixTypes);
+      // A few open ones were deferred to a change request (Jira: back to Backlog + Deferred-CR label)
+      if (!r.Done && !r.Rejected && r.Dev && Math.random() < 0.3) r.Labels = `[${r.Labels}, Deferred-CR]`;
     } else r['Issue Type'] = r['Demand Source'] === 'Tech Debt' ? 'Task' : 'Story';
     if (r['Demand Source'] === 'Tech Debt') r.Labels = 'Tech';
   });
@@ -2342,6 +2356,7 @@ function loadExampleData() {
           { name: 'Defect (external)', conds: [{ col: 'Issue Type', vals: ['Bug'] }] },
         ],
         defectFixCol: 'Fix Type',
+        deferRule: { name: 'Deferred (CR)', conds: [{ col: 'Labels', vals: ['Deferred-CR'] }] },
       });
     }
   });
@@ -2353,7 +2368,8 @@ function setupConfig() {
   milestones = []; activeMilestone = null;
   releases = []; activeReleases = []; relComboTargets = {}; relDraft = null; relView = 'auto';
   defectTypes = defaultDefectTypes(); testingMode = 'include';
-  defectFixCol = columns.find(c => /fix.?type|root.?cause|fix.?category|defect.?cause/i.test(c)) || ''; defectCache = new WeakMap(); defectView = ''; defectListState = '';
+  defectFixCol = columns.find(c => /fix.?type|root.?cause|fix.?category|defect.?cause/i.test(c)) || '';
+  deferRule = { name: 'Deferred (CR)', conds: [{ col: columns.find(c => /^labels?$/i.test(c.trim())) || '', vals: [] }] }; deferCache = new WeakMap(); defectCache = new WeakMap(); defectView = ''; defectListState = '';
   savedConfigSnapshot = null;
   document.getElementById('config-panel').style.display = 'block';
   const fp = document.getElementById('filter-panel');
@@ -2666,8 +2682,28 @@ function defectKindOf(row) {
   defectCache.set(row, k);
   return k;
 }
+// Deferred = moved out to future work / a change request, marked in Jira by a label or field (moving it back to
+// Backlog isn't enough: the export keeps the old stage dates, so it would still look in progress).
+// It leaves the flow everywhere (not WIP, not throughput, not a release's remaining work) but is shown as Deferred.
+let deferCache = new WeakMap();
+function isDeferred(row) {
+  if (!defectTypeUsable(deferRule)) return false;
+  if (deferCache.has(row)) return deferCache.get(row);
+  const v = deferRule.conds.filter(c => c.col && c.vals.length).every(c => cellValues(row[c.col]).some(x => c.vals.includes(x)));
+  deferCache.set(row, v);
+  return v;
+}
+// The export has no "deferred on" date, so use the ticket's latest stage date (when it last moved)
+function rowDeferredDate(row) {
+  if (!isDeferred(row)) return null;
+  let max = null;
+  workflowStages.forEach(c => { if (stageTypes[c] === 'discarded') return; const d = getCachedDate(row, c); if (d && (!max || d > max)) max = d; });
+  return max || dataEndDate() || new Date();
+}
+function deferLabel() { return deferRule.name || 'Deferred'; }
+
 function defectColor(name) { const i = usableDefectTypes().findIndex(t => t.name === name); return DEFECT_COLORS[(i < 0 ? 0 : i) % DEFECT_COLORS.length]; }
-function defectsChanged() { defectCache = new WeakMap(); renderAll(); }
+function defectsChanged() { defectCache = new WeakMap(); deferCache = new WeakMap(); renderAll(); }
 
 function defaultDefectTypes() {
   const typeCol = columns.find(c => /^(issue.?type|work.?item.?type|type)$/i.test(c.trim())) || '';
@@ -2684,7 +2720,39 @@ function defectColValues(col) {
   return [...set].sort((a, b) => a.localeCompare(b)).slice(0, 400);
 }
 
+const dfGet = i => i < 0 ? deferRule : defectTypes[i];
+function dfCondsHtml(t, i) {
+  const colOpts = sel => `<option value="">Pick a column…</option>` + columns.filter(c => !workflowStages.includes(c))
+    .map(c => `<option value="${relEsc(c)}"${c === sel ? ' selected' : ''}>${relEsc(c)}</option>`).join('');
+  return t.conds.map((c, j) => {
+    const left = defectColValues(c.col).filter(v => !c.vals.includes(v));
+    return `<div class="df-cond">
+      <span class="df-and">${j ? 'and' : 'where'}</span>
+      <select onchange="updateDefectCond(${i}, ${j}, 'col', this.value)">${colOpts(c.col)}</select>
+      <span>is</span>
+      ${c.vals.map((v, k) => `<span class="df-chip">${relEsc(v)}<button onclick="removeDefectVal(${i}, ${j}, ${k})" title="Remove">×</button></span>`).join('<span class="df-or">or</span>')}
+      ${c.col ? `<select class="df-add" onchange="addDefectVal(${i}, ${j}, this.value)"><option value="">+ value…</option>${left.map(v => `<option value="${relEsc(v)}">${relEsc(v)}</option>`).join('')}</select>` : ''}
+      ${t.conds.length > 1 ? `<button class="ms-del" onclick="removeDefectCond(${i}, ${j})" title="Remove this rule">×</button>` : ''}
+    </div>`;
+  }).join('') + `<button class="df-more" onclick="addDefectCond(${i})">+ and another rule${i < 0 ? '' : ' (e.g. a label)'}</button>`;
+}
+
+function buildDeferUI() {
+  const wrap = document.getElementById('defer-rows');
+  if (!wrap) return;
+  const n = defectTypeUsable(deferRule) ? allRows.filter(isDeferred).length : null;
+  wrap.innerHTML = `<div class="df-type">
+    <div class="df-head">
+      <i style="background:#a855f7"></i>
+      <input type="text" value="${relEsc(deferRule.name)}" placeholder="e.g. Deferred (CR)" onchange="updateDefectName(-1, this.value)">
+      <span class="df-count">${n === null ? 'pick a value to turn it on' : `${n} ticket${n === 1 ? '' : 's'}`}</span>
+    </div>
+    ${dfCondsHtml(deferRule, -1)}
+  </div>`;
+}
+
 function buildDefectUI() {
+  defectCache = new WeakMap(); deferCache = new WeakMap();
   const section = document.getElementById('defect-section');
   const wrap = document.getElementById('defect-rows');
   if (!section) return;
@@ -2696,17 +2764,7 @@ function buildDefectUI() {
     .map(c => `<option value="${relEsc(c)}"${c === defectFixCol ? ' selected' : ''}>${relEsc(c)}</option>`).join('');
   wrap.innerHTML = defectTypes.map((t, i) => {
     const n = allRows.filter(r => defectKindOf(r) === t.name).length;
-    const conds = t.conds.map((c, j) => {
-      const left = defectColValues(c.col).filter(v => !c.vals.includes(v));
-      return `<div class="df-cond">
-        <span class="df-and">${j ? 'and' : 'where'}</span>
-        <select onchange="updateDefectCond(${i}, ${j}, 'col', this.value)">${colOpts(c.col)}</select>
-        <span>is</span>
-        ${c.vals.map((v, k) => `<span class="df-chip">${relEsc(v)}<button onclick="removeDefectVal(${i}, ${j}, ${k})" title="Remove">×</button></span>`).join('<span class="df-or">or</span>')}
-        ${c.col ? `<select class="df-add" onchange="addDefectVal(${i}, ${j}, this.value)"><option value="">+ value…</option>${left.map(v => `<option value="${relEsc(v)}">${relEsc(v)}</option>`).join('')}</select>` : ''}
-        ${t.conds.length > 1 ? `<button class="ms-del" onclick="removeDefectCond(${i}, ${j})" title="Remove this rule">×</button>` : ''}
-      </div>`;
-    }).join('');
+    const conds = dfCondsHtml(t, i);
     return `<div class="df-type">
       <div class="df-head">
         <i style="background:${DEFECT_COLORS[i % DEFECT_COLORS.length]}"></i>
@@ -2715,41 +2773,41 @@ function buildDefectUI() {
         <button class="ms-del" onclick="removeDefectType(${i})" title="Remove this type">×</button>
       </div>
       ${conds}
-      <button class="df-more" onclick="addDefectCond(${i})">+ and another rule (e.g. a label)</button>
     </div>`;
   }).join('');
+  buildDeferUI();
 }
 
 function updateDefectName(i, v) {
-  const t = defectTypes[i]; if (!t) return;
+  const t = dfGet(i); if (!t) return;
   const old = t.name; t.name = v.trim();
   if (defectView === old) defectView = t.name;
-  defectCache = new WeakMap(); buildDefectUI(); defectsChanged();
+  buildDefectUI(); defectsChanged();
 }
 function updateDefectCond(i, j, key, v) {
-  const c = defectTypes[i] && defectTypes[i].conds[j]; if (!c) return;
+  const c = dfGet(i) && dfGet(i).conds[j]; if (!c) return;
   c[key] = v; if (key === 'col') c.vals = [];
-  defectCache = new WeakMap(); buildDefectUI(); defectsChanged();
+  buildDefectUI(); defectsChanged();
 }
 function addDefectVal(i, j, v) {
-  const c = defectTypes[i] && defectTypes[i].conds[j]; if (!c || !v) return;
+  const c = dfGet(i) && dfGet(i).conds[j]; if (!c || !v) return;
   if (!c.vals.includes(v)) c.vals.push(v);
-  defectCache = new WeakMap(); buildDefectUI(); defectsChanged();
+  buildDefectUI(); defectsChanged();
 }
 function removeDefectVal(i, j, k) {
-  const c = defectTypes[i] && defectTypes[i].conds[j]; if (!c) return;
+  const c = dfGet(i) && dfGet(i).conds[j]; if (!c) return;
   c.vals.splice(k, 1);
-  defectCache = new WeakMap(); buildDefectUI(); defectsChanged();
+  buildDefectUI(); defectsChanged();
 }
 function addDefectCond(i) {
-  const t = defectTypes[i]; if (!t) return;
+  const t = dfGet(i); if (!t) return;
   t.conds.push({ col: columns.find(c => /^labels?$/i.test(c.trim())) || '', vals: [] });
   buildDefectUI();
 }
 function removeDefectCond(i, j) {
-  const t = defectTypes[i]; if (!t) return;
+  const t = dfGet(i); if (!t) return;
   t.conds.splice(j, 1);
-  defectCache = new WeakMap(); buildDefectUI(); defectsChanged();
+  buildDefectUI(); defectsChanged();
 }
 function addDefectType() {
   const typeCol = (defectTypes[0] && defectTypes[0].conds[0] && defectTypes[0].conds[0].col) || '';
@@ -2758,7 +2816,7 @@ function addDefectType() {
 }
 function removeDefectType(i) {
   defectTypes.splice(i, 1);
-  defectCache = new WeakMap(); buildDefectUI(); defectsChanged();
+  buildDefectUI(); defectsChanged();
 }
 
 function setTestingMode(m) {
@@ -2911,6 +2969,7 @@ function relRuleSummary(rel, cfg) {
 
 // done / progress / notstarted / discarded. "progress" = reached Active Work Starts (or Start) or any later stage.
 function relItemStatus(row, cfg) {
+  if (isDeferred(row)) return 'deferred';
   if (getDeliveredDate(row, cfg)) return 'done';
   if (getDiscardDate(row)) return 'discarded';
   const from = workflowStages.indexOf(cfg.activeCol || cfg.startCol);
@@ -3014,7 +3073,7 @@ function releaseStats(rel) {
     const cp = status === 'progress' && cps.length ? relCheckpointOf(row, cps) + 1 : null;
     return { row, status, started, cp, blk: rowBlocked(row, cfg), done: status === 'done' ? getDeliveredDate(row, cfg) : null };
   });
-  const live = items.filter(i => i.status !== 'discarded');
+  const live = items.filter(i => i.status !== 'discarded' && i.status !== 'deferred');
   const count = s => live.filter(i => i.status === s).length;
   const done = count('done');
   const total = live.length, remaining = total - done;
@@ -3048,7 +3107,8 @@ function releaseStats(rel) {
   const mc = (done >= 3 && rates.length >= 2 && remaining > 0) ? releaseMonteCarlo(rates, remaining) : null;
   return {
     rel, cfg, items, live, total, done, remaining,
-    progress: count('progress'), notstarted: count('notstarted'), discarded: items.length - live.length,
+    progress: count('progress'), notstarted: count('notstarted'),
+    discarded: items.filter(i => i.status === 'discarded').length, deferred: items.filter(i => i.status === 'deferred').length,
     blockedNow: live.filter(i => i.blk.now).length,
     // All done → the day the last ticket finished (follows the Measure-to pill)
     finishedOn: total && !remaining ? new Date(Math.max(...live.map(i => i.done))) : null,
@@ -3321,7 +3381,7 @@ function renderReleaseOverview() {
     const fc = fc0 + (tgOv ? `<div class="muted" style="font-size:0.72rem">target ${fmtDate(new Date(tgOv + 'T00:00:00'))}</div>` : '');
     return `<tr onclick="selectRelease(${i})" title="Show this release">
       <td><strong>${relEsc(r.name)}</strong><div class="muted" style="font-size:0.72rem;margin-top:0.15rem">${relEsc(relRuleSummary(r, cfg))}</div></td>
-      <td style="min-width:200px">${relProgressBar(s)}<div class="muted" style="font-size:0.72rem;margin-top:0.2rem">${s.done} done · ${s.progress} in progress${s.cpCounts && s.progress ? ` (${s.cpCounts.map((n, b) => n ? `${n} ${relEsc(relCpLabel(b, s.cps))}` : '').filter(Boolean).join(' · ')})` : ''} · ${s.notstarted} not started${s.discarded ? ` · ${s.discarded} discarded` : ''}${s.blockedNow ? ` · <span style="color:#b91c1c;font-weight:600">⛔ ${s.blockedNow} blocked now</span>` : ''}</div></td>
+      <td style="min-width:200px">${relProgressBar(s)}<div class="muted" style="font-size:0.72rem;margin-top:0.2rem">${s.done} done · ${s.progress} in progress${s.cpCounts && s.progress ? ` (${s.cpCounts.map((n, b) => n ? `${n} ${relEsc(relCpLabel(b, s.cps))}` : '').filter(Boolean).join(' · ')})` : ''} · ${s.notstarted} not started${s.discarded ? ` · ${s.discarded} discarded` : ''}${s.deferred ? ` · <span style="color:#7e22ce">${s.deferred} ${relEsc(deferLabel())}</span>` : ''}${s.blockedNow ? ` · <span style="color:#b91c1c;font-weight:600">⛔ ${s.blockedNow} blocked now</span>` : ''}</div></td>
       <td style="text-align:right">${s.done} / ${s.total}</td>
       <td style="text-align:right">${s.pace !== null ? s.pace.toFixed(1) : '—'}</td>
       <td style="text-align:right">${fc}</td>
@@ -3365,7 +3425,7 @@ function renderReleaseSummary(rel) {
     forecast = `<div style="font-size:1.05rem;font-weight:600;color:#16a34a">All ${s.total} ${cfg.milestone ? `reached ${relEsc(cfg.milestone)}` : 'done'} on ${fmtDate(s.finishedOn)}</div>
       <div class="muted" style="font-size:0.8rem;margin-top:0.3rem">The day the last ticket ${cfg.milestone ? `reached ${relEsc(cfg.endCol)}` : 'finished'}${diff === null ? '' : diff === 0 ? ' · on the target date' : ` · ${Math.abs(diff)} day${Math.abs(diff) === 1 ? '' : 's'} ${diff > 0 ? 'after' : 'before'} the target (${fmtDate(tgt)})`}.</div>
       <div class="rel-close-grid">
-        ${tile(s.total, 'Tickets done', s.discarded ? `+${s.discarded} discarded` : '')}
+        ${tile(s.total, 'Tickets done', [s.discarded ? `+${s.discarded} discarded` : '', s.deferred ? `${s.deferred} ${relEsc(deferLabel())}` : ''].filter(Boolean).join(' · '))}
         ${tile(c.leadDays === null ? '—' : `${Math.round(c.leadDays)}d`, 'Release lead time', c.firstStart ? `First ticket into ${relEsc(cfg.startCol)} (${c.firstStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}) → last into ${relEsc(cfg.endCol)}` : '')}
         ${tile(d1(c.avgCt), 'Avg cycle time', `${relEsc(cfg.startCol)} → ${relEsc(cfg.endCol)}`)}
         ${c.segs.map(x => tile(d1(x.avg), `Avg ${relEsc(x.m.name)}${x.m.short ? ` (${relEsc(x.m.short)})` : ''}`, `${relEsc(x.m.start)} → ${relEsc(x.m.end)}${x.n < s.total ? ` · ${x.n} of ${s.total} tickets` : ''}`)).join('')}
@@ -3420,15 +3480,15 @@ function renderReleaseSummary(rel) {
     </div>`;
 
   const curSo = getRelSignoff(rel, cfg.milestone);
-  const statusOrder = { progress: 0, notstarted: 1, done: 2, discarded: 3 };
-  const statusLbl = { progress: 'In progress', notstarted: 'Not started', done: 'Done', discarded: 'Discarded' };
+  const statusOrder = { progress: 0, notstarted: 1, done: 2, deferred: 3, discarded: 4 };
+  const statusLbl = { progress: 'In progress', notstarted: 'Not started', done: 'Done', deferred: deferLabel(), discarded: 'Discarded' };
   const today = new Date();
   const list = [...s.items].sort((a, b) => statusOrder[a.status] - statusOrder[b.status]
       || (a.status === 'progress' ? (b.cp || 0) - (a.cp || 0) || (a.started || today) - (b.started || today) : 0));
   const p85 = lastRenderPayload ? lastRenderPayload.p85 : null;
   const stateCount = st => s.items.filter(i => i.status === st).length;
-  const stateOrder = ['notstarted', 'progress', 'done', 'discarded'];
-  const barColor = { notstarted: '#cbd5e1', progress: '#38bdf8', done: '#16a34a', discarded: '#fca5a5' };
+  const stateOrder = ['notstarted', 'progress', 'done', 'deferred', 'discarded'].filter(st => st !== 'deferred' || s.deferred);
+  const barColor = { notstarted: '#cbd5e1', progress: '#38bdf8', done: '#16a34a', deferred: '#d8b4fe', discarded: '#fca5a5' };
   const cpN = s.cpCounts ? s.cpCounts.length : 0;
   const hasBlk = !!(cfg.blockedDaysCol || cfg.blockedFlagCol);
   const barSeg = st => st === 'progress' && s.cpCounts
@@ -3459,7 +3519,7 @@ function renderReleaseSummary(rel) {
     const epicId = cfg.epicCol ? cellValues(it.row[cfg.epicCol])[0] || '' : '';
     const age = it.status === 'progress' && it.started ? Math.round(daysBetween(it.started, today)) : null;
     const old = age !== null && p85 && age > p85;
-    return `<tr data-state="${it.status}"${it.cp !== null ? ` data-sub="progress:${it.cp}"` : ''}${it.blk.now ? ' data-blocked="1"' : ''} class="${it.status === 'discarded' ? 'rel-row-discarded' : ''}">
+    return `<tr data-state="${it.status}"${it.cp !== null ? ` data-sub="progress:${it.cp}"` : ''}${it.blk.now ? ' data-blocked="1"' : ''} class="${it.status === 'discarded' || it.status === 'deferred' ? 'rel-row-discarded' : ''}">
       <td>${link ? `<a href="${relEsc(link)}" target="_blank" rel="noopener">${relEsc(id)}</a>` : relEsc(id)}</td>
       <td>${relEsc(title)}${defectKindOf(it.row) ? `<span class="df-tag" style="background:${defectColor(defectKindOf(it.row))}">${relEsc(defectKindOf(it.row).replace(/\s*\(.*\)$/, ''))}</span>` : ''}</td>
       ${cfg.epicCol ? `<td class="muted">${relEsc(titleById[epicId] || epicId)}</td>` : ''}
@@ -4964,7 +5024,7 @@ function renderEpicProgress() {
     const blk = rowBlocked(row, cfg);
     if (status !== 'discarded') { e.blkDays += blk.days; if (blk.now) e.blkNow++; }
     if (status !== 'discarded' && activeD && (!e.firstStart || activeD < e.firstStart)) e.firstStart = activeD;   // first real work, not first commit
-    e.items.push({ id: cfg.idCol ? row[cfg.idCol] : '', title: cfg.titleCol ? row[cfg.titleCol] : '', link: cfg.linkCol ? row[cfg.linkCol] : '', status, stage, endD, blk });
+    e.items.push({ id: cfg.idCol ? row[cfg.idCol] : '', title: cfg.titleCol ? row[cfg.titleCol] : '', link: cfg.linkCol ? row[cfg.linkCol] : '', status, stage, endD, blk, deferred: isDeferred(row) });
   });
 
   const list = Object.values(epics);
@@ -5037,7 +5097,7 @@ function renderEpicProgress() {
           <span style="width:8px;height:8px;border-radius:2px;background:${colours[it.status]};flex:none"></span>
           <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${txt}</span>
           ${it.status !== 'discarded' ? blockedBadge(it.blk) : ''}
-          <span style="color:#64748b;white-space:nowrap">${it.status === 'discarded' ? 'Discarded' : esc(it.stage || 'No dates')}${it.endD ? ' · ' + fmt(it.endD) : ''}</span></div>`;
+          <span style="color:#64748b;white-space:nowrap">${it.status === 'discarded' ? (it.deferred ? esc(deferLabel()) : 'Discarded') : esc(it.stage || 'No dates')}${it.endD ? ' · ' + fmt(it.endD) : ''}</span></div>`;
       }).join('')}
     </td></tr>`;
   });
@@ -6801,8 +6861,8 @@ function renderAging(wip, p50, p70, p85, p95) {
 
 // ── Blocked report ─────────────────────────────────────────────────────────
 // ── Bugs & Defects tab ─────────────────────────────────────────────────────
-const DF_STATUS = { raised: 'Raised', progress: 'In progress', fixed: 'Fixed', wontfix: "Won't fix" };
-const DF_STATUS_CLS = { raised: 'notstarted', progress: 'progress', fixed: 'done', wontfix: 'discarded' };
+const DF_STATUS = { raised: 'Raised', progress: 'In progress', fixed: 'Fixed', deferred: 'Deferred', wontfix: "Won't fix" };
+const DF_STATUS_CLS = { raised: 'notstarted', progress: 'progress', fixed: 'done', deferred: 'deferred', wontfix: 'discarded' };
 
 // When a ticket was raised = its earliest workflow date (the first stage is usually "created")
 function rowRaisedDate(row) {
@@ -6833,7 +6893,8 @@ function defectItems() {
   add(p.wip, 'progress', () => ({}));
   add(p.committedQueue, 'raised', () => ({}));
   add(p.backlog, 'raised', () => ({}));
-  add(p.discarded, 'wontfix', d => ({ closed: d.discardDate }));
+  add(p.discarded.filter(d => !isDeferred(d._row)), 'wontfix', d => ({ closed: d.discardDate }));
+  add(p.discarded.filter(d => isDeferred(d._row)), 'deferred', d => ({ closed: d.discardDate }));
   return { cfg, items: out };
 }
 
@@ -6854,7 +6915,8 @@ function renderDefects() {
   if (defectView && !types.some(t => t.name === defectView)) defectView = '';
   const { cfg, items } = defectItems();
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  const statuses = ['raised', 'progress', 'fixed', 'wontfix'];
+  DF_STATUS.deferred = deferLabel();
+  const statuses = ['raised', 'progress', 'fixed', 'deferred', 'wontfix'].filter(st => st !== 'deferred' || defectTypeUsable(deferRule));
   const isOpen = i => i.status === 'raised' || i.status === 'progress';
   const pct = (a, q) => { const v = percentile([...a].sort((x, y) => x - y), q); return a.length ? `${Math.round(v * 10) / 10}d` : '—'; };
 
@@ -6866,7 +6928,7 @@ function renderDefects() {
     const open = list.filter(isOpen);
     const oldest = open.length ? Math.max(...open.map(i => i.raised ? daysBetween(i.raised, today) : 0)) : null;
     const cts = list.filter(i => i.status === 'fixed').map(i => i.ct);
-    const bar = list.length ? `<div class="rel-bar" style="min-width:90px">${statuses.map(st => n(st) ? `<div style="width:${n(st) / list.length * 100}%;background:${{ raised: '#cbd5e1', progress: '#38bdf8', fixed: '#16a34a', wontfix: '#fca5a5' }[st]}" title="${DF_STATUS[st]}: ${n(st)}"></div>` : '').join('')}</div>` : '';
+    const bar = list.length ? `<div class="rel-bar" style="min-width:90px">${statuses.map(st => n(st) ? `<div style="width:${n(st) / list.length * 100}%;background:${{ raised: '#cbd5e1', progress: '#38bdf8', fixed: '#16a34a', deferred: '#d8b4fe', wontfix: '#fca5a5' }[st]}" title="${DF_STATUS[st]}: ${n(st)}"></div>` : '').join('')}</div>` : '';
     return `<tr${name ? '' : ' style="font-weight:600;border-top:2px solid #e2e8f0"'}>
       <td>${color ? `<span class="df-dot" style="background:${color}"></span>` : ''}${name ? `<a href="#" onclick="setDefectView('${relEsc(name).replace(/'/g, "\\'")}');return false" title="Show only ${relEsc(name)} below">${relEsc(name)}</a>` : 'Total'}</td>
       ${statuses.map(cell).join('')}
@@ -6877,7 +6939,7 @@ function renderDefects() {
     </tr>`;
   };
   const table = `<div style="overflow-x:auto"><table class="bd-table df-table">
-    <thead><tr><th>Type</th><th title="Logged, not started yet">Raised</th><th>In progress</th><th>Fixed</th><th title="Closed without a fix (Rejected, Cancelled…)">Won't fix</th><th>All raised</th><th></th><th title="Cycle time of fixed tickets, 50% and 85% of fixes took this long or less">Time to fix 50% · 85%</th><th title="Age of the oldest open ticket since it was raised">Oldest open</th></tr></thead>
+    <thead><tr><th>Type</th><th title="Logged, not started yet">Raised</th><th>In progress</th><th>Fixed</th>${defectTypeUsable(deferRule) ? `<th title="Moved out to future work / a change request — not open, not fixed">${relEsc(deferLabel())}</th>` : ''}<th title="Closed without a fix (Rejected, Cancelled…)">Won't fix</th><th>All raised</th><th></th><th title="Cycle time of fixed tickets, 50% and 85% of fixes took this long or less">Time to fix 50% · 85%</th><th title="Age of the oldest open ticket since it was raised">Oldest open</th></tr></thead>
     <tbody>${types.map(t => rowFor(t.name, items.filter(i => i.kind === t.name), defectColor(t.name))).join('')}
       ${types.length > 1 ? rowFor('', items, null) : ''}</tbody></table></div>`;
 
@@ -7540,6 +7602,7 @@ function buildConfigPayload() {
     activeReleases: activeReleases.filter(n => releases.some(r => r.name === n)),
     defectTypes: defectTypes.filter(t => t.name).map(t => ({ name: t.name, conds: t.conds.filter(c => c.col).map(c => ({ col: c.col, vals: [...c.vals] })) })),
     defectFixCol,
+    deferRule: { name: deferRule.name, conds: deferRule.conds.filter(c => c.col).map(c => ({ col: c.col, vals: [...c.vals] })) },
     testingMode,
     fields:   { startCol: cfg.base.startCol, endCol: cfg.base.endCol, activeCol: cfg.base.activeCol, idCol: cfg.idCol, titleCol: cfg.titleCol, linkCol: cfg.linkCol, blockedDaysCol: cfg.blockedDaysCol, blockedFlagCol: cfg.blockedFlagCol, epicCol: cfg.epicCol },
     workflow: { stages: workflowStages, types: stageTypes, hidden: [...hiddenStages] },
@@ -7556,8 +7619,9 @@ function configSummary(p) {
   return [
     n((p.releases || []).length, 'release', 'releases'),
     n((p.milestones || []).length, 'flow segment', 'flow segments'),
+    p.deferRule && (p.deferRule.conds || []).some(c => c.col && c.vals && c.vals.length) ? `deferred rule: ${relEsc(p.deferRule.name)}` : '',
     p.defectTypes ? (dt.length ? `bugs & defects: ${dt.map(t => relEsc(t.name)).join(', ')}${p.defectFixCol ? ` · fix type: ${relEsc(p.defectFixCol)}` : ''}` : 'bugs & defects: not set up') : 'no bugs & defects setup in this file',
-  ].join(' · ');
+  ].filter(Boolean).join(' · ');
 }
 
 async function saveConfig() {
@@ -7728,6 +7792,9 @@ function applyConfig(cfg) {
     conds: (t.conds || []).map(c => ({ col: columns.includes(c.col) ? c.col : '', vals: Array.isArray(c.vals) ? c.vals : [] })) }))
     .map(t => t.conds.length ? t : { ...t, conds: [{ col: '', vals: [] }] });
   testingMode = ['include', 'hide', 'only'].includes(cfg.testingMode) ? cfg.testingMode : 'include';
+  if (cfg.deferRule && Array.isArray(cfg.deferRule.conds)) deferRule = { name: cfg.deferRule.name || 'Deferred (CR)',
+    conds: cfg.deferRule.conds.length ? cfg.deferRule.conds.map(c => ({ col: columns.includes(c.col) ? c.col : '', vals: Array.isArray(c.vals) ? c.vals : [] })) : [{ col: '', vals: [] }] };
+  deferCache = new WeakMap();
   if (cfg.defectFixCol !== undefined) defectFixCol = columns.includes(cfg.defectFixCol) ? cfg.defectFixCol : '';
   defectCache = new WeakMap();
 
