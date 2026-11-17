@@ -416,6 +416,8 @@ License: MIT
     .df-cond { display:flex; align-items:center; gap:0.35rem; flex-wrap:wrap; margin:0.25rem 0 0.25rem 1.1rem; }
     .df-cond select { font-size:0.8rem; padding:0.2rem; border:1px solid #d1d5db; border-radius:5px; max-width:14rem; }
     .df-and { font-weight:600; color:#475569; min-width:2.6rem; }
+    .df-join { background:#f1f5f9; border:1px solid #cbd5e1; border-radius:5px; cursor:pointer; font-size:0.78rem; padding:0.1rem 0.4rem; min-width:2.6rem; text-align:center; }
+    .df-join:hover { border-color:#be123c; color:#be123c; }
     .df-or { color:#94a3b8; font-size:0.72rem; }
     .df-chip { display:inline-flex; align-items:center; gap:0.2rem; background:#fff1f2; color:#9f1239; border:1px solid #fda4af; border-radius:20px; padding:0.05rem 0.25rem 0.05rem 0.55rem; font-size:0.75rem; }
     .df-chip button { background:none; border:none; color:#be123c; cursor:pointer; font-size:0.85rem; padding:0 0.15rem; }
@@ -880,7 +882,7 @@ License: MIT
     <div class="workflow-section" id="defect-section" style="display:none">
       <div class="workflow-section-header">
         <span>Bugs &amp; defects</span>
-        <small>Tell Flow Lens which tickets are testing work. A ticket matches when <strong>every</strong> rule matches, e.g. <strong>Issue Type = Task and Labels = QA</strong>. Turns on the <em>Bugs &amp; Defects</em> report and the <em>Testing work: Include / Hide / Only</em> switch above the charts.</small>
+        <small>Tell Flow Lens which tickets are testing work. Rules join with <strong>and</strong> (every rule must match, e.g. Issue Type = Task and Labels = QA) or <strong>or</strong> (any rule, e.g. Issue Type = Task or Labels = TestingDeepDive) — click the and / or to switch. Turns on the <em>Bugs &amp; Defects</em> report and the <em>Testing work: Include / Hide / Only</em> switch above the charts.</small>
       </div>
       <div id="defect-rows"></div>
       <button class="filter-add" onclick="addDefectType()">+ Add type</button>
@@ -1785,7 +1787,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-11-17j';
+const VERSION = '2026-11-17k';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -2686,12 +2688,17 @@ let defectCache = new WeakMap();
 let defectView = '';            // Bugs & Defects tab: '' = all types, else a type name
 let defectListState = '';       // Bugs & Defects tab ticket list: '' = open, or "<type>|<status>"
 
+// Rules in a type join with AND (every rule) or OR (any rule) — t.join, default 'and'
+function dfRuleMatches(t, row) {
+  const active = t.conds.filter(c => c.col && c.vals.length);
+  const hit = c => cellValues(row[c.col]).some(v => c.vals.includes(v));
+  return t.join === 'or' ? active.some(hit) : active.every(hit);
+}
 function defectTypeUsable(t) { return !!(t && t.name && t.conds.some(c => c.col && c.vals.length)); }
 function usableDefectTypes() { return defectTypes.filter(defectTypeUsable); }
 function defectKindOf(row) {
   if (defectCache.has(row)) return defectCache.get(row);
-  const t = defectTypes.find(t => defectTypeUsable(t)
-    && t.conds.filter(c => c.col && c.vals.length).every(c => cellValues(row[c.col]).some(v => c.vals.includes(v))));
+  const t = defectTypes.find(t => defectTypeUsable(t) && dfRuleMatches(t, row));
   const k = t ? t.name : null;
   defectCache.set(row, k);
   return k;
@@ -2703,7 +2710,7 @@ let deferCache = new WeakMap();
 function isDeferred(row) {
   if (!defectTypeUsable(deferRule)) return false;
   if (deferCache.has(row)) return deferCache.get(row);
-  const v = deferRule.conds.filter(c => c.col && c.vals.length).every(c => cellValues(row[c.col]).some(x => c.vals.includes(x)));
+  const v = dfRuleMatches(deferRule, row);
   deferCache.set(row, v);
   return v;
 }
@@ -2751,14 +2758,14 @@ function dfCondsHtml(t, i) {
   return t.conds.map((c, j) => {
     const left = defectColValues(c.col).filter(v => !c.vals.includes(v));
     return `<div class="df-cond">
-      <span class="df-and">${j ? 'and' : 'where'}</span>
+      ${j ? `<button class="df-and df-join" onclick="toggleDefectJoin(${i})" title="Click to switch: and = every rule must match · or = any rule matches">${t.join === 'or' ? 'or' : 'and'}</button>` : '<span class="df-and">where</span>'}
       <select onchange="updateDefectCond(${i}, ${j}, 'col', this.value)">${colOpts(c.col)}</select>
       <span>is</span>
       ${c.vals.map((v, k) => `<span class="df-chip">${relEsc(v)}<button onclick="removeDefectVal(${i}, ${j}, ${k})" title="Remove">×</button></span>`).join('<span class="df-or">or</span>')}
       ${c.col ? `<select class="df-add" onchange="addDefectVal(${i}, ${j}, this.value)"><option value="">+ value…</option>${left.map(v => `<option value="${relEsc(v)}">${relEsc(v)}</option>`).join('')}</select>` : ''}
       ${t.conds.length > 1 ? `<button class="ms-del" onclick="removeDefectCond(${i}, ${j})" title="Remove this rule">×</button>` : ''}
     </div>`;
-  }).join('') + `<button class="df-more" onclick="addDefectCond(${i})">+ and another rule${i < 0 ? '' : ' (e.g. a label)'}</button>`;
+  }).join('') + `<button class="df-more" onclick="addDefectCond(${i})">+ ${t.join === 'or' ? 'or' : 'and'} another rule${i < 0 ? '' : ' (e.g. a label)'}</button>`;
 }
 
 function buildDeferUI() {
@@ -2821,6 +2828,11 @@ function addDefectVal(i, j, v) {
 function removeDefectVal(i, j, k) {
   const c = dfGet(i) && dfGet(i).conds[j]; if (!c) return;
   c.vals.splice(k, 1);
+  buildDefectUI(); defectsChanged();
+}
+function toggleDefectJoin(i) {
+  const t = dfGet(i); if (!t) return;
+  t.join = t.join === 'or' ? 'and' : 'or';
   buildDefectUI(); defectsChanged();
 }
 function addDefectCond(i) {
@@ -7736,9 +7748,9 @@ function buildConfigPayload() {
     activeMilestone: cfg.milestone,
     releases: releases.filter(releaseUsable),
     activeReleases: activeReleases.filter(n => releases.some(r => r.name === n)),
-    defectTypes: defectTypes.filter(t => t.name).map(t => ({ name: t.name, conds: t.conds.filter(c => c.col).map(c => ({ col: c.col, vals: [...c.vals] })) })),
+    defectTypes: defectTypes.filter(t => t.name).map(t => ({ name: t.name, join: t.join === 'or' ? 'or' : 'and', conds: t.conds.filter(c => c.col).map(c => ({ col: c.col, vals: [...c.vals] })) })),
     defectFixCol,
-    deferRule: { name: deferRule.name, conds: deferRule.conds.filter(c => c.col).map(c => ({ col: c.col, vals: [...c.vals] })) },
+    deferRule: { name: deferRule.name, join: deferRule.join === 'or' ? 'or' : 'and', conds: deferRule.conds.filter(c => c.col).map(c => ({ col: c.col, vals: [...c.vals] })) },
     testingMode,
     fields:   { startCol: cfg.base.startCol, endCol: cfg.base.endCol, activeCol: cfg.base.activeCol, idCol: cfg.idCol, titleCol: cfg.titleCol, linkCol: cfg.linkCol, blockedDaysCol: cfg.blockedDaysCol, blockedFlagCol: cfg.blockedFlagCol, epicCol: cfg.epicCol },
     workflow: { stages: workflowStages, types: stageTypes, hidden: [...hiddenStages] },
@@ -7926,11 +7938,11 @@ function applyConfig(cfg) {
   activeReleases = Array.isArray(cfg.activeReleases) ? cfg.activeReleases : (cfg.activeRelease ? [cfg.activeRelease] : []);
   relComboTargets = {};
   relDraft = null; relView = 'auto';
-  if (Array.isArray(cfg.defectTypes)) defectTypes = cfg.defectTypes.map(t => ({ name: t.name || '',
+  if (Array.isArray(cfg.defectTypes)) defectTypes = cfg.defectTypes.map(t => ({ name: t.name || '', join: t.join === 'or' ? 'or' : 'and',
     conds: (t.conds || []).map(c => ({ col: findCol(c.col), vals: Array.isArray(c.vals) ? c.vals : [] })) }))
     .map(t => t.conds.length ? t : { ...t, conds: [{ col: '', vals: [] }] });
   testingMode = ['include', 'hide', 'only'].includes(cfg.testingMode) ? cfg.testingMode : 'include';
-  if (cfg.deferRule && Array.isArray(cfg.deferRule.conds)) deferRule = { name: cfg.deferRule.name || 'Deferred (CR)',
+  if (cfg.deferRule && Array.isArray(cfg.deferRule.conds)) deferRule = { name: cfg.deferRule.name || 'Deferred (CR)', join: cfg.deferRule.join === 'or' ? 'or' : 'and',
     conds: cfg.deferRule.conds.length ? cfg.deferRule.conds.map(c => ({ col: findCol(c.col), vals: Array.isArray(c.vals) ? c.vals : [] })) : [{ col: '', vals: [] }] };
   deferCache = new WeakMap();
   if (cfg.defectFixCol !== undefined) defectFixCol = columns.includes(findCol(cfg.defectFixCol)) ? findCol(cfg.defectFixCol) : '';
