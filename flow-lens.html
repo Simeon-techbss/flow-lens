@@ -1766,7 +1766,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-11-17b';
+const VERSION = '2026-11-17c';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -7549,8 +7549,20 @@ function buildConfigPayload() {
   };
 }
 
+// One line saying what a config holds — shown after Save and Load so you can see what went in
+function configSummary(p) {
+  const n = (a, one, many) => `${a} ${a === 1 ? one : many}`;
+  const dt = (p.defectTypes || []).filter(t => (t.conds || []).some(c => c.col && c.vals && c.vals.length));
+  return [
+    n((p.releases || []).length, 'release', 'releases'),
+    n((p.milestones || []).length, 'flow segment', 'flow segments'),
+    p.defectTypes ? (dt.length ? `bugs & defects: ${dt.map(t => relEsc(t.name)).join(', ')}${p.defectFixCol ? ` · fix type: ${relEsc(p.defectFixCol)}` : ''}` : 'bugs & defects: not set up') : 'no bugs & defects setup in this file',
+  ].join(' · ');
+}
+
 async function saveConfig() {
-  const json = JSON.stringify(buildConfigPayload(), null, 2);
+  const payload = buildConfigPayload();
+  const json = JSON.stringify(payload, null, 2);
   const suggested = 'flow-lens-config.json';
   if ('showSaveFilePicker' in window) {
     try {
@@ -7562,6 +7574,7 @@ async function saveConfig() {
       await writable.write(json);
       await writable.close();
       markConfigSaved();
+      showToast(`<strong>Config saved</strong> — ${configSummary(payload)}`, 7000);
     } catch (e) {
       if (e.name !== 'AbortError') showError('Save failed: ' + e.message);
     }
@@ -7573,6 +7586,7 @@ async function saveConfig() {
     a.click();
     URL.revokeObjectURL(a.href);
     markConfigSaved();
+    showToast(`<strong>Config saved</strong> — ${configSummary(payload)}`, 7000);
   }
 }
 
@@ -7611,7 +7625,7 @@ function loadConfig() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = e => {
-      try { applyConfig(JSON.parse(e.target.result)); }
+      try { const c = JSON.parse(e.target.result); applyConfig(c); if (allRows.length) showToast(`<strong>Config loaded</strong> — ${configSummary(c)}`, 7000); }
       catch { showError('Could not read config file — must be a Flow Lens config.'); }
     };
     reader.readAsText(file);
