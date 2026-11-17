@@ -1316,7 +1316,9 @@ License: MIT
           <div class="info-row"><strong>What to look for:</strong> Flat or declining WIP = sustainable system. Steadily rising WIP = overloaded system heading for slowdown. A sudden WIP spike = something got stuck (check Aging WIP for the culprit).</div>
           <div class="info-row"><strong>What to do:</strong> Set a WIP limit. Stop starting, start finishing. Even a soft limit ("flag it if WIP goes above X") creates useful conversation.</div>
         </div>
-        <div class="chart-wrap"><canvas id="chart-wiptime"></canvas></div>
+        <div style="font-size:0.75rem;color:#64748b;margin:0 0 0.3rem">Click a point to see the tickets that were in progress that week.</div>
+        <div class="chart-wrap" style="cursor:crosshair"><canvas id="chart-wiptime"></canvas></div>
+        <div id="wip-items"></div>
       </div>
     </div>
 
@@ -1791,7 +1793,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-11-17t';
+const VERSION = '2026-11-17u';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -2033,6 +2035,7 @@ function processFile(file) {
 
 function resetTool() {
   // Every feature that adds a bar, config section or state must be cleared here too (Change dataset)
+  wipMarkerKey = null; wipMarkerIdx = -1;
   allRows = []; columns = []; workflowStages = []; stageTypes = {}; hiddenStages = new Set();
   milestones = []; activeMilestone = null; relAutoMs = null;
   releases = []; activeReleases = []; relComboTargets = {}; relDraft = null; relView = 'auto';
@@ -5576,6 +5579,9 @@ function renderWIPOverTime() {
   while (cur <= today) { weeks.push(new Date(cur)); cur.setDate(cur.getDate() + 7); }
 
   const wips = weeks.map(wk => rows.filter(r => r.startDate <= wk && (!r.endDate || r.endDate > wk)).length);
+  wipChartWeeks = weeks;
+  wipMarkerIdx = wipMarkerKey ? weeks.findIndex(w => dayKey(w) === wipMarkerKey) : -1;
+  if (wipMarkerIdx < 0) wipMarkerKey = null;
   const rolling = wips.map((_, i) => {
     const slice = wips.slice(Math.max(0, i-3), i+1);
     return +(slice.reduce((a, b) => a + b, 0) / slice.length).toFixed(1);
@@ -5587,14 +5593,24 @@ function renderWIPOverTime() {
       datasets: [
         { type: 'line', label: 'WIP', data: wips,
           borderColor: 'rgba(34,197,94,0.9)', backgroundColor: 'rgba(34,197,94,0.1)',
-          borderWidth: 2, fill: true, pointRadius: 2, pointHoverRadius: 5, tension: 0.3, order: 2 },
+          borderWidth: 2, fill: true, pointRadius: 2, pointHoverRadius: 5, tension: 0, order: 2 },
         { type: 'line', label: '4-week avg', data: rolling,
           borderColor: '#f97316', borderWidth: 2, pointRadius: 0, fill: false, order: 1, tension: 0.35 }
       ]
     },
+    plugins: [wipMarkerPlugin],
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { labels: { color: '#475569', font: { size: 11 }, boxWidth: 16 } }, tooltip: { mode: 'index', intersect: false } },
+      onClick(evt) {
+        const pts = charts.wiptime.getElementsAtEventForMode(evt, 'index', { intersect: false }, false);
+        if (!pts.length) return;
+        const k = dayKey(wipChartWeeks[pts[0].index]);
+        wipMarkerKey = wipMarkerKey === k ? null : k;   // click the same week again to clear
+        wipMarkerIdx = wipMarkerKey ? pts[0].index : -1;
+        charts.wiptime.update('none');
+        renderWIPItems();
+      },
+      plugins: { legend: { labels: { color: '#475569', font: { size: 11 }, boxWidth: 16 } }, tooltip: { mode: 'index', intersect: false, callbacks: { title: it => `Week of ${new Date(it[0].parsed.x).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })}`, footer: () => 'Click to list these tickets' } } },
       scales: {
         x: { type: 'time', time: { unit: 'week', displayFormats: { week: 'd MMM yy' } },
              grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 11 } } },
@@ -5603,6 +5619,72 @@ function renderWIPOverTime() {
       }
     }
   });
+  wipRows = rows;
+  renderWIPItems();
+}
+
+// ── WIP Over Time: click a week → the tickets in progress then ──
+let wipMarkerKey = null, wipMarkerIdx = -1, wipChartWeeks = [], wipRows = [];
+let wipItemsClosed = false;
+try { wipItemsClosed = localStorage.getItem('fl-wip-items-closed') === '1'; } catch (e) {}
+const wipMarkerPlugin = {
+  id: 'wipMarker',
+  afterDatasetsDraw(chart) {
+    if (wipMarkerIdx < 0) return;
+    const meta = chart.getDatasetMeta(0), pt = meta.data[wipMarkerIdx];
+    if (!pt) return;
+    const { ctx, chartArea } = chart;
+    ctx.save();
+    ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]);
+    ctx.beginPath(); ctx.moveTo(pt.x, chartArea.top); ctx.lineTo(pt.x, chartArea.bottom); ctx.stroke();
+    ctx.setLineDash([]); ctx.fillStyle = '#ef4444';
+    ctx.beginPath(); ctx.arc(pt.x, pt.y, 4.5, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  },
+};
+function toggleWipItems() {
+  wipItemsClosed = !wipItemsClosed;
+  try { localStorage.setItem('fl-wip-items-closed', wipItemsClosed ? '1' : '0'); } catch (e) {}
+  renderWIPItems();
+}
+function renderWIPItems() {
+  const el = document.getElementById('wip-items');
+  if (!el) return;
+  if (wipMarkerIdx < 0 || !wipChartWeeks[wipMarkerIdx]) { el.innerHTML = ''; return; }
+  const wk = wipChartWeeks[wipMarkerIdx];
+  const cfg = getConfig();
+  const fmt = d => d ? d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' }) : '';
+  const stageOn = (row, d) => { let st = ''; workflowStages.forEach(c => { const x = getCachedDate(row, c); if (x && x <= d && stageTypes[c] !== 'discarded') st = c; }); return st; };
+  const list = allRows.filter(row => rowMatchesFilters(row, cfg)).map(row => {
+    const s = getCachedDate(row, cfg.activeCol || cfg.startCol), e = getExitDate(row, cfg);
+    return s && s <= wk && (!e || e > wk) ? { row, s, e, age: Math.round(daysBetween(s, wk)), stage: stageOn(row, wk) } : null;
+  }).filter(Boolean).sort((a, b) => b.age - a.age);
+  const typeCol = columns.find(c => /^(issue.?type|task.?type|work.?item.?type|type)$/i.test(c.trim())) || '';
+  const tally = f => { const m = {}; list.forEach(i => { const k = f(i) || '(none)'; m[k] = (m[k] || 0) + 1; }); return Object.entries(m).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<strong>${n}</strong> ${relEsc(k)}`).join(' · '); };
+  const stillOpen = list.filter(i => !i.e).length;
+  const hasBlk = !!(cfg.blockedDaysCol || cfg.blockedFlagCol);
+  const statusLbl = { done: 'Done', progress: 'In progress', notstarted: 'Not started', deferred: deferLabel(), discarded: 'Discarded' };
+  const body = list.length ? `
+    <div class="cfd-items-mix">${typeCol ? `By ${relEsc(typeCol)}: ${tally(i => (i.row[typeCol] || '').trim())}<br>` : ''}By stage that week: ${tally(i => i.stage)}</div>
+    <div class="cfd-items-mix">${stillOpen} of these ${list.length} are still in progress today.</div>
+    <div style="overflow-x:auto;max-height:420px;overflow-y:auto"><table class="bd-table"><thead><tr><th>ID</th><th>Title</th>${typeCol ? `<th>${relEsc(typeCol)}</th>` : ''}<th>Stage that week</th><th style="text-align:right">In progress for</th><th>Now</th>${hasBlk ? '<th>Blocked</th>' : ''}</tr></thead><tbody>
+    ${list.map(i => {
+      const id = cfg.idCol ? (i.row[cfg.idCol] || '') : '', link = cfg.linkCol ? (i.row[cfg.linkCol] || '') : '';
+      const st = relItemStatus(i.row, cfg), dk = defectKindOf(i.row);
+      return `<tr><td style="white-space:nowrap">${link ? `<a href="${relEsc(link)}" target="_blank" rel="noopener">${relEsc(id)}</a>` : relEsc(id)}</td>
+        <td>${relEsc(cfg.titleCol ? i.row[cfg.titleCol] : '')}${dk ? `<span class="df-tag" style="background:${defectColor(dk)}">${relEsc(dk.replace(/\s*\(.*\)$/, ''))}</span>` : ''}</td>
+        ${typeCol ? `<td>${relEsc(i.row[typeCol] || '')}</td>` : ''}
+        <td>${relEsc(i.stage)}</td><td style="text-align:right">${i.age}d</td>
+        <td><span class="rel-status rel-status-${st}">${statusLbl[st]}</span>${i.e ? ` <span class="muted" style="font-size:0.72rem">${fmt(i.e)}</span>` : ` <span class="muted" style="font-size:0.72rem">${relEsc(relCurrentStage(i.row))}</span>`}</td>
+        ${hasBlk ? `<td>${blockedBadge(rowBlocked(i.row, cfg))}</td>` : ''}</tr>`;
+    }).join('')}</tbody></table></div>` : `<div class="muted" style="font-size:0.8rem">Nothing in progress that week.</div>`;
+  el.innerHTML = `<div class="df-box${wipItemsClosed ? ' closed' : ''}"${wipItemsClosed ? ' data-snap-hide' : ''}>
+    <button class="df-box-head" onclick="toggleWipItems()" aria-expanded="${!wipItemsClosed}">
+      <span class="df-caret">${wipItemsClosed ? '▸' : '▾'}</span><span class="df-box-title">In progress, week of ${fmt(wk)} <span style="font-weight:400;color:#64748b;font-size:0.78rem">· ${list.length} ticket${list.length === 1 ? '' : 's'} · oldest first</span></span>
+      <span class="df-box-hint" data-snap-hide>${wipItemsClosed ? 'closed · left out of snapshots · click to open' : 'click to close'}</span>
+    </button>
+    ${wipItemsClosed ? '' : `<div class="df-box-body">${body}</div>`}
+  </div>`;
 }
 
 // ── CT Over Time ───────────────────────────────────────────────────────────
