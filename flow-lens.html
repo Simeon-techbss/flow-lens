@@ -1788,7 +1788,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-11-17m';
+const VERSION = '2026-11-17n';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -2035,7 +2035,7 @@ function resetTool() {
   releases = []; activeReleases = []; relComboTargets = {}; relDraft = null; relView = 'auto';
   defectTypes = []; defectFixCol = ''; testingMode = 'include';
   deferRule = { name: 'Deferred (CR)', conds: [{ col: '', vals: [] }] }; deferCache = new WeakMap(); defectCache = new WeakMap(); defectView = ''; defectListState = '';
-  Object.values(charts).forEach(c => c.destroy());
+  Object.values(charts).forEach(c => { if (c) c.destroy(); });   // some entries are null after a tab clears its chart
   charts = {};
   document.getElementById('config-panel').style.display = 'none';
   document.getElementById('filter-panel').style.display = 'none';
@@ -3196,8 +3196,30 @@ function renderReleaseBar() {
   bar.style.display = 'flex';
 }
 
+// Leaving the release builder another way than Save / Cancel (a release pill, All work, New / Edit another):
+// keep the edits rather than silently throwing them away, and say so.
+function relKeepDraftOnLeave() {
+  if (!relDraft || relView !== 'builder') return;
+  const orig = relDraftIdx >= 0 ? releases[relDraftIdx] : null;
+  const clean = { ...relDraft, rules: relDraft.rules.filter(r => r.vals.length) };
+  if (orig ? JSON.stringify(clean) === JSON.stringify(orig) : !clean.rules.length && !(clean.name || '').trim()) return;
+  const name = (clean.name || '').trim();
+  const why = !name ? 'it has no name' : !releaseUsable({ ...clean, name }) ? 'it needs an include rule with something picked'
+    : releases.some((r, k) => r.name === name && k !== relDraftIdx) ? `there's already a release called "${relEsc(name)}"` : '';
+  if (why) { showToast(`Release changes <strong>not kept</strong> — ${why}. Use <em>Save and show reports</em> next time.`, 7000); return; }
+  clean.name = name;
+  if (orig) {
+    if (orig.name !== name) activeReleases = activeReleases.map(n => n === orig.name ? name : n);
+    releases[relDraftIdx] = clean;
+  } else releases.push(clean);
+  relDraft = null; relDraftIdx = -1;
+  configWasDirty = true;   // this message already says "Save config" — skip the general reminder
+  showToast(`Kept your changes to release "${relEsc(name)}".<br>Remember to <strong>Save config</strong> to keep them.`, 6000);
+}
+
 // Show just this release (null = All work)
 function selectRelease(i) {
+  relKeepDraftOnLeave();
   activeReleases = (i === null || i === undefined) ? [] : [releases[i].name];
   relView = 'auto'; relDraft = null;
   renderAll(true);
@@ -3205,6 +3227,7 @@ function selectRelease(i) {
 
 // Release pills toggle, so several can be combined
 function toggleRelease(i) {
+  relKeepDraftOnLeave();
   const n = releases[i].name;
   activeReleases = activeReleases.includes(n) ? activeReleases.filter(x => x !== n) : [...activeReleases, n];
   relView = 'auto'; relDraft = null;
@@ -3736,6 +3759,7 @@ function copyReleaseQuery(btn) {
 
 // ── Release builder ──
 function newRelease() {
+  relKeepDraftOnLeave();
   const cfg = getConfig();
   relDraft = { name: '', target: '', targets: {}, rules: [{ mode: 'in', col: cfg.epicCol || REL_ID, vals: [] }] };
   relDraftIdx = -1; relView = 'builder';
@@ -3743,6 +3767,7 @@ function newRelease() {
 }
 
 function editRelease(i) {
+  relKeepDraftOnLeave();
   relDraft = JSON.parse(JSON.stringify(releases[i]));
   relDraftIdx = i; relView = 'builder';
   if (currentTab !== 'releases') switchToTab('releases'); else renderReleases();
@@ -3971,6 +3996,7 @@ function saveRelease() {
   } else releases.push(relDraft);
   activeReleases = [name];
   relDraft = null; relDraftIdx = -1; relView = 'auto';
+  configWasDirty = true;
   renderAll(true);
   showToast(`Release "${relEsc(name)}" saved for this session.<br>Remember to <strong>Save config</strong> to keep it.`);
 }
