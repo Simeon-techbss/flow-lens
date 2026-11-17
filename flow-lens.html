@@ -1772,7 +1772,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-11-17d';
+const VERSION = '2026-11-17e';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -2721,8 +2721,18 @@ function defectColValues(col) {
 }
 
 const dfGet = i => i < 0 ? deferRule : defectTypes[i];
+// Saved column name → this file's column, ignoring case and spaces ("Issue type" = "Issue Type").
+// If the file doesn't have it, keep the saved name so the rule isn't lost (it just matches nothing here).
+function findCol(name) {
+  if (!name) return '';
+  if (columns.includes(name)) return name;
+  const n = String(name).trim().toLowerCase();
+  return columns.find(c => c.trim().toLowerCase() === n) || name;
+}
 function dfCondsHtml(t, i) {
-  const colOpts = sel => `<option value="">Pick a column…</option>` + columns.filter(c => !workflowStages.includes(c))
+  const colOpts = sel => `<option value="">Pick a column…</option>`
+    + (sel && !columns.includes(sel) ? `<option value="${relEsc(sel)}" selected>${relEsc(sel)} — not in this file</option>` : '')
+    + columns.filter(c => !workflowStages.includes(c))
     .map(c => `<option value="${relEsc(c)}"${c === sel ? ' selected' : ''}>${relEsc(c)}</option>`).join('');
   return t.conds.map((c, j) => {
     const left = defectColValues(c.col).filter(v => !c.vals.includes(v));
@@ -2745,7 +2755,7 @@ function buildDeferUI() {
     <div class="df-head">
       <i style="background:#a855f7"></i>
       <input type="text" value="${relEsc(deferRule.name)}" placeholder="e.g. Deferred (CR)" onchange="updateDefectName(-1, this.value)">
-      <span class="df-count">${n === null ? 'pick a value to turn it on' : `${n} ticket${n === 1 ? '' : 's'}`}</span>
+      <span class="df-count">${deferRule.conds.some(c => c.col && !columns.includes(c.col)) ? '<span style="color:#b91c1c">⚠ column not in this file</span>' : n === null ? 'pick a value to turn it on' : `${n} ticket${n === 1 ? '' : 's'}`}</span>
     </div>
     ${dfCondsHtml(deferRule, -1)}
   </div>`;
@@ -2769,7 +2779,7 @@ function buildDefectUI() {
       <div class="df-head">
         <i style="background:${DEFECT_COLORS[i % DEFECT_COLORS.length]}"></i>
         <input type="text" value="${relEsc(t.name)}" placeholder="e.g. Bug (internal)" onchange="updateDefectName(${i}, this.value)">
-        <span class="df-count">${defectTypeUsable(t) ? `${n} ticket${n === 1 ? '' : 's'}` : 'pick a value to turn it on'}</span>
+        <span class="df-count">${t.conds.some(c => c.col && !columns.includes(c.col)) ? '<span style="color:#b91c1c">⚠ column not in this file</span>' : defectTypeUsable(t) ? `${n} ticket${n === 1 ? '' : 's'}` : 'pick a value to turn it on'}</span>
         <button class="ms-del" onclick="removeDefectType(${i})" title="Remove this type">×</button>
       </div>
       ${conds}
@@ -7689,7 +7699,9 @@ function loadConfig() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = e => {
-      try { const c = JSON.parse(e.target.result); applyConfig(c); if (allRows.length) showToast(`<strong>Config loaded</strong> — ${configSummary(c)}`, 7000); }
+      try { const c = JSON.parse(e.target.result); applyConfig(c);
+        const missing = [...new Set([...defectTypes, deferRule].flatMap(t => t.conds.map(x => x.col)).filter(x => x && !columns.includes(x)))];
+        if (allRows.length) showToast(`<strong>Config loaded</strong> — ${configSummary(c)}${missing.length ? `<br><span style="color:#fca5a5">⚠ Not in this file: ${missing.map(relEsc).join(', ')} — bugs &amp; defects rules using ${missing.length === 1 ? 'it' : 'them'} match nothing.</span>` : ''}`, 9000); }
       catch { showError('Could not read config file — must be a Flow Lens config.'); }
     };
     reader.readAsText(file);
@@ -7789,13 +7801,13 @@ function applyConfig(cfg) {
   relComboTargets = {};
   relDraft = null; relView = 'auto';
   if (Array.isArray(cfg.defectTypes)) defectTypes = cfg.defectTypes.map(t => ({ name: t.name || '',
-    conds: (t.conds || []).map(c => ({ col: columns.includes(c.col) ? c.col : '', vals: Array.isArray(c.vals) ? c.vals : [] })) }))
+    conds: (t.conds || []).map(c => ({ col: findCol(c.col), vals: Array.isArray(c.vals) ? c.vals : [] })) }))
     .map(t => t.conds.length ? t : { ...t, conds: [{ col: '', vals: [] }] });
   testingMode = ['include', 'hide', 'only'].includes(cfg.testingMode) ? cfg.testingMode : 'include';
   if (cfg.deferRule && Array.isArray(cfg.deferRule.conds)) deferRule = { name: cfg.deferRule.name || 'Deferred (CR)',
-    conds: cfg.deferRule.conds.length ? cfg.deferRule.conds.map(c => ({ col: columns.includes(c.col) ? c.col : '', vals: Array.isArray(c.vals) ? c.vals : [] })) : [{ col: '', vals: [] }] };
+    conds: cfg.deferRule.conds.length ? cfg.deferRule.conds.map(c => ({ col: findCol(c.col), vals: Array.isArray(c.vals) ? c.vals : [] })) : [{ col: '', vals: [] }] };
   deferCache = new WeakMap();
-  if (cfg.defectFixCol !== undefined) defectFixCol = columns.includes(cfg.defectFixCol) ? cfg.defectFixCol : '';
+  if (cfg.defectFixCol !== undefined) defectFixCol = columns.includes(findCol(cfg.defectFixCol)) ? findCol(cfg.defectFixCol) : '';
   defectCache = new WeakMap();
 
   buildWorkflowUI();
