@@ -1793,7 +1793,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-11-17v';
+const VERSION = '2026-11-17w';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -9834,7 +9834,7 @@ function renderDataQuality() {
     issuesHtml = '<div style="font-size:0.85rem;color:#059669;padding:0.5rem 0">No data quality issues found in the rows above.</div>';
   }
 
-  el.innerHTML = breakdownHtml + issuesHtml + epicCoverageHtml(itemCell);
+  el.innerHTML = breakdownHtml + issuesHtml + epicCoverageHtml(itemCell) + releaseCoverageHtml(itemCell);
 }
 
 // Epic link coverage for the Data Quality tab. Informational only — not counted in the ⚠ total,
@@ -9890,6 +9890,47 @@ function epicCoverageHtml(itemCell) {
 
   return `<div class="dq-section"><div class="dq-section-header" onclick="this.closest('.dq-section').classList.toggle('open');dqUpdateToggleAll()">
     <span class="dq-badge dq-badge-blue">${pct}%</span><span class="dq-section-title">Epic links — ${unlinked.length.toLocaleString()} item${unlinked.length === 1 ? '' : 's'} with no Epic${missingEpics.length ? ` · ${missingEpics.length} Epic${missingEpics.length === 1 ? '' : 's'} missing from file` : ''}</span><span class="dq-chevron">▶</span></div>
+    <div class="dq-section-body">${body}</div></div>`;
+}
+
+// Informational: which work isn't in any release (like Epic links — not counted in the ⚠ total).
+// Ignores the release pill on purpose: the question is "is it in ANY release?". Epic rows aren't work items.
+function releaseCoverageHtml(itemCell) {
+  const cfg = getConfig();
+  const esc = t => String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const usable = releases.filter(releaseUsable);
+  const head = (badge, title) => `<div class="dq-section-header" onclick="this.closest('.dq-section').classList.toggle('open');dqUpdateToggleAll()">
+      <span class="dq-badge dq-badge-blue">${badge}</span><span class="dq-section-title">${title}</span><span class="dq-chevron">▶</span></div>`;
+  if (!usable.length) {
+    return `<div class="dq-section">${head('off', 'Releases — none set up')}<div class="dq-section-body"><p class="dq-desc">No releases yet, so nothing to check. Build one on the Releases tab (Throughput menu) and this shows which work isn't in any release.</p></div></div>`;
+  }
+  const base = { ...cfg, release: null };
+  const idOf = r => cfg.idCol ? (r[cfg.idCol] || '').trim() : '';
+  const typeCol = columns.find(c => /^(issue.?type|task.?type|work.?item.?type|type)$/i.test(c.trim()))
+    || columns.find(c => allRows.some(r => /^epic$/i.test((r[c] || '').trim())));
+  const referenced = cfg.epicCol ? new Set(allRows.map(r => (r[cfg.epicCol] || '').trim()).filter(Boolean)) : new Set();
+  const isEpic = r => referenced.has(idOf(r)) || (typeCol && /^epic$/i.test((r[typeCol] || '').trim()));
+  const items = allRows.filter(r => rowMatchesFilters(r, base) && !isEpic(r));
+  const outside = items.filter(r => !usable.some(rel => rowInRelease(r, rel, base)));
+  const pct = items.length ? Math.round((items.length - outside.length) / items.length * 100) : 0;
+  const statusLbl = { done: 'Done', progress: 'In progress', notstarted: 'Not started', deferred: deferLabel(), discarded: 'Discarded' };
+  const withSt = outside.map(r => ({ r, st: relItemStatus(r, base) }));
+  const open = withSt.filter(x => x.st === 'progress' || x.st === 'notstarted');
+  const order = { progress: 0, notstarted: 1, done: 2, deferred: 3, discarded: 4 };
+  withSt.sort((a, b) => order[a.st] - order[b.st]);
+
+  let body = `<p class="dq-desc"><strong>${(items.length - outside.length).toLocaleString()} of ${items.length.toLocaleString()}</strong> work items (${pct}%) are in at least one of your ${usable.length} release${usable.length === 1 ? '' : 's'}.
+    <strong>${open.length}</strong> of the ${outside.length} outside a release are still open — those are the ones to check: should they be in a release, or are they other work (support, tech debt…)? Your filters apply; Epic rows aren't counted.</p>`;
+  const tally = (list, f) => { const m = {}; list.forEach(x => { const k = f(x) || '(blank)'; m[k] = (m[k] || 0) + 1; }); return Object.entries(m).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<strong>${esc(k)}</strong> ${n}`).join(' · '); };
+  if (outside.length) {
+    body += `<p class="dq-desc">Outside a release, by status: ${tally(withSt, x => statusLbl[x.st])}${typeCol ? `<br>By <em>${esc(typeCol)}</em>: ${tally(withSt, x => (x.r[typeCol] || '').trim())}` : ''}</p>`;
+    const cap = withSt.slice(0, 150);
+    body += `<table class="dq-table"><thead><tr><th>Item not in a release</th>${typeCol ? `<th>${esc(typeCol)}</th>` : ''}${cfg.epicCol ? `<th>${esc(cfg.epicCol)}</th>` : ''}<th>Status</th><th>Stage now</th></tr></thead><tbody>
+      ${cap.map(x => `<tr>${itemCell(idOf(x.r), cfg.titleCol ? x.r[cfg.titleCol] : '', cfg.linkCol ? x.r[cfg.linkCol] : '')}${typeCol ? `<td>${esc(x.r[typeCol])}</td>` : ''}${cfg.epicCol ? `<td>${esc(x.r[cfg.epicCol])}</td>` : ''}<td><span class="rel-status rel-status-${x.st}">${statusLbl[x.st]}</span></td><td>${esc(relCurrentStage(x.r))}</td></tr>`).join('')}
+      ${withSt.length > 150 ? `<tr><td colspan="5" style="color:#94a3b8;font-style:italic;padding:0.5rem 0.65rem">…and ${(withSt.length - 150).toLocaleString()} more not shown</td></tr>` : ''}
+    </tbody></table>`;
+  }
+  return `<div class="dq-section">${head(`${pct}%`, `Release coverage — ${outside.length.toLocaleString()} item${outside.length === 1 ? '' : 's'} not in any release${open.length ? ` · ${open.length} still open` : ''}`)}
     <div class="dq-section-body">${body}</div></div>`;
 }
 
