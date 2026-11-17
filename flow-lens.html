@@ -1790,7 +1790,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-11-17p';
+const VERSION = '2026-11-17q';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -8320,7 +8320,9 @@ async function copySnapshot() {
   // Defined before the clipboard.write call so Safari's user-activation
   // window is not consumed by an await before the write.
   function buildBlob() {
-    let scale = 2;
+    // Copy is for pasting into emails / chat: aim for ~1000px wide so it doesn't paste huge.
+    // (Save image keeps full 2x resolution for slides and printing.)
+    let scale = Math.min(2, 1000 / activePane.getBoundingClientRect().width);
     return captureSnapshot(activePane, scale).then(captured => {
       scale = captured.width / activePane.getBoundingClientRect().width;  // may be lower for very long lists
       const filterText = snapshotFilterText(getConfig());
