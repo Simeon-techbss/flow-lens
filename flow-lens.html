@@ -428,6 +428,14 @@ License: MIT
     .df-tag { display:inline-block; font-size:0.68rem; font-weight:600; border-radius:4px; padding:0.02rem 0.35rem; margin-left:0.35rem; color:white; vertical-align:middle; white-space:nowrap; }
     .df-charts { display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:1rem; margin-top:1rem; }
     .df-chart-box { position:relative; height:240px; }
+    .df-box { border:1px solid #e2e8f0; border-radius:8px; margin-top:1rem; background:#fff; }
+    .df-box-head { display:flex; align-items:center; gap:0.5rem; width:100%; background:#f8fafc; border:none; border-radius:8px; padding:0.55rem 0.8rem; cursor:pointer; text-align:left; font-size:0.88rem; font-weight:700; color:#0f172a; }
+    .df-box:not(.closed) .df-box-head { border-bottom:1px solid #e2e8f0; border-radius:8px 8px 0 0; }
+    .df-box-head:hover { background:#f1f5f9; }
+    .df-caret { color:#64748b; width:0.8rem; }
+    .df-box-hint { margin-left:auto; font-size:0.72rem; font-weight:400; color:#94a3b8; }
+    .df-box.closed .df-box-title { color:#64748b; }
+    .df-box-body { padding:0.6rem 0.8rem 0.8rem; }
     .df-note { font-size:0.78rem; color:#64748b; background:#fff7ed; border:1px solid #fed7aa; border-radius:6px; padding:0.4rem 0.7rem; margin-bottom:0.75rem; }
     .rel-df-line { display:flex; flex-wrap:wrap; gap:0.4rem 1rem; align-items:center; font-size:0.78rem; color:#475569; margin:0.4rem 0 0.2rem; }
     .rel-head { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; flex-wrap:wrap; margin-bottom:1rem; }
@@ -1772,7 +1780,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-11-17f';
+const VERSION = '2026-11-17h';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -2292,11 +2300,12 @@ function loadExampleData() {
       r.Labels = internal ? 'QA' : 'UAT';
       if (r.Done && Math.random() < 0.9) r['Fix Type'] = pick(fixTypes);
       else if (r.Dev && !r.Done && Math.random() < 0.3) r['Fix Type'] = pick(fixTypes);
-      // A few open ones were deferred to a change request (Jira: back to Backlog + Deferred-CR label)
-      if (!r.Done && !r.Rejected && r.Dev && Math.random() < 0.3) r.Labels = `[${r.Labels}, Deferred-CR]`;
     } else r['Issue Type'] = r['Demand Source'] === 'Tech Debt' ? 'Task' : 'Story';
     if (r['Demand Source'] === 'Tech Debt') r.Labels = 'Tech';
   });
+  // Three open bugs were deferred to a change request (Jira: back to Backlog + Deferred-CR label)
+  rows.filter(r => r['Demand Source'] === 'Bug' && r.Dev && !r.Done && !r.Rejected).slice(0, 3)
+    .forEach(r => { r.Labels = `[${r.Labels}, Deferred-CR]`; r['Currently Blocked'] = 'No'; });
   rows.forEach(r => {
     r['Epic Link'] = '';
     const doneAgo = ago(r.Done);
@@ -6911,8 +6920,31 @@ function defectItems() {
   return { cfg, items: out };
 }
 
+// Closable boxes on the Bugs & Defects tab (By fix type, ticket list). Closed = left out of snapshots. Remembered per browser.
+let dfClosed = {};
+try { dfClosed = JSON.parse(localStorage.getItem('fl-df-closed') || '{}') || {}; } catch (e) {}
+function toggleDfBox(k) {
+  dfClosed[k] = !dfClosed[k];
+  try { localStorage.setItem('fl-df-closed', JSON.stringify(dfClosed)); } catch (e) {}
+  renderDefects();
+}
+function dfBox(k, title, body) {
+  const shut = !!dfClosed[k];
+  return `<div class="df-box${shut ? ' closed' : ''}"${shut ? ' data-snap-hide' : ''}>
+    <button class="df-box-head" onclick="toggleDfBox('${k}')" aria-expanded="${!shut}">
+      <span class="df-caret">${shut ? '▸' : '▾'}</span><span class="df-box-title">${title}</span>
+      <span class="df-box-hint" data-snap-hide>${shut ? 'closed · left out of snapshots · click to open' : 'click to close'}</span>
+    </button>
+    ${shut ? '' : `<div class="df-box-body">${body}</div>`}
+  </div>`;
+}
+
 function setDefectView(v) { defectView = v; defectListState = ''; renderDefects(); }
-function setDefectList(v) { defectListState = defectListState === v ? '' : v; renderDefects(); }
+function setDefectList(v) {
+  defectListState = defectListState === v ? '' : v;
+  if (defectListState && dfClosed.list) { dfClosed.list = false; try { localStorage.setItem('fl-df-closed', JSON.stringify(dfClosed)); } catch (e) {} }
+  renderDefects();
+}
 
 function renderDefects() {
   const el = document.getElementById('defects-content');
@@ -7015,8 +7047,8 @@ function renderDefects() {
       ${hasBlk ? `<td>${blockedBadge(i.blk)}</td>` : ''}
     </tr>`;
   }).join('');
-  const list = `<h3 class="blocked-section-title">${relEsc(listTitle)}${defectListState ? ` <a href="#" style="font-size:0.75rem;font-weight:400;color:#0ea5e9" onclick="setDefectList('');return false">show open instead</a>` : ''}</h3>
-    ${listItems.length ? `<div style="overflow-x:auto" data-snap-expand><table class="bd-table"><thead><tr><th>ID</th><th>Title</th><th>Type</th><th>Status</th><th>Stage</th><th>Raised</th><th>Closed</th><th style="text-align:right">Age</th>${hasBlk ? '<th>Blocked</th>' : ''}</tr></thead><tbody>${listRows}</tbody></table></div>` : `<div class="muted" style="font-size:0.8rem">Nothing here.</div>`}`;
+  const list = dfBox('list', relEsc(listTitle), `${defectListState ? `<div style="margin-bottom:0.4rem"><a href="#" style="font-size:0.75rem;color:#0ea5e9" onclick="setDefectList('');return false">← show open tickets instead</a></div>` : ''}
+    ${listItems.length ? `<div style="overflow-x:auto" data-snap-expand><table class="bd-table"><thead><tr><th>ID</th><th>Title</th><th>Type</th><th>Status</th><th>Stage</th><th>Raised</th><th>Closed</th><th style="text-align:right">Age</th>${hasBlk ? '<th>Blocked</th>' : ''}</tr></thead><tbody>${listRows}</tbody></table></div>` : `<div class="muted" style="font-size:0.8rem">Nothing here.</div>`}`);
 
   // ── By fix type (optional column) ──
   let fixSec = '';
@@ -7028,7 +7060,7 @@ function renderDefects() {
     const max = Math.max(1, ...keys.map(k => groups[k].length));
     const shownTypes = defectView ? types.filter(t => t.name === defectView) : types;
     const fixedNoType = view.filter(i => i.status === 'fixed' && fixOf(i) === '(not set)').length;
-    fixSec = `<h3 class="blocked-section-title">By fix type <span style="font-size:0.75rem;font-weight:400;color:#64748b">· from the <em>${relEsc(defectFixCol)}</em> column</span></h3>
+    fixSec = dfBox('fix', `By fix type <span style="font-size:0.75rem;font-weight:400;color:#64748b">· from the <em>${relEsc(defectFixCol)}</em> column</span>`, `
       ${keys.length ? `<div style="overflow-x:auto"><table class="bd-table df-table"><thead><tr><th>Fix type</th>${shownTypes.length > 1 ? shownTypes.map(t => `<th><span class="df-dot" style="background:${defectColor(t.name)}"></span>${relEsc(t.name)}</th>`).join('') : ''}<th>Total</th><th>% of all</th><th style="min-width:120px"></th><th>Fixed</th><th>Open</th><th title="Cycle time of fixed tickets">Time to fix 50% · 85%</th></tr></thead><tbody>
         ${keys.map(k => { const g = groups[k]; const cts = g.filter(i => i.status === 'fixed').map(i => i.ct); const key = `fix:${k}`;
           return `<tr${k === '(not set)' ? ' class="muted"' : ''}><td><span class="df-n${defectListState === key ? ' on' : ''}" onclick="setDefectList('${relEsc(key).replace(/'/g, "\\'")}')">${relEsc(k)}</span></td>
@@ -7037,7 +7069,7 @@ function renderDefects() {
             <td><div class="rel-bar"><div style="width:${g.length / max * 100}%;background:${k === '(not set)' ? '#cbd5e1' : '#8b5cf6'}"></div></div></td>
             <td>${g.filter(i => i.status === 'fixed').length}</td><td>${g.filter(isOpen).length}</td><td>${pct(cts, 50)} · ${pct(cts, 85)}</td></tr>`; }).join('')}
       </tbody></table></div>
-      ${fixedNoType ? `<div class="muted" style="font-size:0.75rem;margin-top:0.3rem">${fixedNoType} fixed ticket${fixedNoType === 1 ? ' has' : 's have'} no fix type yet. Worth filling in, so this table tells the full story.</div>` : ''}` : `<div class="muted" style="font-size:0.8rem">Nothing here.</div>`}`;
+      ${fixedNoType ? `<div class="muted" style="font-size:0.75rem;margin-top:0.3rem">${fixedNoType} fixed ticket${fixedNoType === 1 ? ' has' : 's have'} no fix type yet. Worth filling in, so this table tells the full story.</div>` : ''}` : `<div class="muted" style="font-size:0.8rem">Nothing here.</div>`}`);
   }
 
   const hiddenNote = testingMode === 'hide' ? `<div class="df-note">The other reports are <strong>hiding</strong> testing work right now (Testing work: Hide). This report always shows it.</div>` : '';
@@ -8043,9 +8075,12 @@ function captureSnapshot(pane, scale) {
   scale = Math.max(0.5, Math.min(scale, 16000 / fullH));
   return html2canvas(pane, {
     backgroundColor: '#f8fafc', scale, useCORS: true, logging: false,
-    onclone: doc => doc.querySelectorAll('[data-snap-expand]').forEach(el => {
-      el.style.maxHeight = 'none'; el.style.height = 'auto'; el.style.overflowY = 'visible';
-    }),
+    onclone: doc => {
+      doc.querySelectorAll('[data-snap-expand]').forEach(el => {
+        el.style.maxHeight = 'none'; el.style.height = 'auto'; el.style.overflowY = 'visible';
+      });
+      doc.querySelectorAll('[data-snap-hide]').forEach(el => { el.style.display = 'none'; });   // closed boxes stay out of the picture
+    },
   }).finally(() => tall.forEach(el => el.removeAttribute('data-snap-expand')));
 }
 
