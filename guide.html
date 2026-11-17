@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Flow Lens · Data Guide</title>
+  <title>Flow Lens Guide</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: system-ui, -apple-system, sans-serif; background: #f8fafc; color: #1e293b; line-height: 1.6; }
@@ -61,15 +61,15 @@
 
     .steps { list-style: none; counter-reset: steps; }
     .steps li {
-      counter-increment: steps; display: flex; gap: 1rem;
-      padding: 0.6rem 0; border-bottom: 1px solid #f1f5f9; font-size: 0.88rem; color: #475569;
+      counter-increment: steps; position: relative; padding: 0.6rem 0 0.6rem 2.5rem;
+      border-bottom: 1px solid #f1f5f9; font-size: 0.88rem; color: #475569;
     }
     .steps li:last-child { border-bottom: none; }
     .steps li::before {
       content: counter(steps); min-width: 1.5rem; height: 1.5rem;
       background: #0f172a; color: white; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
-      font-size: 0.72rem; font-weight: 700; flex-shrink: 0; margin-top: 0.1rem;
+      font-size: 0.72rem; font-weight: 700; position: absolute; left: 0; top: 0.65rem;
     }
 
     .callout {
@@ -85,6 +85,9 @@
     .col-row p { margin: 0; }
 
     footer { text-align: center; padding: 2rem; font-size: 0.78rem; color: #94a3b8; }
+    .toc { display:flex; flex-wrap:wrap; gap:0.35rem 0.9rem; font-size:0.82rem; }
+    .toc a { color:#0369a1; text-decoration:none; border-bottom:1px dotted #93c5fd; }
+    ul.plain { margin:0.3rem 0 0.6rem 1.1rem; font-size:0.88rem; line-height:1.6; }
   </style>
 </head>
 <body>
@@ -92,7 +95,7 @@
 <header>
   <div>
     <h1>Flow Lens</h1>
-    <span>Data guide</span>
+    <span>Guide</span>
   </div>
   <a href="flow-lens.html">Open tool →</a>
 </header>
@@ -109,6 +112,16 @@
   </div>
 
   <div class="card">
+    <h2>Contents</h2>
+    <div class="toc">
+      <a href="#csv">CSV structure</a><a href="#columns">Column types</a><a href="#setup">Setting up</a>
+      <a href="#tabs">What each tab shows</a><a href="#segments">Flow segments (Measure to)</a><a href="#releases">Releases &amp; milestones</a>
+      <a href="#bugs">Bugs, defects &amp; deferred work</a><a href="#snapshots">Snapshots</a><a href="#definitions">How the numbers are worked out</a>
+      <a href="#dates">Date formats</a><a href="#ffe">Fuzzy Front End</a><a href="#tips">Tips and gotchas</a>
+    </div>
+  </div>
+
+  <div class="card" id="csv">
     <h2>CSV structure</h2>
     <p>The simplest possible file that works:</p>
     <div class="example-wrap">
@@ -172,7 +185,7 @@
     <p>TKT-005 skipped review stages — that's fine, the tool handles it.</p>
   </div>
 
-  <div class="card">
+  <div class="card" id="columns">
     <h2>Column types</h2>
     <div class="col-list">
       <div class="col-row">
@@ -211,6 +224,10 @@
         <span class="badge badge-opt">Optional</span>
         <p><strong>Epic Link</strong> — the ID of the Epic (or parent) each item belongs to, e.g. <code>COC-24768</code>. Called <em>Epic Link</em> in older Jira and <em>Parent</em> in newer Jira. Turns on the Epic Progress tab. Map it under <em>Epic Link</em> in the Config panel — it is picked automatically when the column is named <em>Epic Link</em> or <em>Parent</em>, and is saved with your config. Include the Epic rows themselves in the export too, so the tab can show Epic names rather than just IDs. Items with no Epic are simply left out of that tab.</p>
       </div>
+      <div class="col-row">
+        <span class="badge badge-opt">Optional</span>
+        <p><strong>Any other column</strong> — Issue Type, Labels, Fix Version, Components, Priority, Root Cause… Used by Filters, the Release builder and the Bugs &amp; defects setup. Multi-value cells are split into single values, whether Jira writes them as <code>[QA, UAT]</code> or <code>QA|UAT</code>.</p>
+      </div>
     </div>
   </div>
 
@@ -220,43 +237,45 @@
 
     <h3>Flow Insights</h3>
     <div class="col-list">
-      <div class="col-row"><span class="badge badge-stage" style="min-width:7rem;text-align:center">Flow Insights</span><p>Lead time percentiles, Monte Carlo forecast ("what can we close this month?"), current WIP, smelly tickets (WIP older than your p85), and multitasking index. Your daily summary page.</p></div>
+      <div class="col-row"><span class="badge badge-stage" style="min-width:7rem;text-align:center">Flow Insights</span><p>Your summary page: cycle time percentiles, Monte Carlo "what can we close this month?", current WIP, <strong>smelly tickets</strong> (WIP older than your 85th percentile, each showing the stage it's stuck in and ⛔ if blocked), and the <strong>Focus</strong> number — how many items were already in progress, on average, each time a new one started.</p></div>
     </div>
     <h3>WIP &amp; Flow menu</h3>
     <div class="col-list">
-      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">CFD</span><p>Cumulative Flow Diagram. Click to place markers — select two points to get a range analysis: items completed, throughput rate, and WIP change per stage across the period. Export the items in the range as CSV.</p></div>
-      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">WIP Over Time</span><p>WIP count each week with a 4-week average. Counts items from <strong>Active Work Starts</strong> (or Start Date if not set) until Done — items waiting in your committed queue are not WIP. Rising WIP means more is starting than finishing.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">CFD</span><p>Cumulative Flow Diagram. Click to place a marker; place two for a range: items completed, throughput rate, WIP change per stage, and a <strong>Tickets in this range</strong> box — what <em>Arrived</em> (spot an influx, with the busiest day), what <em>Reached Done</em>, and what <em>Moved stage</em>, with a mix by issue type. Export the range as CSV. When you measure to a flow segment, the CFD shows just that segment's stages; the rest are struck through in the legend and come back with one click.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">WIP Over Time</span><p>WIP each Monday plus a final <strong>today</strong> point (it matches the WIP card), with a 4-week average. Counts items from <strong>Active Work Starts</strong> (or Start Date if not set) until they leave. <strong>Click any point</strong> to list the tickets in progress that week — by type, by stage, how long each had been in progress, and how many are still open today.</p></div>
       <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Work Split</span><p>How your work divides across a category column such as type or priority.</p></div>
-      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Aging WIP</span><p>Every in-progress item plotted by current stage and age in days, against your completed lead time percentile bands. Red ring = currently blocked. Items above the p85 band are worth a conversation. Also shows WIP count vs average age over time.</p></div>
-      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Arrival vs Departure</span><p>Items started vs items finished each week. When arrivals keep beating departures, WIP — and lead time — will grow.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Aging WIP</span><p>Every in-progress item by current stage and age, against your cycle time percentile bands. Red ring = blocked now. Items above the 85th percentile band are worth a conversation.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Arrival vs Departure</span><p>Items started vs finished each week. When arrivals keep beating departures, WIP — and cycle time — will grow.</p></div>
     </div>
-    <h3>Lead Time menu</h3>
+    <h3>Cycle Time menu</h3>
     <div class="col-list">
-      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">LT Over Time</span><p>Weekly lead time trend. Click a week to see the items behind it.</p></div>
-      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Histogram</span><p>Lead time distribution — where most items cluster. Min/max inputs hide outliers from the view.</p></div>
-      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Control Chart</span><p>Every completed item by finish date and lead time, with p50/p70/p85/p95 lines. Orange dots had blocked time. Spot outliers and trends.</p></div>
-      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Flow Efficiency</span><p>Share of each item's time spent in active (process) stages vs queues. Needs stages marked P or Q in Config (X stages are ignored). 100% usually means dates were entered in bulk rather than as work happened.</p></div>
-      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Fuzzy Front End</span><p>Pre-commitment analysis — how long items wait before the team commits to them. Needs stage columns before your Start column. <a href="#ffe" style="color:#0ea5e9">See the FFE section below.</a></p></div>
-      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Time in Stage</span><p>P50 and P85 days spent in each stage. The stage with the highest numbers is usually your bottleneck.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">CT Over Time</span><p>Weekly cycle time trend. Click a week to see the items behind it.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Histogram</span><p>Cycle time distribution — where most items cluster. Min/max inputs hide outliers from the view.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Control Chart</span><p>Every finished item by finish date and cycle time, with 50/70/85/95% lines. Orange dots had blocked time.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Flow Efficiency</span><p>Share of time in active (P) stages vs queues (Q), from Start to End. A toggle includes unfinished work "so far". 100% usually means dates were entered in bulk.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Fuzzy Front End</span><p>How long items wait before the team commits to them. Needs stage columns before your Start column. <a href="#ffe" style="color:#0ea5e9">More below.</a></p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Time in Stage</span><p>50% and 85% days spent in each stage. The highest is usually your bottleneck.</p></div>
     </div>
     <h3>Throughput menu</h3>
     <div class="col-list">
-      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Throughput</span><p>Items completed per week, with an optional normal range (XmR) and a distribution chart. Click a bar to see what was delivered that week.</p></div>
-      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Burn Up</span><p>Completed items climbing towards a scope target, with a straight-line forecast and optional faster/slower scenarios.</p></div>
-      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Epic Progress</span><p>Needs an <a href="#epic-link" style="color:#0ea5e9">Epic Link</a> column. One row per Epic: progress bar (Done / In progress / Committed / Not started), start date, pace and a finish forecast. Click an Epic to see its stories. <a href="#epic-maths" style="color:#0ea5e9">How pace and forecast are worked out ↓</a></p></div>
-      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Forecast</span><p>Monte Carlo forecasting — "when will these N items be done?" and "how many by this date?", at 50/70/85/95% confidence, based on your throughput history.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Throughput</span><p>Items finished per week, optional normal range (XmR) and a distribution chart. Click a bar to see what was delivered.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Burn Up</span><p>Finished items climbing towards a scope target, with a straight-line forecast and faster/slower scenarios.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Epic Progress</span><p>Needs an <a href="#epic-link" style="color:#0ea5e9">Epic Link</a> column. One row per Epic: progress, blocked time, pace and a forecast. Click an Epic for its stories. <a href="#epic-maths" style="color:#0ea5e9">How pace and forecast work ↓</a></p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Releases</span><p>Your releases: progress, forecast, target dates per finish line, milestone grid and timeline, sign-off and a close-out summary. <a href="#releases" style="color:#0ea5e9">Releases &amp; milestones ↓</a></p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Forecast</span><p>Monte Carlo — "when will N items be done?" and "how many by this date?" at 50/70/85/95% confidence.</p></div>
     </div>
     <h3>Health menu</h3>
     <div class="col-list">
-      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Team Health</span><p>Scorecard comparing this period with the previous one of the same length. Traffic lights for throughput, lead time p50, WIP, backlog size, FFE time, flow efficiency and currently blocked. Numbers are period-scoped, so they will differ from the summary bar.</p></div>
-      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Blocked</span><p>Needs a Blocked Days column. Lead time for blocked vs never-blocked items, items blocked right now (needs Currently Blocked), and completed items sorted by blocked days.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Team Health</span><p>This period vs the previous one: throughput, cycle time, WIP, backlog, FFE time, flow efficiency, blocked now — with traffic lights.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Blocked</span><p>Needs Blocked Days. Cycle time for blocked vs never-blocked items, items blocked now (needs Currently Blocked), and the worst offenders.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Bugs &amp; Defects</span><p>Raised, in progress, fixed, deferred and won't fix for each type of testing work, time to fix, raised vs fixed per week, open pile over time, by fix type, and the open tickets. <a href="#bugs" style="color:#0ea5e9">Bugs, defects &amp; deferred work ↓</a></p></div>
     </div>
     <h3>Data menu</h3>
     <div class="col-list">
-      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Breakdown</span><p>Metrics side by side for each value of a category column — backlog, committed, WIP, done, throughput, lead time and blocked %. Best used without slice filters.</p></div>
-      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Data</span><p>Full table of every imported item. Useful for checking items flagged elsewhere.</p></div>
-      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Data Quality</span><p>Where every row went (completed, WIP, committed, backlog) and any problems found — e.g. dates out of order, Done before Start, or items committed but not moved in 4+ weeks. The ⚠ next to <em>Items completed</em> links here.</p></div>
-      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">AI (beta)</span><p>Builds a prompt from your flow data that you can paste into an AI assistant for a written analysis.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Breakdown</span><p>Metrics side by side for each value of a category column. Best used without slice filters.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Data</span><p>Every imported row.</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">Data Quality</span><p>Where every row went and any problems — dates out of order, Done before Start, items committed but not moved in 4+ weeks. Plus two information sections: <strong>Epic links</strong> (work with no Epic) and <strong>Release coverage</strong> (work not in any release, open tickets first).</p></div>
+      <div class="col-row"><span class="badge badge-opt" style="min-width:7rem;text-align:center">AI (beta)</span><p>Builds a prompt from your flow data to paste into an AI assistant. Nothing is sent automatically.</p></div>
     </div>
 
     <h3 id="epic-maths">How Epic Progress works out pace and forecast</h3>
@@ -268,7 +287,66 @@
     <p>The forecast only appears once an Epic has <strong>3 or more stories done</strong> — before that it shows <em>Too early</em>, because one or two data points can't tell you a pace. It is a rough guide, not a promise: it assumes the team keeps the same pace on that Epic and that no new stories are added. If stories keep being added, the date will keep moving — and that in itself is worth a conversation.</p>
   </div>
 
-  <div class="card">
+  <div class="card" id="segments">
+    <h2>Flow segments (Measure to)</h2>
+    <p>A flow segment is a named Start → Finish pair inside your workflow, e.g. <strong>Code Complete (CC)</strong> = To Do → Ready for testing, or <strong>User Testing</strong> = Ready for testing → Ready to deploy. Add them in the Config panel under <em>Flow segments</em>, with an optional short code that appears on chips.</p>
+    <p>The <strong>Measure to</strong> pills above the charts switch every report to that segment: an item counts as finished the first day it reached the segment's finish (or any later stage), cycle time and throughput are measured to there, and work past that point stops being WIP. Flow efficiency only counts stages up to the finish. The CFD shows just that segment's stages (click a struck-through stage in its legend to bring it back). The ⓘ next to the pills lists every report affected.</p>
+    <div class="callout">Segments are how you answer "how long does it take us to get to code complete?" without changing your workflow or your data.</div>
+  </div>
+
+  <div class="card" id="releases">
+    <h2>Releases &amp; milestones</h2>
+    <h3>Building a release</h3>
+    <ol class="steps">
+      <li>Click <strong>+ Create a release</strong> (or Releases tab → <strong>+ New release</strong>) and give it a name.</li>
+      <li><strong>Include</strong>: pick a column (Epic, Fix Version, Labels, Issue Type, any column) and tick values, or paste ticket IDs. A ticket is in if it matches any include rule.</li>
+      <li><strong>Exclude</strong>: click <em>Exclude</em> next to a ticket (the list keeps your place), or add an exclude rule. Excludes always win.</li>
+      <li>Choose <strong>Release is done at</strong>: follow the Measure-to pill, Full flow, or a flow segment — e.g. a tranche that is judged at Code Complete. Add <strong>target dates</strong> for each finish line.</li>
+      <li><strong>Save and show reports</strong>, then <strong>Save config</strong> to keep it. If you leave the builder another way, your changes are kept and a message tells you so; only Cancel throws them away.</li>
+    </ol>
+    <h3>Using releases</h3>
+    <ul class="plain">
+      <li>Click a <strong>release pill</strong> and every report shows only its tickets. Click several to combine them (e.g. a tranche plus its fix-support release = everything needed for go-live).</li>
+      <li>Opening a release with its own finish line switches <em>Measure to</em> for you; going back to All work puts the pill back.</li>
+      <li>The <strong>release page</strong> shows the status bar (in progress split into checkpoints like Before CC / CC), blocked time, a Monte Carlo forecast on the release's own pace, the burn up, a <strong>Finish lines</strong> table (target and result for every line), the ticket list with status chips, testing work in the release, and a Jira query to check "is this what's in the release?".</li>
+      <li><strong>Milestones</strong> (Releases overview): a grid of every release × finish line — ✓ reached, ○ open coloured by its chance of making the date, ● date passed — and a timeline with ◇ targets, ◆ reached dates and slip lines. The release's own finish line is outlined in purple. Click a cell to open that release measured to that line.</li>
+      <li><strong>Sign-off</strong>: when the client agrees a finish line is met while a few tickets are still being refined, record the date and a note on the release page. The data isn't changed; the leftovers stay visible as "after sign-off", due by the end date.</li>
+      <li><strong>Close-out</strong>: when every ticket is done, the forecast box becomes a summary — done date vs target, release lead time (first start → last finish), average cycle time per segment, flow efficiency, in-progress, queue and blocked time.</li>
+    </ul>
+  </div>
+
+  <div class="card" id="bugs">
+    <h2>Bugs, defects &amp; deferred work</h2>
+    <h3>Tell Flow Lens what testing work looks like</h3>
+    <p>Config panel → <em>Bugs &amp; defects</em>. Each type (e.g. <strong>Bug (internal)</strong> from your QA team, <strong>Defect (external)</strong> from testers) is a set of rules on any columns. Click the word between rules to switch <strong>and</strong> (every rule must match — Issue Type = Task and Labels = QA) or <strong>or</strong> (any rule — Issue Type = Task or Labels = TestingDeepDive). A ticket that matches two types counts under the first. Optionally pick a <strong>Fix type</strong> column (Root Cause, Fix Type…).</p>
+    <h3>What you get</h3>
+    <ul class="plain">
+      <li><strong>Testing work: Include / Hide / Only</strong> — a switch under the release pills that every report follows. Hide = flow metrics for feature work only; Only = how long fixes take. It tells you when a filter or release already leaves testing work out.</li>
+      <li><strong>Bugs &amp; Defects report</strong>: Raised (not started) · In progress · Fixed · Deferred · Won't fix per type; time to fix (50% / 85%); oldest open; "last 4 weeks: X raised, Y fixed — open pile growing / shrinking"; raised vs fixed per week; open at the end of each week; by fix type; and the open tickets. The fix-type table and ticket list are boxes you can close — closed boxes are left out of snapshots.</li>
+      <li>On a release page: a "Testing work" line and a Bug / Defect tag on each ticket.</li>
+    </ul>
+    <h3>Deferred to future work (change requests)</h3>
+    <p>Moving a ticket back to Backlog in Jira isn't enough — the export keeps its old stage dates, so it still looks in progress. Add a label instead (e.g. <code>CR-Needed</code>; Jira labels can't have spaces) and set the <em>Deferred</em> rule to it. Deferred tickets leave WIP, throughput, forecasts and the release's remaining work, but stay visible as <strong>Deferred</strong> on releases, Epics and the Bugs &amp; Defects report. It works for any ticket, not just bugs.</p>
+    <div class="callout warn">For bugs to count against a release, link them to the release's Epics (or give them its Fix Version) in Jira. Otherwise the release page shows no testing work — Data Quality → Release coverage lists what's outside every release.</div>
+  </div>
+
+  <div class="card" id="snapshots">
+    <h2>Snapshots</h2>
+    <p><strong>Copy</strong> puts an image of the current tab on your clipboard, sized for email and Teams (about 1,000px wide). <strong>Save image</strong> saves a full-resolution PNG for slides and print. Both show every row of long lists, and a footer with the release, Measure to, testing switch and filters, so nobody mistakes a filtered view for the whole picture. Closed boxes (fix type, ticket lists, tickets-in-range, WIP list) are left out — close what you don't want to send.</p>
+  </div>
+
+  <div class="card" id="definitions">
+    <h2>How the numbers are worked out</h2>
+    <ul class="plain">
+      <li><strong>Cycle time</strong> = Start → End (or the segment's start → finish). Every from → to span is a cycle time; the span is shown under the number. Only a finished release's first-start → last-finish is called <em>release lead time</em>.</li>
+      <li><strong>WIP</strong> = from Active Work Starts (else Start) until the item leaves — done, discarded or deferred. The WIP card, WIP Over Time and the Focus number all use this.</li>
+      <li><strong>Throughput</strong> = items finished per Monday-to-Sunday week, empty weeks included, from the first finish to the latest date in your file. Every forecast uses this.</li>
+      <li><strong>Flow efficiency</strong> = time in P stages ÷ total time from Start to End, minus blocked days.</li>
+      <li><strong>Forecasts</strong> (Monte Carlo) replay your real weekly throughput thousands of times. A release forecast uses the release's own pace (needs 3+ done).</li>
+    </ul>
+  </div>
+
+  <div class="card" id="dates">
     <h2>Date formats</h2>
     <p>The tool detects dates automatically using strict matching. Supported formats:</p>
     <div class="col-list" style="margin-top:0.5rem">
@@ -323,20 +401,21 @@
     <p>Some teams debate whether "Ready" is the commitment point or still part of the queue. In Flow Lens, Ready (your Start column) <em>is</em> the commitment point — cycle time starts here. Items sitting in Ready waiting to be picked up are counted as committed WIP, not backlog. This is the stricter interpretation and the one that keeps cycle time honest.</p>
   </div>
 
-  <div class="card">
+  <div class="card" id="setup">
     <h2>Setting up the tool</h2>
     <ol class="steps">
       <li>Drop your CSV onto the tool. It will detect date columns automatically.</li>
       <li>In the <strong>Config</strong> panel, map your columns: set Start, End, and optionally Active Work Starts, ID, Title, Link, Blocked Days, Currently Blocked and Epic Link.</li>
       <li>Drag the workflow stage rows into the correct order — left to right, earliest to latest.</li>
       <li>Set each stage's type with its button: <strong>P</strong> process, <strong>Q</strong> queue, <strong>X</strong> discarded (e.g. Cancelled, Withdrawn, Not done). <a href="#discarded" style="color:#0ea5e9">More on discarded stages ↓</a></li>
-      <li>The charts update immediately. Use the date range filters to zoom in.</li>
-      <li>Click <strong>Save config</strong> to keep your setup as a small JSON file. Next time, drop in the new CSV and click <strong>Load config</strong>.</li>
+      <li>Optional: add <a href="#segments" style="color:#0ea5e9">flow segments</a>, <a href="#bugs" style="color:#0ea5e9">bugs &amp; defects</a> types, and build <a href="#releases" style="color:#0ea5e9">releases</a>.</li>
+      <li>The charts update immediately. Use Filters (e.g. <em>hide Issue Type = Epic</em>) and the date range to focus.</li>
+      <li>Click <strong>Save config</strong> to keep your setup as a small JSON file — the <strong>● Unsaved changes</strong> marker and a one-off popup tell you when there's something to save. Next time, drop in the new CSV and click <strong>Load config</strong>; a message lists what the file holds and warns about any column the new file doesn't have.</li>
     </ol>
     <p>If your export gains a new stage column (say you start capturing <em>Withdrawn</em>), just load your old config. Your saved settings are applied and the new column is added to the workflow with a note asking you to check its type. Then <strong>Save config</strong> again to keep it.</p>
   </div>
 
-  <div class="card">
+  <div class="card" id="tips">
     <h2>Tips and gotchas</h2>
 
     <h3 id="discarded">Cancelled / rejected items — mark them Discarded (X)</h3>
@@ -346,7 +425,7 @@
       <li><strong>Q — Queue:</strong> waiting (Ready for Dev, Awaiting Deploy). Counts as wait time.</li>
       <li><strong>X — Discarded:</strong> the item left without being delivered (Rejected, Cancelled, Withdrawn, Not done, Won't do). Picked automatically for stages with those kinds of names.</li>
     </ul>
-    <p>A discarded item <strong>stops being WIP or backlog on the date it was discarded</strong>, but it is <strong>never counted as delivered</strong> — it is left out of throughput, lead time, forecasts and Burn Up scope. You'll see discarded items as their own band at the bottom of the CFD, a dashed "Discarded" line on Arrival vs Departure, a "Discarded" row on the Data Quality tab, and "+N discarded" on Epic Progress.</p>
+    <p>A discarded item <strong>stops being WIP or backlog on the date it was discarded</strong>, but it is <strong>never counted as delivered</strong> — it is left out of throughput, cycle time, forecasts and Burn Up scope. You'll see discarded items as their own band at the bottom of the CFD, a dashed "Discarded" line on Arrival vs Departure, a "Discarded" row on the Data Quality tab, and "+N discarded" on Epic Progress.</p>
     <div class="callout">
       You no longer need to filter cancelled items out of your data. Filtering removes their history — they really were in progress until they were cancelled. Marking the stage X keeps WIP over time accurate. If an item has both a Done date and a Discarded date (export tools fill in every stage an item passes through), whichever column comes later in your file wins — so it works whether your export puts Withdrawn before or after Done.
     </div>
@@ -359,6 +438,15 @@
 
     <h3>Stage ordering matters for the CFD</h3>
     <p>Drag stages into the correct process order in the Config panel. The CFD is built from that order — wrong order produces meaningless bands.</p>
+
+    <h3>Bulk moves in Jira</h3>
+    <p>Moving lots of tickets several stages in one go (e.g. closing 40 stories after an agreed sign-off) shows up as a cliff on the CFD and WIP charts, a one-week throughput spike that makes forecasts too optimistic for a few weeks, and near-zero time in the stages they skipped. Set a release's finish line to where the real work ended, and treat team throughput with care until that week drops out of the window.</p>
+
+    <h3>When a CFD isn't the right chart</h3>
+    <p>CFDs shine for a whole team over months. For a small release or tranche, the release page, Aging WIP and the milestone grid usually answer the question better — small batches make blocky CFDs.</p>
+
+    <h3>Your data stays yours</h3>
+    <p>Everything runs in your browser. Nothing is uploaded — not your CSV, not your config.</p>
   </div>
 
 </main>
