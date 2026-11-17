@@ -452,6 +452,7 @@ License: MIT
     .rel-btn-danger { color:#b91c1c; border-color:#fecaca; }
     .rel-btn-ex { color:#b91c1c; border-color:#fecaca; padding:0.2rem 0.55rem; }
     .rel-table tbody tr { cursor:pointer; }
+    #rel-b-list tr.rel-flash td { background:#fef9c3; transition:background 0.3s; }
     .rel-bar { display:flex; height:12px; border-radius:4px; overflow:hidden; background:#f1f5f9; }
     .rel-cards { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:0.75rem; margin-bottom:1rem; }
     .rel-card { background:white; border:1px solid #e2e8f0; border-radius:10px; padding:0.8rem 1rem; }
@@ -1787,7 +1788,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-11-17k';
+const VERSION = '2026-11-17m';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -3853,7 +3854,24 @@ function relIdRule(mode) {
   return r;
 }
 
-function relExcludeId(id) {
+// Exclude / Undo rebuild the builder list — keep the list's and the page's scroll position, and flash the row
+function relKeepPlace(id, fn) {
+  const rowOf = () => id && [...document.querySelectorAll('#rel-b-list tr[data-id]')].find(t => t.dataset.id === id);
+  const box = document.querySelector('#rel-b-list > div');
+  const st = box ? box.scrollTop : 0, wy = window.scrollY;
+  const r0 = rowOf(), top0 = r0 ? r0.getBoundingClientRect().top : null;
+  fn();
+  const nb = document.querySelector('#rel-b-list > div');
+  if (nb) nb.scrollTop = st;
+  window.scrollTo(0, wy);
+  const tr = rowOf();
+  // If the rules panel above grew or shrank, nudge the page so the row stays under the mouse
+  if (tr && top0 !== null) { const shift = tr.getBoundingClientRect().top - top0; if (Math.abs(shift) > 1) window.scrollBy(0, shift); }
+  if (tr) { tr.classList.add('rel-flash'); setTimeout(() => tr.classList.remove('rel-flash'), 1200); }
+}
+
+function relExcludeId(id) { relKeepPlace(id, () => relExcludeIdNow(id)); }
+function relExcludeIdNow(id) {
   const cfg = getConfig();
   const row = allRows.find(r => (r[cfg.idCol] || '').trim() === id);
   const ins = relDraft.rules.filter(r => r.mode === 'in' && ruleMatches(row, r, cfg));
@@ -3864,7 +3882,8 @@ function relExcludeId(id) {
   renderRelRules(); relBuilderRefresh();
 }
 
-function relUndoExclude(id) {
+function relUndoExclude(id) { relKeepPlace(id, () => relUndoExcludeNow(id)); }
+function relUndoExcludeNow(id) {
   relDraft.rules.forEach(r => { if (r.mode === 'out' && r.col === REL_ID) r.vals = r.vals.filter(v => v !== id); });
   relDraft.rules = relDraft.rules.filter(r => r.mode === 'in' || r.col !== REL_ID || r.vals.length);
   renderRelRules(); relBuilderRefresh();
@@ -3874,7 +3893,7 @@ function relAddId(id) {
   const cfg = getConfig();
   const row = allRows.find(r => (r[cfg.idCol] || '').trim() === id);
   const excludedById = relDraft.rules.some(r => r.mode === 'out' && r.col === REL_ID && r.vals.includes(id));
-  if (excludedById) relUndoExclude(id);
+  if (excludedById) relUndoExcludeNow(id);
   if (!row || !rowInRelease(row, relDraft, cfg)) relIdRule('in').vals.push(id);
   renderRelRules(); relBuilderRefresh();
   const s = document.getElementById('rel-add-search');
@@ -3928,7 +3947,7 @@ function relBuilderRefresh() {
   const statusLbl = { progress: 'In progress', notstarted: 'Not started', done: 'Done', discarded: 'Discarded' };
   document.getElementById('rel-b-list').innerHTML = items.length ? `<div style="overflow:auto;max-height:520px"><table class="bd-table">
     <thead><tr><th>ID</th><th>Title</th><th>Why it's in</th><th>Status</th><th></th></tr></thead><tbody>
-    ${items.map(it => `<tr class="${it.exBy ? 'rel-row-excluded' : ''}">
+    ${items.map(it => `<tr data-id="${relEsc(it.id)}" class="${it.exBy ? 'rel-row-excluded' : ''}">
       <td>${relEsc(it.id)}</td><td>${relEsc(cfg.titleCol ? it.row[cfg.titleCol] : '')}</td>
       <td>${it.exBy ? `<span style="color:#b91c1c">Excluded${it.exBy.col !== REL_ID ? ` by ${relEsc(it.exBy.col)}` : ''}</span>` : relEsc(it.why.join(' + '))}</td>
       <td class="muted">${statusLbl[relItemStatus(it.row, cfg)]}</td>
@@ -7810,13 +7829,20 @@ function configSnapshot() {
   return JSON.stringify(p);
 }
 function isConfigDirty() { return savedConfigSnapshot !== null && configSnapshot() !== savedConfigSnapshot; }
+let configWasDirty = false;
 function updateConfigDirty() {
   const el = document.getElementById('config-dirty');
   if (!el || !allRows.length) return;
   if (savedConfigSnapshot === null) savedConfigSnapshot = configSnapshot();   // first render of a new file = baseline
-  el.style.display = isConfigDirty() ? 'inline-block' : 'none';
+  const dirty = isConfigDirty();
+  el.style.display = dirty ? 'inline-block' : 'none';
+  // The moment something first becomes unsaved, say so (once — not on every later change)
+  if (dirty && !configWasDirty && !relDraft) showToast('You have unsaved changes — <strong>Save config</strong> to keep them.', 4000);
+  configWasDirty = dirty;
 }
-function markConfigSaved() { savedConfigSnapshot = configSnapshot(); updateConfigDirty(); }
+// Catch every change (target dates, sign-offs, rules…) without wiring each one: re-check after any click or edit
+['click', 'change'].forEach(ev => document.addEventListener(ev, () => setTimeout(updateConfigDirty, 60), true));
+function markConfigSaved() { savedConfigSnapshot = configSnapshot(); configWasDirty = false; updateConfigDirty(); }
 
 function showToast(html, ms) {
   let t = document.getElementById('fl-toast');
