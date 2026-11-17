@@ -1096,18 +1096,18 @@ License: MIT
             <div class="info-row"><strong>Cycle time</strong> is measured from your configured start stage (e.g. To Do) to your end stage (e.g. Done). It is the total time an item spent in your system — including queues. This is what your stakeholders experience as "how long did that take?"</div>
             <div class="info-row"><strong>The 85th percentile</strong> is your Service Level Expectation — commit to delivering 85% of items within this number of days. It's realistic (not best-case) and builds trust over time.</div>
           </div>
-          <div class="ic2-q">How fast do we finish?</div>
+          <div class="ic2-q">If we start something now, how long will it take?</div>
           <div class="ic2-sub">Cycle time percentiles — how long completed items actually took</div>
           <div id="ic-ct-stats"><span style="color:#94a3b8;font-size:0.85rem">No data yet</span></div>
         </div>
         <div class="ic2-card ic2-emerald">
           <div class="ic2-label" style="display:flex;align-items:center;gap:0.4rem">Forecast <button class="info-btn" data-info="info-forecast" onclick="toggleInfo('info-forecast')" title="How this is calculated">ℹ</button></div>
           <div class="info-panel" id="info-forecast" style="margin:0.5rem 0 0.25rem">
-            <div class="info-row"><strong>Monte Carlo simulation</strong> runs your historical weekly throughput through 10,000 simulated 30-day periods to estimate how many items you are likely to complete. The result is a probability distribution — not a single number.</div>
+            <div class="info-row"><strong>Monte Carlo simulation</strong> replays your weekly throughput from the <strong>last 4 weeks</strong> (quiet weeks included) through 2,000 simulated 30-day periods to estimate how many items you are likely to complete. The result is a probability distribution — not a single number.</div>
             <div class="info-row"><strong>How to read it:</strong> "85% chance of 6 or more" means that in 85% of simulated futures you complete at least 6 items. More reliable than velocity because it captures the natural variability in your actual delivery, not an idealised average.</div>
           </div>
-          <div class="ic2-q">What can we close this month?</div>
-          <div class="ic2-sub">Monte Carlo — likely completions in the next 30 days</div>
+          <div class="ic2-q">How many items can we finish in the next 30 days?</div>
+          <div class="ic2-sub">Based on the last 4 weeks — Monte Carlo</div>
           <div id="ic-fc-stats"><span style="color:#94a3b8;font-size:0.85rem">No data yet</span></div>
         </div>
         <div class="ic2-card ic2-dark">
@@ -1136,12 +1136,12 @@ License: MIT
         <div class="ic2-card ic2-teal">
           <div class="ic2-label" style="display:flex;align-items:center;gap:0.4rem">Focus <button class="info-btn" data-info="info-multitask" onclick="toggleInfo('info-multitask')" style="border-color:#0d9488;color:#0d9488" title="How this is calculated">ℹ</button></div>
           <div class="info-panel" id="info-multitask" style="margin:0.5rem 0 0.25rem;background:#f0fdfa;border-color:#99f6e4">
-            <div class="info-row"><strong>Multitasking index</strong> = for each item that was started, count how many other items were already in progress at that moment. Average this across all items. A high number means the team is constantly context-switching.</div>
+            <div class="info-row"><strong>Multitasking index</strong> = for each item started in the last 4 weeks (up to the latest date in the file), count how many other items were already in progress at that moment. Average those counts. It shows how the team is behaving lately; the black WIP card shows how much is in progress right now. A high number means the team keeps starting new work while lots is still open.</div>
             <div class="info-row"><strong>Research suggests</strong> that switching between more than 2–3 tasks simultaneously causes significant overhead. Each switch costs focus time and delays everything in flight. High multitasking index is a leading indicator of long cycle times.</div>
             <div class="info-row"><strong>How to improve it:</strong> Set a WIP limit. Finish existing items before starting new ones. Even one person fully finishing one thing before picking up another makes a measurable difference.</div>
           </div>
-          <div class="ic2-q">How many balls in the air when we start something?</div>
-          <div class="ic2-sub">Average in-progress items at the moment each new item is started</div>
+          <div class="ic2-q">Lately, how much is already open when we start something new?</div>
+          <div class="ic2-sub">Last 4 weeks — average in-progress items at the moment each new item started</div>
           <div id="ic-multitask-content"><span style="color:#94a3b8;font-size:0.85rem">No data yet</span></div>
         </div>
       </div>
@@ -1594,8 +1594,10 @@ License: MIT
         <div class="info-panel" id="info-forecast-tab">
           <strong>Monte Carlo simulation</strong> runs 10,000 trials by randomly sampling your actual weekly throughput history. Because it uses real delivery patterns — including slow weeks, fast weeks, and everything in between — the ranges reflect genuine variability, not a straight-line average.<br><br>
           <strong>Reading the confidence levels</strong> — higher confidence means a more conservative (smaller) guarantee. "95% confidence: 37 items" means the team completed at least 37 items in 95 out of 100 simulated futures — very likely, but a cautious number to commit to. "85% confidence: 42 items" means at least 42 items in 85 out of 100 — the recommended planning number. "50% confidence: 49 items" means the team hit that in only half of futures — optimistic, not a commitment. So: the higher the confidence %, the lower the item count. Use <strong>85% as your planning target</strong> — realistic without underselling your team or overpromising to stakeholders.<br><br>
-          <strong>How many by date?</strong> — Pick a target date. The simulation tells you how many items you can realistically deliver by then. The backlog list below shows a cut-line at each confidence band so you can see which specific items are inside the commitment.<br><br>
-          <strong>When will we finish?</strong> — Pick an item count (defaults to your current WIP + backlog). The simulation tells you the likely completion date at each confidence level. Higher confidence = later (safer) date. Lower confidence = earlier date but higher risk of missing.<br><br>
+          <strong>How many, not which.</strong> The forecast says how many items get finished, or when a number of items will be done. It can't say which tickets — that depends on what the team picks up next.<br><br>
+          <strong>Pick a release</strong> in the Release bar to forecast a real scope. Items to finish and the target date fill in from it (type over them to try other numbers), and you get two answers: <em>If the team focuses on it</em> uses everything the team finished (Measure to, testing switch and filters still apply — only the release pill is ignored); <em>At today's mix</em> uses the release's own pace, i.e. the share of the team it is getting now. The gap between them is the conversation to have.<br><br>
+          <strong>How many by date?</strong> — Pick a target date. The simulation tells you how many items you can realistically finish by then.<br><br>
+          <strong>When will we finish?</strong> — Pick an item count (defaults to what's left). The simulation tells you the likely finish date at each confidence level. Higher confidence = later (safer) date.<br><br>
           <strong>Compare to previous</strong> — Import snapshot files exported from earlier runs to track how your forecast has shifted. A later 85% date or fewer 85% items means scope grew or throughput dropped. You can compare snapshots without running a new simulation — just import two or more files directly.
         </div>
         <div class="subtitle">Probability-based delivery ranges from your historical throughput. Not a commitment — a planning tool.</div>
@@ -1611,11 +1613,11 @@ License: MIT
           <div class="mc-controls">
             <div class="mc-control-group">
               <label>Target date</label>
-              <input type="date" id="mc-target-date">
+              <input type="date" id="mc-target-date" onchange="runHowManySimulation()">
             </div>
             <div class="mc-control-group">
               <label>Throughput window</label>
-              <select id="mc-howmany-window">
+              <select id="mc-howmany-window" onchange="runHowManySimulation()">
                 <option value="8">Last 8 weeks</option>
                 <option value="12" selected>Last 12 weeks</option>
                 <option value="26">Last 26 weeks</option>
@@ -1623,7 +1625,6 @@ License: MIT
                 <option value="">All time</option>
               </select>
             </div>
-            <button class="mc-run-btn" onclick="runHowManySimulation()">Run simulation</button>
           </div>
           <div id="mc-howmany-results"></div>
           <div id="mc-howmany-save" class="mc-save-bar" style="display:none"></div>
@@ -1634,11 +1635,11 @@ License: MIT
           <div class="mc-controls">
             <div class="mc-control-group">
               <label>Items to finish</label>
-              <input type="number" id="mc-item-count" min="1" max="500" value="20" style="width:5.5rem">
+              <input type="number" id="mc-item-count" min="1" max="500" value="20" style="width:5.5rem" oninput="runWhenSimulation()">
             </div>
             <div class="mc-control-group">
               <label>Throughput window</label>
-              <select id="mc-when-window">
+              <select id="mc-when-window" onchange="runWhenSimulation()">
                 <option value="8">Last 8 weeks</option>
                 <option value="12" selected>Last 12 weeks</option>
                 <option value="26">Last 26 weeks</option>
@@ -1646,7 +1647,6 @@ License: MIT
                 <option value="">All time</option>
               </select>
             </div>
-            <button class="mc-run-btn" onclick="runWhenSimulation()">Run simulation</button>
           </div>
           <div id="mc-when-note" style="font-size:0.8rem;color:#64748b;margin:-0.5rem 0 1rem"></div>
           <div id="mc-when-results"></div>
@@ -1793,7 +1793,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-11-17x';
+const VERSION = '2026-11-17za';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -7581,23 +7581,29 @@ function calculateMultitaskingIndex(cfg) {
     // Same WIP rule as the WIP card and WIP Over Time: from Active Work Starts (else Start) until it leaves
     .map(row => ({ start: getCachedDate(row, cfg.activeCol || cfg.startCol), end: getExitDate(row, cfg) }))
     .filter(r => r.start);
-  if (items.length < 2) return null;
+  // Only items STARTED in the last 4 weeks (to the latest date in the file) are averaged —
+  // "how are we behaving lately". What was already in progress is counted from all history.
+  const end = dataEndDate();
+  if (!end) return null;
+  const from = new Date(end); from.setDate(from.getDate() - 28);
+  const recent = items.filter(r => r.start > from && r.start <= end);
+  if (!recent.length) return { value: null, starts: 0 };
   let total = 0;
-  items.forEach(item => {
+  recent.forEach(item => {
     total += items.filter(other =>
       other !== item &&
       other.start < item.start &&
       (!other.end || other.end > item.start)
     ).length;
   });
-  return total / items.length;
+  return { value: total / recent.length, starts: recent.length };
 }
 
-function runMonteCarlo(completed, days) {
+function runMonteCarlo(completed, days, weeksBack) {
   days = days || 30;
   if (completed.length < 4) return null;
 
-  const rates = weeklyThroughput(completed.map(d => d.endDate)).map(w => w.count);
+  const { rates } = mcWeeklyRates(completed, weeksBack);
   if (rates.length < 2) return null;
 
   const weeks = days / 7;
@@ -7650,7 +7656,7 @@ function renderInsights(completed, wip, committedQueue, backlog, p50, p70, p85, 
 
   // Forecast card
   const fcEl = document.getElementById('ic-fc-stats');
-  const fc = runMonteCarlo(completed);
+  const fc = runMonteCarlo(completed, 30, 4);   // next 30 days, from the last 4 weeks' throughput
   if (fc) {
     fcEl.innerHTML = [
       { pct: 95, val: fc.p95, color: '#22c55e' },
@@ -7659,7 +7665,7 @@ function renderInsights(completed, wip, committedQueue, backlog, p50, p70, p85, 
       { pct: 50, val: fc.p50, color: '#f97316' },
     ].map(s => `<div class="ic2-stat-row"><span class="ic2-dot" style="background:${s.color}"></span><strong>${s.pct}%</strong>&nbsp;chance of&nbsp;<strong>${s.val}</strong>&nbsp;or more</div>`).join('');
   } else {
-    fcEl.innerHTML = '<span style="color:#94a3b8;font-size:0.85rem">Need at least 4 completed items across 2+ weeks</span>';
+    fcEl.innerHTML = '<span style="color:#94a3b8;font-size:0.85rem">Need at least 4 completed items across 2+ of the last 4 weeks</span>';
   }
 
   // WIP card
@@ -7708,16 +7714,19 @@ function renderInsights(completed, wip, committedQueue, backlog, p50, p70, p85, 
 
   // Multitasking index card
   const mtEl = document.getElementById('ic-multitask-content');
-  const mtIdx = calculateMultitaskingIndex(cfg);
-  if (mtIdx === null) {
+  const mtRes = calculateMultitaskingIndex(cfg);
+  const mtIdx = mtRes ? mtRes.value : null;
+  if (!mtRes) {
     mtEl.innerHTML = '<div style="font-size:0.85rem;color:#94a3b8">Not enough data</div>';
+  } else if (mtIdx === null) {
+    mtEl.innerHTML = '<div style="font-size:0.85rem;color:#94a3b8">Nothing new started in the last 4 weeks</div>';
   } else {
     const signal = mtIdx < 3 ? 'green' : mtIdx < 7 ? 'amber' : 'red';
     const label  = mtIdx < 3 ? 'Low — focused team' : mtIdx < 7 ? 'Moderate — worth watching' : 'High — consider limiting WIP';
     mtEl.innerHTML = `
       <div class="ic2-bignum" style="color:#0ea5e9">${mtIdx.toFixed(1)}</div>
       <div style="font-size:0.82rem;color:#475569;margin-top:0.4rem;line-height:1.4">
-        other items already in progress on average when each new item starts
+        other items already in progress on average when each new item started — last 4 weeks (${mtRes.starts} started)
       </div>
       <div class="ic2-signal ${signal}">${label}</div>`;
   }
@@ -9077,353 +9086,157 @@ function renderBurnUpTab() {
   });
 }
 
-function renderForecast(completed, wip, backlog) {
-  // Set default target date to 30 days from now on first load
-  const targetEl = document.getElementById('mc-target-date');
-  if (!targetEl.value) {
-    const d = new Date();
-    d.setDate(d.getDate() + 30);
-    targetEl.value = d.toISOString().slice(0, 10);
-  }
-
-  // Auto-populate item count from live data
-  const countEl = document.getElementById('mc-item-count');
-  const autoCount = wip.length + backlog.length;
-  if (autoCount > 0 && !countEl._userEdited) countEl.value = autoCount;
-  countEl.addEventListener('input', () => { countEl._userEdited = true; }, { once: true });
-
-  const noteEl = document.getElementById('mc-when-note');
+// ── Forecast tab ──
+// Monte Carlo answers HOW MANY or WHEN — never WHICH tickets (that depends on what the team picks up).
+// With a release picked: inputs follow it (items left, target date) and two answers are shown —
+// the whole team's pace ("if the team focuses on it") and the release's own pace ("at today's mix").
+// The team pace ignores the release pill only; Measure to, testing switch and filters still apply.
+let fcAutoKey = null;   // release|measure the inputs were last auto-filled for
+function fcContext() {
+  const payload = lastRenderPayload;
+  if (!payload) return null;
   const cfg = getConfig();
-  const blockedNowWhen = cfg.blockedFlagCol
-    ? wip.filter(i => i.currentlyBlocked).length
-    : cfg.blockedDaysCol ? wip.filter(i => i.blockedDays > 0).length : 0;
-  if (autoCount > 0) {
-    const parts = [];
-    if (wip.length)     parts.push(`${wip.length} in progress`);
-    if (backlog.length) parts.push(`${backlog.length} in backlog`);
-    let note = `Auto-filled from your data: ${parts.join(' + ')} = ${autoCount} items.`;
-    if (blockedNowWhen > 0) {
-      const adjustedCount = autoCount - blockedNowWhen;
-      note += ` <span style="color:#dc2626;font-weight:600">${blockedNowWhen} currently blocked</span> — these are included but may not complete on their normal schedule.`;
-      note += ` <button onclick="document.getElementById('mc-item-count').value=${adjustedCount};document.getElementById('mc-item-count')._userEdited=true" style="margin-left:0.4rem;padding:0.15rem 0.55rem;border-radius:5px;border:1px solid #dc2626;background:#fef2f2;color:#dc2626;font-size:0.75rem;font-weight:600;cursor:pointer">Exclude ${blockedNowWhen} blocked</button>`;
-    }
-    note += ' Adjust to include items not yet written.';
-    noteEl.innerHTML = note;
-  } else {
-    noteEl.textContent = 'No backlog items in your CSV — enter the number of items you need to finish.';
+  const rel = cfg.release || null;
+  const team = rel ? processData({ ...cfg, release: null }).completed : payload.completed;
+  const s = rel ? releaseStats(rel) : null;
+  const left = s ? s.remaining : payload.wip.length + (payload.committedQueue || []).length + payload.backlog.length;
+  const seg = cfg.milestone ? cfg.milestone.name : null;
+  return { payload, cfg, rel, team, s, left, target: rel ? getRelTarget(rel, seg) : '' };
+}
+function fcRunCount(rates, days) {
+  const SIM = 10000, weeks = days / 7, full = Math.floor(weeks), frac = weeks - full, res = new Array(SIM);
+  for (let s = 0; s < SIM; s++) {
+    let done = 0;
+    for (let w = 0; w < full; w++) done += rates[Math.floor(Math.random() * rates.length)];
+    if (frac > 0) done += rates[Math.floor(Math.random() * rates.length)] * frac;
+    res[s] = Math.floor(done);
   }
+  res.sort((a, b) => a - b);
+  return { p95: res[Math.floor(0.05 * SIM)], p85: res[Math.floor(0.15 * SIM)], p70: res[Math.floor(0.30 * SIM)], p50: res[Math.floor(0.50 * SIM)] };
+}
+function fcRunWhen(rates, N) {
+  if (!rates.some(r => r > 0)) return null;
+  const SIM = 10000, wk = new Int32Array(SIM);
+  for (let s = 0; s < SIM; s++) {
+    let done = 0, w = 0;
+    while (done < N && w < 520) { done += rates[Math.floor(Math.random() * rates.length)]; w++; }
+    wk[s] = w;
+  }
+  const sorted = Array.from(wk).sort((a, b) => a - b);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const at = p => mcAddDays(today, sorted[Math.min(SIM - 1, Math.floor(p * SIM))] * 7);
+  return { p50: at(0.50), p70: at(0.70), p85: at(0.85), p95: at(0.95) };
+}
+const fcHead = (title, sub) => `<div style="margin:1.1rem 0 0.5rem"><div style="font-weight:700;color:#1e293b;font-size:0.92rem">${title}</div><div style="font-size:0.78rem;color:#64748b">${sub}</div></div>`;
+
+function renderForecast() {
+  const c = fcContext();
+  if (!c) return;
+  const key = `${c.rel ? c.rel.name : ''}|${c.cfg.milestone ? c.cfg.milestone.name : ''}`;
+  const targetEl = document.getElementById('mc-target-date');
+  const countEl  = document.getElementById('mc-item-count');
+  if (key !== fcAutoKey) {          // release or measure changed → refill both inputs
+    fcAutoKey = key;
+    const d = new Date(); d.setDate(d.getDate() + 30);
+    const today = dayKey(new Date());
+    targetEl.value = c.target && c.target > today ? c.target : dayKey(d);
+    countEl.value = Math.max(1, c.left || 1);
+  }
+  const noteEl = document.getElementById('mc-when-note');
+  noteEl.innerHTML = c.rel
+    ? `Filled from <strong>${relEsc(c.rel.name)}</strong>: ${c.left} item${c.left === 1 ? '' : 's'} left${c.target ? ` · target ${fmtDate(new Date(c.target + 'T00:00:00'))}` : ''}. Type over either to try other numbers.`
+    : `Filled from your data: ${c.left} items not finished (in progress + committed + backlog). Pick a release in the bar above to forecast a real scope.`;
+  runHowManySimulation();
+  runWhenSimulation();
 }
 
 function runHowManySimulation() {
-  const payload = lastRenderPayload;
-  if (!payload) return;
-  const completed  = payload.completed;
-  const targetStr  = document.getElementById('mc-target-date').value;
-  const weeksBack  = parseInt(document.getElementById('mc-howmany-window').value) || null;
-  const resultsEl  = document.getElementById('mc-howmany-results');
-
+  const c = fcContext();
+  if (!c) return;
+  const targetStr = document.getElementById('mc-target-date').value;
+  const weeksBack = parseInt(document.getElementById('mc-howmany-window').value) || null;
+  const resultsEl = document.getElementById('mc-howmany-results');
   if (!targetStr) { resultsEl.innerHTML = '<div style="color:#94a3b8;font-size:0.85rem">Pick a target date.</div>'; return; }
-
   const targetDate = new Date(targetStr + 'T00:00:00');
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const daysAhead = Math.round((targetDate - today) / 86400000);
-
   if (daysAhead <= 0) { resultsEl.innerHTML = '<div style="color:#ef4444;font-size:0.85rem">Target date must be in the future.</div>'; return; }
 
-  const { rates, from: tpFrom, to: tpTo } = mcWeeklyRates(completed, weeksBack);
+  const { rates, from: tpFrom, to: tpTo } = mcWeeklyRates(c.team, weeksBack);
   if (rates.length < 2) { resultsEl.innerHTML = '<div style="color:#94a3b8;font-size:0.85rem">Need at least 2 weeks of throughput history.</div>'; return; }
-
-  const SIM = 10000;
-  const weeksAhead = daysAhead / 7;
-  const fullWeeks  = Math.floor(weeksAhead);
-  const frac       = weeksAhead - fullWeeks;
-  const results    = new Array(SIM);
-
-  for (let s = 0; s < SIM; s++) {
-    let done = 0;
-    for (let w = 0; w < fullWeeks; w++) done += rates[Math.floor(Math.random() * rates.length)];
-    if (frac > 0) done += rates[Math.floor(Math.random() * rates.length)] * frac;
-    results[s] = Math.floor(done);
-  }
-  results.sort((a, b) => a - b);
-
-  const p95 = results[Math.floor(0.05 * SIM)];
-  const p85 = results[Math.floor(0.15 * SIM)];
-  const p70 = results[Math.floor(0.30 * SIM)];
-  const p50 = results[Math.floor(0.50 * SIM)];
+  const team = fcRunCount(rates, daysAhead);
+  const mix = c.s && c.s.done >= 3 && c.s.rates.length >= 2 ? fcRunCount(c.s.rates, daysAhead) : null;
 
   lastHowManyResult = {
     sourceFile: currentSourceFile, label: '',
     throughputFrom: tpFrom, throughputTo: tpTo,
-    parameters: { targetDate: targetStr },
-    results: { p95, p85, p70, p50 },
+    parameters: { targetDate: targetStr, release: c.rel ? c.rel.name : null, itemsLeft: c.rel ? c.left : null },
+    results: team, mixResults: mix,
     rates, weeksOfData: rates.length,
   };
 
-  const maxVal = Math.max(p50, 1);
-  const pcts   = [p95, p85, p70, p50];
-  const pctPct = pcts.map(v => (v / maxVal * 100).toFixed(1));
+  const cap = c.rel ? c.left : null;
+  const val = v => cap !== null && v >= cap ? `All ${cap}` : `${v}+ items`;
+  const cards = r => `<div class="mc-headlines">${[
+      { pct: 95, val: r.p95, cls: 'mc-s95', label: 'Very safe — high certainty' },
+      { pct: 85, val: r.p85, cls: 'mc-s85', label: 'Recommended planning number ★' },
+      { pct: 70, val: r.p70, cls: 'mc-s70', label: 'Likely but not safe to commit' },
+      { pct: 50, val: r.p50, cls: 'mc-s50', label: 'Optimistic — wrong half the time' },
+    ].map(s => `<div class="mc-stat ${s.cls}"><div class="mc-stat-pct">${s.pct}% confidence</div><div class="mc-stat-val">${val(s.val)}</div><div class="mc-stat-label">${s.label}</div></div>`).join('')}</div>`;
 
-  resultsEl.innerHTML = `
-    <div style="font-size:0.82rem;color:#64748b;margin-bottom:1rem">
-      Items completable by <strong>${fmtDate(targetDate)}</strong> &nbsp;·&nbsp; ${daysAhead}d &nbsp;·&nbsp; ${rates.length} weeks of data &nbsp;·&nbsp; 10,000 trials
-    </div>
-    <div class="mc-headlines">
-      ${[
-        { pct: 95, val: p95, cls: 'mc-s95', label: 'Very safe — lower number, high certainty' },
-        { pct: 85, val: p85, cls: 'mc-s85', label: 'Recommended planning target ★' },
-        { pct: 70, val: p70, cls: 'mc-s70', label: 'Likely but not safe to commit' },
-        { pct: 50, val: p50, cls: 'mc-s50', label: 'Optimistic — wrong half the time' },
-      ].map(s => `
-        <div class="mc-stat ${s.cls}">
-          <div class="mc-stat-pct">${s.pct}% confidence</div>
-          <div class="mc-stat-val">${s.val}+ items</div>
-          <div class="mc-stat-label">${s.label}</div>
-        </div>`).join('')}
-    </div>
-    <div class="mc-spread-bar">
-      <div class="mc-spread-label">Uncertainty range — lower confidence = more items, higher uncertainty</div>
-      <div class="mc-spread-track">
-        ${[
-          { from: pctPct[0], to: pctPct[1], color: '#bbf7d0' },
-          { from: pctPct[1], to: pctPct[2], color: '#fde68a' },
-          { from: pctPct[2], to: pctPct[3], color: '#fed7aa' },
-        ].map(seg => `<div class="mc-spread-segment" style="left:${seg.from}%;width:${(parseFloat(seg.to)-parseFloat(seg.from)).toFixed(1)}%;background:${seg.color}"></div>`).join('')}
-        ${[
-          { pos: pctPct[0], val: p95, label: '95%' },
-          { pos: pctPct[1], val: p85, label: '85%' },
-          { pos: pctPct[2], val: p70, label: '70%' },
-          { pos: pctPct[3], val: p50, label: '50%' },
-        ].map(m => `<div class="mc-spread-marker" style="left:${m.pos}%">
-          <div style="font-size:0.68rem;color:#94a3b8">${m.label}</div>
-          <div style="font-size:0.78rem;font-weight:700;color:#1e293b">${m.val}</div>
-        </div>`).join('')}
-      </div>
-    </div>
-  `;
-
-  // ── Cut-line item list ────────────────────────────────────────────────────
-  const allItems = [
-    ...(payload.wip    || []).map(i => ({ ...i, _kind: 'wip' })),
-    ...(payload.backlog || []).map(i => ({ ...i, _kind: 'backlog' })),
-  ];
-  const hasItems = allItems.length > 0;
-  const dateLabel = fmtDate(targetDate);
-
-  // Build zones — skip zones where from > to (duplicate thresholds)
-  const zones = [
-    { label: 'Very likely',  sub: `95%+ confident done by ${dateLabel}`, hCls: 'mc-zh-95',  rCls: 'mc-row-95',  from: 1,         to: p95             },
-    { label: 'Likely',       sub: `85% confident done by ${dateLabel}`,  hCls: 'mc-zh-85',  rCls: 'mc-row-95',  from: p95 + 1,   to: p85             },
-    { label: 'Possible',     sub: `70% confident done by ${dateLabel}`,  hCls: 'mc-zh-70',  rCls: 'mc-row-70',  from: p85 + 1,   to: p70             },
-    { label: 'Optimistic',   sub: `50% confident done by ${dateLabel}`,  hCls: 'mc-zh-50',  rCls: 'mc-row-50',  from: p70 + 1,   to: p50             },
-    { label: 'Unlikely',     sub: `less than 50% chance by ${dateLabel}`,hCls: 'mc-zh-out', rCls: 'mc-row-out', from: p50 + 1,   to: Infinity        },
-  ].filter(z => z.from <= z.to);
-
-  const maxPos = hasItems ? Math.min(allItems.length, 100) : Math.min(p50 + 8, 60);
-
-  let listHTML = `
-    <div style="font-size:0.82rem;color:#64748b;margin:1.25rem 0 0.5rem">
-      ${hasItems
-        ? `${allItems.length} item${allItems.length !== 1 ? 's' : ''} ranked — cut lines show which ones make your deadline at each confidence level.`
-        : `Showing positions — load a CSV with backlog or in-progress items to see named items here.`}
-    </div>
-    <div class="mc-item-list mc-cutlist">
-      <div class="mc-item-row mc-list-header">
-        <div class="mc-item-pos">#</div>
-        <div>Item</div>
-        <div style="font-size:0.72rem;text-align:right;padding-right:0.5rem">Type</div>
-      </div>`;
-
-  zones.forEach(zone => {
-    const showTo = Math.min(zone.to === Infinity ? maxPos : zone.to, maxPos);
-    if (zone.from > maxPos) return;
-
-    listHTML += `<div class="mc-zone-header ${zone.hCls}"><strong>${zone.label}</strong>&ensp;—&ensp;${zone.sub}</div>`;
-
-    for (let pos = zone.from; pos <= showTo; pos++) {
-      if (hasItems) {
-        const item = allItems[pos - 1];
-        const name = [item.id, item.title].filter(Boolean).join(' — ') || `Item ${pos}`;
-        const kind = item._kind === 'wip' ? 'In progress' : 'Backlog';
-        listHTML += `<div class="mc-item-row ${zone.rCls}">
-          <div class="mc-item-pos">${pos}</div>
-          <div class="mc-item-name" title="${name.replace(/"/g,'&quot;')}">${name}</div>
-          <div style="font-size:0.72rem;color:#94a3b8;text-align:right;padding-right:0.5rem">${kind}</div>
-        </div>`;
-      } else {
-        listHTML += `<div class="mc-item-row ${zone.rCls}">
-          <div class="mc-item-pos">${pos}</div>
-          <div class="mc-item-name" style="color:#94a3b8">Item ${pos}</div>
-          <div style="font-size:0.72rem;color:#bdc6d0;text-align:right;padding-right:0.5rem">—</div>
-        </div>`;
-      }
-    }
-
-    if (zone.to !== Infinity && showTo < zone.to) {
-      listHTML += `<div style="padding:0.4rem 0.75rem;font-size:0.74rem;color:#94a3b8;font-style:italic">…${zone.to - showTo} more in this zone</div>`;
-    }
-  });
-
-  if (hasItems && allItems.length > maxPos) {
-    listHTML += `<div style="padding:0.55rem 0.75rem;font-size:0.75rem;color:#94a3b8;font-style:italic">…${allItems.length - maxPos} more items not shown. Headlines above cover all ${allItems.length}.</div>`;
+  let html = `<div style="font-size:0.82rem;color:#64748b;margin-bottom:0.5rem">Items finished by <strong>${fmtDate(targetDate)}</strong> · ${daysAhead} days${c.rel ? ` · <strong>${relEsc(c.rel.name)}</strong> has ${c.left} left` : ''}</div>`;
+  if (c.rel) {
+    html += fcHead('If the team focuses on it', `The whole team's pace — ${rates.length} weeks of everything finished, not just this release`) + cards(team);
+    html += fcHead(`At today's mix${c.s.share !== null ? ` — this release gets about ${Math.round(c.s.share * 100)}% of what the team finishes` : ''}`, "This release's own weekly pace since its work started (up to 12 weeks)")
+      + (mix ? cards(mix) : '<div style="color:#94a3b8;font-size:0.85rem">Too early — needs 3+ tickets done in this release.</div>');
+  } else {
+    html += `<div style="font-size:0.78rem;color:#64748b;margin-bottom:0.75rem">Team pace · ${rates.length} weeks of data · 10,000 trials</div>` + cards(team);
   }
-
-  listHTML += '</div>';
-  resultsEl.innerHTML += listHTML;
+  resultsEl.innerHTML = html;
   showSaveBar('howmany');
 }
 
 function runWhenSimulation() {
-  const payload = lastRenderPayload;
-  if (!payload) return;
-  const { completed, wip, backlog } = payload;
-  const N         = Math.min(parseInt(document.getElementById('mc-item-count').value) || 20, 500);
+  const c = fcContext();
+  if (!c) return;
+  const N = Math.min(parseInt(document.getElementById('mc-item-count').value) || 1, 500);
   const weeksBack = parseInt(document.getElementById('mc-when-window').value) || null;
   const resultsEl = document.getElementById('mc-when-results');
 
-  const { rates, from: tpFrom, to: tpTo } = mcWeeklyRates(completed, weeksBack);
+  const { rates, from: tpFrom, to: tpTo } = mcWeeklyRates(c.team, weeksBack);
   if (rates.length < 2) { resultsEl.innerHTML = '<div style="color:#94a3b8;font-size:0.85rem">Need at least 2 weeks of throughput history.</div>'; return; }
+  const team = fcRunWhen(rates, N);
+  const mix = c.s && c.s.done >= 3 && c.s.rates.length >= 2 ? fcRunWhen(c.s.rates, N) : null;
+  if (!team) { resultsEl.innerHTML = '<div style="color:#94a3b8;font-size:0.85rem">Nothing finished in this window — pick a longer throughput window.</div>'; return; }
 
-  const SIM = 10000;
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-
-  // For each item position 1..N, track days-until-done across all trials
-  const compDays = Array.from({ length: N }, () => new Int32Array(SIM));
-
-  for (let s = 0; s < SIM; s++) {
-    let done = 0, days = 0;
-    while (done < N) {
-      const rate = rates[Math.floor(Math.random() * rates.length)];
-      days += 7;
-      const newDone = Math.min(done + rate, N);
-      for (let k = done; k < newDone; k++) compDays[k][s] = days;
-      done = newDone;
-    }
-  }
-
-  // Percentiles for each position (sorted ascending = p50 is earlier = optimistic)
-  const posResults = compDays.map(arr => {
-    const sorted = [...arr].sort((a, b) => a - b);
-    return {
-      p50: sorted[Math.floor(0.50 * SIM)],
-      p70: sorted[Math.floor(0.70 * SIM)],
-      p85: sorted[Math.floor(0.85 * SIM)],
-      p95: sorted[Math.floor(0.95 * SIM)],
-    };
-  });
-
-  const headline = posResults[N - 1];
-
+  const iso = d => dayKey(d);
   lastWhenResult = {
     sourceFile: currentSourceFile, label: '',
     throughputFrom: tpFrom, throughputTo: tpTo,
-    parameters: { itemCount: N },
-    results: {
-      p50Date: mcAddDays(today, headline.p50).toISOString().slice(0, 10),
-      p70Date: mcAddDays(today, headline.p70).toISOString().slice(0, 10),
-      p85Date: mcAddDays(today, headline.p85).toISOString().slice(0, 10),
-      p95Date: mcAddDays(today, headline.p95).toISOString().slice(0, 10),
-    },
+    parameters: { itemCount: N, release: c.rel ? c.rel.name : null },
+    results: { p50Date: iso(team.p50), p70Date: iso(team.p70), p85Date: iso(team.p85), p95Date: iso(team.p95) },
+    mixResults: mix ? { p50Date: iso(mix.p50), p70Date: iso(mix.p70), p85Date: iso(mix.p85), p95Date: iso(mix.p95) } : null,
     rates, weeksOfData: rates.length,
   };
 
-  // Build named item list (WIP first, then backlog, cap display at 100 rows)
-  const allItems = [
-    ...wip.map(i => ({ ...i, _kind: 'wip' })),
-    ...backlog.map(i => ({ ...i, _kind: 'backlog' })),
-  ];
-  const hasItems = allItems.length > 0;
-  const showCount = Math.min(N, 100);
+  const tg = c.target ? new Date(c.target + 'T00:00:00') : null;
+  const cards = r => `<div class="mc-headlines">${[
+      { pct: 50, date: r.p50, cls: 'mc-s50', label: 'Optimistic — wrong half the time' },
+      { pct: 70, date: r.p70, cls: 'mc-s70', label: 'Likely but not safe to commit' },
+      { pct: 85, date: r.p85, cls: 'mc-s85', label: 'Recommended plan date ★' },
+      { pct: 95, date: r.p95, cls: 'mc-s95', label: 'Conservative — very safe' },
+    ].map(s => `<div class="mc-stat ${s.cls}"><div class="mc-stat-pct">${s.pct}% confidence</div><div class="mc-stat-val" style="font-size:1.05rem;letter-spacing:-0.02em">${fmtDate(s.date)}</div><div class="mc-stat-label">${s.label}${tg && s.pct === 85 ? (s.date <= tg ? ' · <strong style="color:#15803d">before target</strong>' : ' · <strong style="color:#dc2626">after target</strong>') : ''}</div></div>`).join('')}</div>`;
 
-  let listHTML = '';
-  if (hasItems) {
-    const renderRow = (item, pos, pr, rowCls) => {
-      const name = [item.id, item.title].filter(Boolean).join(' — ') || `Item ${pos}`;
-      return `<div class="mc-item-row ${rowCls}">
-        <div class="mc-item-pos">${pos}</div>
-        <div class="mc-item-name" title="${name.replace(/"/g, '&quot;')}">${name}</div>
-        <div class="mc-date-cell mc-d50">${fmtDate(mcAddDays(today, pr.p50))}</div>
-        <div class="mc-date-cell mc-d70">${fmtDate(mcAddDays(today, pr.p70))}</div>
-        <div class="mc-date-cell mc-d85">${fmtDate(mcAddDays(today, pr.p85))}</div>
-        <div class="mc-date-cell mc-d95">${fmtDate(mcAddDays(today, pr.p95))}</div>
-      </div>`;
-    };
-
-    listHTML = `<div class="mc-item-list">
-      <div class="mc-item-row mc-list-header">
-        <div class="mc-item-pos">#</div>
-        <div>Item</div>
-        <div class="mc-date-cell mc-d50">50%</div>
-        <div class="mc-date-cell mc-d70">70%</div>
-        <div class="mc-date-cell mc-d85">85% ★</div>
-        <div class="mc-date-cell mc-d95">95%</div>
-      </div>`;
-
-    let pos = 0;
-    if (wip.length) {
-      listHTML += `<div class="mc-section-divider">In progress · ${wip.length} items</div>`;
-      wip.slice(0, showCount).forEach(item => {
-        listHTML += renderRow(item, ++pos, posResults[pos - 1], 'mc-wip-row');
-      });
-    }
-    if (backlog.length && pos < showCount) {
-      listHTML += `<div class="mc-section-divider">Backlog · ${backlog.length} items</div>`;
-      backlog.slice(0, showCount - pos).forEach(item => {
-        listHTML += renderRow(item, ++pos, posResults[pos - 1], 'mc-backlog-row');
-      });
-    }
-    if (N > showCount) {
-      listHTML += `<div style="padding:0.55rem 0.75rem;font-size:0.75rem;color:#94a3b8;font-style:italic">…and ${N - showCount} more items not shown. Headlines above cover all ${N}.</div>`;
-    }
-    listHTML += '</div>';
+  let html = `<div style="font-size:0.82rem;color:#64748b;margin-bottom:0.5rem">Finishing <strong>${N} item${N === 1 ? '' : 's'}</strong>${c.rel ? ` in <strong>${relEsc(c.rel.name)}</strong>` : ''}${tg ? ` · target ${fmtDate(tg)}` : ''}</div>`;
+  if (c.rel) {
+    html += fcHead('If the team focuses on it', `The whole team's pace — ${rates.length} weeks of everything finished, not just this release`) + cards(team);
+    html += fcHead(`At today's mix${c.s.share !== null ? ` — this release gets about ${Math.round(c.s.share * 100)}% of what the team finishes` : ''}`, "This release's own weekly pace since its work started (up to 12 weeks)")
+      + (mix ? cards(mix) : '<div style="color:#94a3b8;font-size:0.85rem">Too early — needs 3+ tickets done in this release.</div>');
+    html += `<div style="font-size:0.78rem;color:#64748b;margin-top:0.75rem">The gap between the two is the conversation: the earlier date needs the team to make this release the priority.</div>`;
   } else {
-    // No named items — show key milestones
-    const milestones = [...new Set([1, Math.ceil(N*0.25), Math.ceil(N*0.5), Math.ceil(N*0.75), N])];
-    listHTML = `
-      <div style="font-size:0.78rem;color:#64748b;margin-bottom:0.6rem">No named items in your data — showing checkpoints:</div>
-      <div class="mc-item-list">
-        <div class="mc-item-row mc-list-header">
-          <div class="mc-item-pos">#</div>
-          <div>Checkpoint</div>
-          <div class="mc-date-cell mc-d50">50%</div>
-          <div class="mc-date-cell mc-d70">70%</div>
-          <div class="mc-date-cell mc-d85">85% ★</div>
-          <div class="mc-date-cell mc-d95">95%</div>
-        </div>
-        ${milestones.map(pos => {
-          const pr = posResults[pos - 1];
-          const lbl = pos === 1 ? 'First item done' : pos === N ? `All ${N} done` : `${pos} of ${N} done`;
-          return `<div class="mc-item-row">
-            <div class="mc-item-pos">${pos}</div>
-            <div class="mc-item-name">${lbl}</div>
-            <div class="mc-date-cell mc-d50">${fmtDate(mcAddDays(today, pr.p50))}</div>
-            <div class="mc-date-cell mc-d70">${fmtDate(mcAddDays(today, pr.p70))}</div>
-            <div class="mc-date-cell mc-d85">${fmtDate(mcAddDays(today, pr.p85))}</div>
-            <div class="mc-date-cell mc-d95">${fmtDate(mcAddDays(today, pr.p95))}</div>
-          </div>`;
-        }).join('')}
-      </div>`;
+    html += `<div style="font-size:0.78rem;color:#64748b;margin-bottom:0.75rem">Team pace · ${rates.length} weeks of data · 10,000 trials</div>` + cards(team);
   }
-
-  resultsEl.innerHTML = `
-    <div style="font-size:0.82rem;color:#64748b;margin-bottom:1rem">
-      Finishing <strong>${N} items</strong> &nbsp;·&nbsp; ${rates.length} weeks of data &nbsp;·&nbsp; 10,000 simulations
-    </div>
-    <div class="mc-headlines">
-      ${[
-        { pct: 50, date: mcAddDays(today, headline.p50), cls: 'mc-s50', label: 'Optimistic — wrong half the time' },
-        { pct: 70, date: mcAddDays(today, headline.p70), cls: 'mc-s70', label: 'Likely but not safe to commit' },
-        { pct: 85, date: mcAddDays(today, headline.p85), cls: 'mc-s85', label: 'Recommended plan date' },
-        { pct: 95, date: mcAddDays(today, headline.p95), cls: 'mc-s95', label: 'Conservative — very safe' },
-      ].map(s => `
-        <div class="mc-stat ${s.cls}">
-          <div class="mc-stat-pct">${s.pct}% confidence</div>
-          <div class="mc-stat-val" style="font-size:1.05rem;letter-spacing:-0.02em">${fmtDate(s.date)}</div>
-          <div class="mc-stat-label">${s.label}</div>
-        </div>`).join('')}
-    </div>
-    ${listHTML}
-  `;
+  resultsEl.innerHTML = html;
   showSaveBar('when');
 }
 
