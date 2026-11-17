@@ -1790,7 +1790,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-11-17q';
+const VERSION = '2026-11-17r';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -5821,7 +5821,7 @@ function buildCFDData() {
       const wip = stageCounts[si][wi] - stageCounts[si + 1][wi];
       if (wip <= 0) return null;
       const tp = countUpto(exitSorted[si], wk) - countUpto(exitSorted[si], wk - windowMs);
-      if (tp === 0) return null;
+      if (tp < 3) return null;   // fewer than 3 leaving in 4 weeks — too few to estimate (small releases gave silly ~280d)
       return Math.round(wip / (tp / 28));
     });
   });
@@ -5946,7 +5946,7 @@ function renderCFD() {
           borderColor: CFD_COLORS[colorIdx],
           borderWidth: 1.5,
           fill: i === 0 ? 'origin' : '-1',
-          tension: 0.3, pointRadius: 0, pointHoverRadius: 4,
+          tension: 0, pointRadius: 0, pointHoverRadius: 4,   // straight lines: curves overshoot on small step-like data and bands cross
         };
       })
     },
