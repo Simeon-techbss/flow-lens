@@ -1788,7 +1788,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-11-17n';
+const VERSION = '2026-11-17o';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -2874,12 +2874,21 @@ function renderTestingBar() {
     + pill('hide', 'Hide', `Leave ${label} out of every report, so flow metrics show feature work only`)
     + pill('only', 'Only', `Show just ${label} in every report, e.g. how long fixes take`)
     + `<button class="ms-pill test-pill-link" onclick="switchToTab('defects')" title="Raised, in progress and fixed, by type">Bugs &amp; Defects report →</button>`;
-  // If the Filters panel already leaves all testing work out, Hide changes nothing and Only empties every report — say so
+  // Nothing to hide in view? Say exactly why: the selected release has no testing work, or the filters remove it
   const cfgOnly = { ...getConfig(), testingMode: 'only' };
   if (!allRows.some(r => rowMatchesFilters(r, cfgOnly))) {
-    const f = (cfgOnly.filters || []).filter(x => x.col && x.vals && x.vals.length)
-      .map(x => `${x.exclude ? 'hide' : 'only'} ${x.col} = ${x.vals.map(v => v === '__BLANK__' ? '(blank)' : v).join(', ')}`).join(' · ');
-    bar.innerHTML += `<span class="test-note">⚠ None in view: your filters${f ? ` (${relEsc(f)})` : ''}${cfgOnly.release ? ' or release' : ''} already leave testing work out, so Hide changes nothing${testingMode === 'only' ? ' and Only shows nothing' : ''}.</span>`;
+    const noRel = { ...cfgOnly, release: null };
+    const filtersAllow = allRows.some(r => rowMatchesFilters(r, noRel));
+    const onlyTxt = testingMode === 'only' ? ' and Only shows nothing' : '';
+    let msg;
+    if (cfgOnly.release && filtersAllow) {
+      msg = `ⓘ Release <strong>${relEsc(cfgOnly.release.name)}</strong> has no bugs or defects in it, so Hide changes nothing${onlyTxt}. If testers raise bugs against it, link them to its Epics (or its Fix Version) in Jira and they'll show here.`;
+    } else {
+      const f = (cfgOnly.filters || []).filter(x => x.col && x.vals && x.vals.length)
+        .map(x => `${x.exclude ? 'hide' : 'only'} ${x.col} = ${x.vals.map(v => v === '__BLANK__' ? '(blank)' : v).join(', ')}`).join(' · ');
+      msg = `⚠ Your filters${f ? ` (${relEsc(f)})` : ''} already leave all testing work out, so Hide changes nothing${onlyTxt}.`;
+    }
+    bar.innerHTML += `<span class="test-note">${msg}</span>`;
   }
   bar.style.display = 'flex';
 }
