@@ -447,6 +447,8 @@ License: MIT
     .rel-head h2 { font-size:1.15rem; font-weight:700; }
     .rel-btn { font-size:0.78rem; padding:0.35rem 0.8rem; border-radius:6px; border:1px solid #cbd5e1; background:white; color:#475569; cursor:pointer; white-space:nowrap; }
     .rel-btn:hover { border-color:#94a3b8; }
+    .rel-finish-tag { display:inline-block; font-size:0.7rem; font-weight:600; color:#5b21b6; background:#ede9fe; border:1px solid #c4b5fd; border-radius:20px; padding:0.05rem 0.5rem; margin-left:0.3rem; vertical-align:middle; white-space:nowrap; }
+    .rel-ms-own { box-shadow: inset 0 0 0 2px #a78bfa; border-radius:4px; }
     .rel-btn-primary { background:#0f766e; border-color:#0f766e; color:white; font-weight:600; }
     .rel-btn-primary:hover { background:#115e59; border-color:#115e59; }
     .rel-btn-danger { color:#b91c1c; border-color:#fecaca; }
@@ -1788,7 +1790,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-11-17o';
+const VERSION = '2026-11-17p';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -2031,7 +2033,7 @@ function processFile(file) {
 function resetTool() {
   // Every feature that adds a bar, config section or state must be cleared here too (Change dataset)
   allRows = []; columns = []; workflowStages = []; stageTypes = {}; hiddenStages = new Set();
-  milestones = []; activeMilestone = null;
+  milestones = []; activeMilestone = null; relAutoMs = null;
   releases = []; activeReleases = []; relComboTargets = {}; relDraft = null; relView = 'auto';
   defectTypes = []; defectFixCol = ''; testingMode = 'include';
   deferRule = { name: 'Deferred (CR)', conds: [{ col: '', vals: [] }] }; deferCache = new WeakMap(); defectCache = new WeakMap(); defectView = ''; defectListState = '';
@@ -2282,7 +2284,7 @@ function loadExampleData() {
       rules: [{ mode: 'in', col: 'Fix Version', vals: ['R2 Reporting Suite'] }] },
     { name: 'R3 Single Sign-On', target: tgt(10 * W), targets: { 'Code Complete': tgt(2 * W), 'SIT/UAT': tgt(6 * W) }, signoffs: {},
       rules: [{ mode: 'in', col: 'Epic Link', vals: ['AXM-0203'] }] },
-    { name: 'R4 Mobile App', target: tgt(16 * W), targets: { 'Code Complete': tgt(9 * W), 'SIT/UAT': tgt(13 * W) }, signoffs: {},
+    { name: 'R4 Mobile App', finish: 'Code Complete', target: tgt(16 * W), targets: { 'Code Complete': tgt(9 * W), 'SIT/UAT': tgt(13 * W) }, signoffs: {},
       rules: [{ mode: 'in', col: 'Fix Version', vals: ['R4 Mobile App'] }] },
   ];
 
@@ -2382,7 +2384,7 @@ function loadExampleData() {
 // ── Column config ──────────────────────────────────────────────────────────
 function setupConfig() {
   stageTypes = {};
-  milestones = []; activeMilestone = null;
+  milestones = []; activeMilestone = null; relAutoMs = null;
   releases = []; activeReleases = []; relComboTargets = {}; relDraft = null; relView = 'auto';
   defectTypes = defaultDefectTypes(); testingMode = 'include';
   defectFixCol = columns.find(c => /fix.?type|root.?cause|fix.?category|defect.?cause/i.test(c)) || '';
@@ -2643,6 +2645,7 @@ function updateMilestone(i, key, val) {
   if (key === 'name' && m.name && val.trim()) releases.forEach(r => {   // release target dates follow a renamed segment
     if (r.targets && r.targets[m.name] !== undefined) { r.targets[val.trim()] = r.targets[m.name]; delete r.targets[m.name]; }
     if (r.signoffs && r.signoffs[m.name] !== undefined) { r.signoffs[val.trim()] = r.signoffs[m.name]; delete r.signoffs[m.name]; }
+    if (r.finish === m.name) r.finish = val.trim();
   });
   m[key] = key === 'name' || key === 'short' ? val.trim() : val;
   if (key === 'name') renderMilestoneBar(); else if (key !== 'short') buildMilestoneUI();
@@ -2658,6 +2661,7 @@ function removeMilestone(i) {
 }
 
 function selectMilestone(name) {
+  relAutoMs = null;
   activeMilestone = name || null;
   renderMilestoneBar();
   renderAll(true);
@@ -3226,11 +3230,41 @@ function relKeepDraftOnLeave() {
   showToast(`Kept your changes to release "${relEsc(name)}".<br>Remember to <strong>Save config</strong> to keep them.`, 6000);
 }
 
-// Show just this release (null = All work)
-function selectRelease(i) {
+// ── Release finish line ── rel.finish: '' = follow the Measure-to pill (default), '*' = Full flow, else a flow segment name.
+// It's the release's own definition of done (e.g. Tranche 1 = done at Code Complete). Data is untouched — it only sets
+// which finish line the overview row uses and which Measure-to the release opens with.
+function relFinishSeg(rel) {          // undefined = follows the pill · null = Full flow · 'name' = that segment
+  if (!rel || !rel.finish) return undefined;
+  if (rel.finish === '*') return null;
+  const m = milestones.find(x => x.name === rel.finish);
+  return m && milestoneValid(m) ? m.name : undefined;
+}
+function relFinishLabel(seg) {
+  if (seg === undefined) return '';
+  if (seg === null) return 'Full flow';
+  const m = milestones.find(x => x.name === seg);
+  return m && m.short ? `${m.name} (${m.short})` : seg;
+}
+// Opening one release switches Measure to its finish line; leaving it puts the pill back as it was
+let relAutoMs = null;   // { from, to } while a release's finish line is driving the Measure-to pill
+function relApplyFinish() {
+  const one = activeReleases.length === 1 ? releases.find(r => r.name === activeReleases[0]) : null;
+  const seg = one ? relFinishSeg(one) : undefined;
+  if (seg !== undefined) {
+    if (!relAutoMs) relAutoMs = { from: activeMilestone };
+    activeMilestone = seg; relAutoMs.to = seg;
+  } else if (relAutoMs) {
+    if (activeMilestone === relAutoMs.to) activeMilestone = relAutoMs.from;
+    relAutoMs = null;
+  }
+}
+
+// Show just this release (null = All work). keepMs: leave the Measure-to pill alone (milestone grid clicks)
+function selectRelease(i, keepMs) {
   relKeepDraftOnLeave();
   activeReleases = (i === null || i === undefined) ? [] : [releases[i].name];
   relView = 'auto'; relDraft = null;
+  if (keepMs) relAutoMs = null; else relApplyFinish();
   renderAll(true);
 }
 
@@ -3240,6 +3274,7 @@ function toggleRelease(i) {
   const n = releases[i].name;
   activeReleases = activeReleases.includes(n) ? activeReleases.filter(x => x !== n) : [...activeReleases, n];
   relView = 'auto'; relDraft = null;
+  relApplyFinish();
   renderAll(true);
 }
 
@@ -3312,7 +3347,7 @@ function relMilestoneText(m) {
 function relOpenMilestone(i, seg) {
   activeMilestone = seg || null;
   renderMilestoneBar();
-  selectRelease(i);
+  selectRelease(i, true);
 }
 
 // Milestone grid + timeline on the Releases overview: every release × every finish line
@@ -3332,7 +3367,8 @@ function relMilestoneSection(usable) {
       : m.state === 'passed' ? `passed · ${m.done}/${m.total} done`
       : m.hit != null ? `${Math.round(m.hit * 100)}% chance · ${m.done}/${m.total}`
       : m.tg ? `${m.done}/${m.total} · too early to forecast` : `${m.done}/${m.total}${m.p85 ? ` · 85% by ${relShortDate(m.p85)}` : ''}`;
-    return `<td class="rel-ms-cell" onclick="relOpenMilestone(${d.i}, ${segArg(L)})" title="Open ${relEsc(d.r.name)} measured to ${relEsc(L.label)}">
+    const own = relFinishSeg(d.r) !== undefined && (relFinishSeg(d.r) || null) === (L.seg || null);
+    return `<td class="rel-ms-cell${own ? ' rel-ms-own' : ''}" onclick="relOpenMilestone(${d.i}, ${segArg(L)})" title="Open ${relEsc(d.r.name)} measured to ${relEsc(L.label)}${own ? ' · this release\'s finish line' : ''}">
       <span class="rel-ms-icon" style="color:${m.colour}">${icon}</span> <strong>${main}</strong><div class="rel-ms-sub" style="color:${m.state === 'open' && m.hit == null ? '#64748b' : m.colour}">${sub}</div></td>`;
   };
   const grid = `<table class="bd-table rel-ms-grid"><thead><tr><th>Release</th>${lines.map(L => `<th title="${relEsc(L.span)}">${relEsc(L.short)}<div class="muted" style="font-weight:400;text-transform:none;font-size:0.68rem">${relEsc(L.span)}</div></th>`).join('')}</tr></thead>
@@ -3452,15 +3488,16 @@ function renderReleaseOverview() {
   }
   const msSec = relMilestoneSection(usable);
   const rows = usable.map(({ r, i }) => {
-    const s = releaseStats(r);
+    const fseg = relFinishSeg(r);   // its own finish line, if set — else follow the Measure-to pill
+    const s = fseg === undefined ? releaseStats(r) : releaseStatsFor(r, fseg);
     const allDone = s.total > 0 && s.remaining === 0;
-    const tgOv = getRelTarget(r, cfg.milestone);
+    const tgOv = getRelTarget(r, fseg === undefined ? cfg.milestone : fseg);
     const fc0 = allDone ? `<span style="color:#16a34a;font-weight:600">Done ${fmtDate(s.finishedOn)}</span>` : s.mc ? fmtDate(s.mc.p85) : '<span class="muted">needs 3+ done</span>';
     const fc = fc0 + (tgOv ? `<div class="muted" style="font-size:0.72rem">target ${fmtDate(new Date(tgOv + 'T00:00:00'))}</div>` : '');
     return `<tr onclick="selectRelease(${i})" title="Show this release">
-      <td><strong>${relEsc(r.name)}</strong><div class="muted" style="font-size:0.72rem;margin-top:0.15rem">${relEsc(relRuleSummary(r, cfg))}</div></td>
+      <td><strong>${relEsc(r.name)}</strong>${fseg !== undefined ? ` <span class="rel-finish-tag" title="This release's finish line — set in Edit">done at ${relEsc(relFinishLabel(fseg))}</span>` : ''}<div class="muted" style="font-size:0.72rem;margin-top:0.15rem">${relEsc(relRuleSummary(r, cfg))}</div></td>
       <td style="min-width:200px">${relProgressBar(s)}<div class="muted" style="font-size:0.72rem;margin-top:0.2rem">${s.done} done · ${s.progress} in progress${s.cpCounts && s.progress ? ` (${s.cpCounts.map((n, b) => n ? `${n} ${relEsc(relCpLabel(b, s.cps))}` : '').filter(Boolean).join(' · ')})` : ''} · ${s.notstarted} not started${s.discarded ? ` · ${s.discarded} discarded` : ''}${s.deferred ? ` · <span style="color:#7e22ce">${s.deferred} ${relEsc(deferLabel())}</span>` : ''}${s.blockedNow ? ` · <span style="color:#b91c1c;font-weight:600">⛔ ${s.blockedNow} blocked now</span>` : ''}</div></td>
-      <td style="text-align:right">${s.done} / ${s.total}</td>
+      <td style="text-align:right">${s.done} / ${s.total}${allDone ? ' ✓' : ''}</td>
       <td style="text-align:right">${s.pace !== null ? s.pace.toFixed(1) : '—'}</td>
       <td style="text-align:right">${fc}</td>
       <td style="text-align:right"><button class="rel-btn" onclick="event.stopPropagation();editRelease(${i})">Edit</button></td>
@@ -3614,6 +3651,7 @@ function renderReleaseSummary(rel) {
         <button class="rel-btn" onclick="selectRelease(null)">← All releases</button>
         <h2 style="margin:0">${relEsc(rel.name)}</h2>
         <span class="muted" style="font-size:0.78rem">${relEsc(relRuleSummary(rel, cfg))}</span>
+        ${relFinishSeg(rel) !== undefined ? `<span class="rel-finish-tag" title="Set in Edit release">done at ${relEsc(relFinishLabel(relFinishSeg(rel)))}${(relFinishSeg(rel) || null) !== (cfg.milestone || null) ? ` · <a href="#" onclick="selectMilestone(${relFinishSeg(rel) ? `'${relEsc(relFinishSeg(rel)).replace(/'/g, "\\'")}'` : 'null'});return false">measure to it</a>` : ''}</span>` : ''}
       </div>
       <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
         ${idx >= 0 ? `<button class="rel-btn" onclick="editRelease(${idx})">Edit release</button>` : ''}
@@ -3803,6 +3841,13 @@ function renderReleaseBuilder() {
       </div>
     </div>
     <div id="rel-save-msg" style="color:#b91c1c;font-size:0.8rem;margin:-0.4rem 0 0.6rem"></div>
+    <div class="rel-b-targets"><span class="muted">Release is done at:</span>
+      <select onchange="relDraft.finish=this.value" title="Its own definition of done. The overview shows progress to this line and opening the release measures to it.">
+        <option value=""${!relDraft.finish ? ' selected' : ''}>— follows the Measure-to pill —</option>
+        <option value="*"${relDraft.finish === '*' ? ' selected' : ''}>Full flow (${relEsc(getBaseConfig().endCol || 'Done')})</option>
+        ${milestones.filter(milestoneValid).map(m => `<option value="${relEsc(m.name)}"${relDraft.finish === m.name ? ' selected' : ''}>${relEsc(m.short ? `${m.name} (${m.short})` : m.name)} · ${relEsc(m.end)}</option>`).join('')}
+      </select>
+    </div>
     <div class="rel-b-targets"><span class="muted">Target dates (optional):</span>
       ${[{ seg: null, label: 'Full flow' }].concat(milestones.filter(milestoneValid).map(m => ({ seg: m.name, label: m.short || m.name })))
         .map(L => `<label>${relEsc(L.label)} <input type="date" value="${L.seg ? ((relDraft.targets || {})[L.seg] || '') : (relDraft.target || '')}" onchange="relDraftTarget(${L.seg ? `'${relEsc(L.seg).replace(/'/g, "\\'")}'` : 'null'}, this.value)"></label>`).join('')}
@@ -4005,6 +4050,7 @@ function saveRelease() {
   } else releases.push(relDraft);
   activeReleases = [name];
   relDraft = null; relDraftIdx = -1; relView = 'auto';
+  relApplyFinish();
   configWasDirty = true;
   renderAll(true);
   showToast(`Release "${relEsc(name)}" saved for this session.<br>Remember to <strong>Save config</strong> to keep it.`);
@@ -7989,9 +8035,9 @@ function applyConfig(cfg) {
   if (cfg.dateRange !== undefined) document.getElementById('filter-range').value = cfg.dateRange;
 
   milestones = Array.isArray(cfg.milestones) ? cfg.milestones.map(m => ({ name: m.name || '', short: m.short || '', start: m.start || '', end: m.end || '' })) : [];
-  activeMilestone = cfg.activeMilestone || null;
+  activeMilestone = cfg.activeMilestone || null; relAutoMs = null;
   releases = Array.isArray(cfg.releases) ? cfg.releases.map(r => ({
-    name: r.name || '', target: r.target || '',
+    name: r.name || '', target: r.target || '', finish: typeof r.finish === 'string' ? r.finish : '',
     targets: r.targets && typeof r.targets === 'object' ? { ...r.targets } : {},
     signoffs: r.signoffs && typeof r.signoffs === 'object' ? JSON.parse(JSON.stringify(r.signoffs)) : {},
     rules: (r.rules || []).map(x => ({ mode: x.mode === 'out' ? 'out' : 'in', col: x.col || REL_ID, vals: Array.isArray(x.vals) ? x.vals : [] })),
