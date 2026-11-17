@@ -1793,7 +1793,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-11-17u';
+const VERSION = '2026-11-17v';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -5577,6 +5577,8 @@ function renderWIPOverTime() {
   const weeks = [];
   const cur = new Date(weekStart(minDate));
   while (cur <= today) { weeks.push(new Date(cur)); cur.setDate(cur.getDate() + 7); }
+  // End on today, so the last point matches the WIP card (weeks are counted on their Monday)
+  if (dayKey(weeks[weeks.length - 1]) !== dayKey(today)) weeks.push(new Date(today));
 
   const wips = weeks.map(wk => rows.filter(r => r.startDate <= wk && (!r.endDate || r.endDate > wk)).length);
   wipChartWeeks = weeks;
@@ -5610,7 +5612,7 @@ function renderWIPOverTime() {
         charts.wiptime.update('none');
         renderWIPItems();
       },
-      plugins: { legend: { labels: { color: '#475569', font: { size: 11 }, boxWidth: 16 } }, tooltip: { mode: 'index', intersect: false, callbacks: { title: it => `Week of ${new Date(it[0].parsed.x).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })}`, footer: () => 'Click to list these tickets' } } },
+      plugins: { legend: { labels: { color: '#475569', font: { size: 11 }, boxWidth: 16 } }, tooltip: { mode: 'index', intersect: false, callbacks: { title: it => { const d = new Date(it[0].parsed.x); return dayKey(d) === dayKey(new Date()) ? 'Today' : `Week of ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })}`; }, footer: () => 'Click to list these tickets' } } },
       scales: {
         x: { type: 'time', time: { unit: 'week', displayFormats: { week: 'd MMM yy' } },
              grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 11 } } },
@@ -5680,7 +5682,7 @@ function renderWIPItems() {
     }).join('')}</tbody></table></div>` : `<div class="muted" style="font-size:0.8rem">Nothing in progress that week.</div>`;
   el.innerHTML = `<div class="df-box${wipItemsClosed ? ' closed' : ''}"${wipItemsClosed ? ' data-snap-hide' : ''}>
     <button class="df-box-head" onclick="toggleWipItems()" aria-expanded="${!wipItemsClosed}">
-      <span class="df-caret">${wipItemsClosed ? '▸' : '▾'}</span><span class="df-box-title">In progress, week of ${fmt(wk)} <span style="font-weight:400;color:#64748b;font-size:0.78rem">· ${list.length} ticket${list.length === 1 ? '' : 's'} · oldest first</span></span>
+      <span class="df-caret">${wipItemsClosed ? '▸' : '▾'}</span><span class="df-box-title">In progress, ${dayKey(wk) === dayKey(new Date()) ? 'today' : `week of ${fmt(wk)}`} <span style="font-weight:400;color:#64748b;font-size:0.78rem">· ${list.length} ticket${list.length === 1 ? '' : 's'} · oldest first</span></span>
       <span class="df-box-hint" data-snap-hide>${wipItemsClosed ? 'closed · left out of snapshots · click to open' : 'click to close'}</span>
     </button>
     ${wipItemsClosed ? '' : `<div class="df-box-body">${body}</div>`}
@@ -7576,7 +7578,8 @@ function renderData() {
 function calculateMultitaskingIndex(cfg) {
   const items = allRows
     .filter(row => rowMatchesFilters(row, cfg))
-    .map(row => ({ start: getCachedDate(row, cfg.startCol), end: getExitDate(row, cfg) }))
+    // Same WIP rule as the WIP card and WIP Over Time: from Active Work Starts (else Start) until it leaves
+    .map(row => ({ start: getCachedDate(row, cfg.activeCol || cfg.startCol), end: getExitDate(row, cfg) }))
     .filter(r => r.start);
   if (items.length < 2) return null;
   let total = 0;
