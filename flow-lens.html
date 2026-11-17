@@ -437,6 +437,8 @@ License: MIT
     .df-box-hint { margin-left:auto; font-size:0.72rem; font-weight:400; color:#94a3b8; }
     .df-box.closed .df-box-title { color:#64748b; }
     .df-box-body { padding:0.6rem 0.8rem 0.8rem; }
+    .cfd-items-chips { display:flex; gap:0.4rem; flex-wrap:wrap; margin-bottom:0.45rem; }
+    .cfd-items-mix { font-size:0.8rem; color:#334155; margin-bottom:0.45rem; }
     .df-note { font-size:0.78rem; color:#64748b; background:#fff7ed; border:1px solid #fed7aa; border-radius:6px; padding:0.4rem 0.7rem; margin-bottom:0.75rem; }
     .rel-df-line { display:flex; flex-wrap:wrap; gap:0.4rem 1rem; align-items:center; font-size:0.78rem; color:#475569; margin:0.4rem 0 0.2rem; }
     .rel-head { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; flex-wrap:wrap; margin-bottom:1rem; }
@@ -616,6 +618,7 @@ License: MIT
     .ic2-signal.red   { background: #fee2e2; color: #991b1b; }
     .ic2-smelly-item  { font-size: 0.78rem; color: #475569; padding: 0.35rem 0; border-bottom: 1px solid #fef3c7; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
     .ic2-smelly-item:last-child { border-bottom: none; }
+    .ic2-smelly-stage { font-size:0.68rem; font-weight:600; color:#92400e; background:#fef3c7; border:1px solid #fde68a; border-radius:4px; padding:0.05rem 0.35rem; white-space:nowrap; flex-shrink:0; }
     .ic2-smelly-age   { font-weight: 700; color: #d97706; white-space: nowrap; flex-shrink: 0; }
 
     #data-footer {
@@ -1380,6 +1383,7 @@ License: MIT
           </div>
           <div class="cfd-panels" id="cfd-panels"></div>
           <div class="cfd-hint">* Cycle time approximated using Little's Law (WIP ÷ recent throughput)</div>
+          <div id="cfd-items"></div>
         </div>
       </div>
     </div>
@@ -1781,7 +1785,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-11-17i';
+const VERSION = '2026-11-17j';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -5746,7 +5750,7 @@ function renderCFD() {
   if (!data) return;
   cfdDataCache = data;
   // Reset markers when data changes (new filters / zoom)
-  cfdMarkers = [null, null];
+  cfdMarkers = [null, null]; cfdExportRange = null; renderCFDItems();
   document.getElementById('cfd-analysis').style.display = 'none';
 
   const { weeks, stageCounts, visibleStages } = data;
@@ -5972,6 +5976,7 @@ function handleCFDClick(event, _els, chart) {
 function clearCFDMarkers() {
   cfdMarkers = [null, null];
   cfdExportRange = null;
+  renderCFDItems();
   if (charts.cfd) charts.cfd.update('none');
   document.getElementById('cfd-analysis').style.display = 'none';
 }
@@ -6024,6 +6029,7 @@ function updateCFDAnalysis() {
   }
 
   if (wi1 === null) {
+    cfdExportRange = null; renderCFDItems();
     hint.textContent = 'Click chart again to add a second marker and measure a period';
     panels.className = 'cfd-panels';
     panels.innerHTML = sliceTable(wi0, '#ef4444');
@@ -6065,7 +6071,83 @@ function updateCFDAnalysis() {
     panels.innerHTML = sliceTable(wi0, '#ef4444') + sliceTable(wi1, '#3b82f6') + rh;
     // Range card spans both columns
     panels.lastElementChild.style.gridColumn = '1 / -1';
+    renderCFDItems();
   }
+}
+
+// ── Tickets between the two CFD markers: what arrived (the influx), finished, or moved ──
+let cfdItemsView = 'arrived';
+let cfdItemsClosed = false;
+try { cfdItemsClosed = localStorage.getItem('fl-cfd-items-closed') === '1'; } catch (e) {}
+function toggleCfdItems() {
+  cfdItemsClosed = !cfdItemsClosed;
+  try { localStorage.setItem('fl-cfd-items-closed', cfdItemsClosed ? '1' : '0'); } catch (e) {}
+  renderCFDItems();
+}
+function setCfdItemsView(v) { cfdItemsView = v; renderCFDItems(); }
+
+function renderCFDItems() {
+  const el = document.getElementById('cfd-items');
+  if (!el) return;
+  if (!cfdExportRange || !cfdDataCache) { el.innerHTML = ''; return; }
+  const [d0, d1] = cfdExportRange;
+  const cfg = getConfig();
+  const vis = cfdDataCache.visibleStages;
+  // Same rows the CFD draws (discarded work drops out while every X stage is hidden)
+  const showDiscarded = workflowStages.some(c => stageTypes[c] === 'discarded' && !hiddenStages.has(c));
+  const rows = allRows.filter(r => rowMatchesFilters(r, cfg) && (showDiscarded || !getDiscardDate(r) || getDeliveredDate(r, cfg)));
+  const inR = d => d && d > d0 && d <= d1;
+  const firstVis = r => vis.reduce((m, c) => { const d = getCachedDate(r, c); return d && (!m || d < m) ? d : m; }, null);
+  const lastIdx = workflowStages.indexOf(vis[vis.length - 1]);
+  const reachedLast = r => workflowStages.slice(lastIdx).reduce((m, c) => { const d = stageTypes[c] === 'discarded' ? null : getCachedDate(r, c); return d && (!m || d < m) ? d : m; }, null);
+  const lists = {
+    arrived:  rows.filter(r => inR(firstVis(r))),
+    finished: rows.filter(r => inR(reachedLast(r))),
+    moved:    rows.filter(r => vis.some(c => inR(getCachedDate(r, c)))),
+  };
+  const labels = { arrived: 'Arrived', finished: `Reached ${vis[vis.length - 1]}`, moved: 'Moved stage' };
+  const tips = { arrived: 'First appeared on the chart in this range — the influx', finished: 'Reached the last stage on the chart in this range', moved: 'Entered any stage in this range' };
+  const typeCol = columns.find(c => /^(issue.?type|task.?type|work.?item.?type|type)$/i.test(c.trim())) || '';
+  const list = lists[cfdItemsView].slice().sort((a, b) => (firstVis(a) || 0) - (firstVis(b) || 0));
+  const statusLbl = { done: 'Done', progress: 'In progress', notstarted: 'Not started', deferred: deferLabel(), discarded: 'Discarded' };
+  const fmt = d => d ? d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
+
+  // One-line mix by type, so "28 Stories on 10 Nov" jumps out
+  const mix = {};
+  list.forEach(r => { const k = (typeCol && (r[typeCol] || '').trim()) || '(no type)'; mix[k] = (mix[k] || 0) + 1; });
+  const mixTxt = Object.entries(mix).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<strong>${n}</strong> ${relEsc(k)}`).join(' · ');
+  // Busiest day for arrivals
+  let peak = '';
+  if (cfdItemsView === 'arrived' && list.length > 4) {
+    const byDay = {};
+    list.forEach(r => { const k = dayKey(firstVis(r)); byDay[k] = (byDay[k] || 0) + 1; });
+    const [day, n] = Object.entries(byDay).sort((a, b) => b[1] - a[1])[0];
+    if (n >= 3 && n / list.length >= 0.3) peak = ` · busiest day <strong>${fmt(new Date(day + 'T00:00:00'))}</strong> (${n})`;
+  }
+
+  const hasBlk = !!(cfg.blockedDaysCol || cfg.blockedFlagCol);
+  const body = `
+    <div class="cfd-items-chips">${Object.keys(lists).map(k => `<button class="ms-pill${cfdItemsView === k ? ' active' : ''}" title="${tips[k]}" onclick="setCfdItemsView('${k}')">${relEsc(labels[k])} ${lists[k].length}</button>`).join('')}</div>
+    ${list.length ? `<div class="cfd-items-mix">${mixTxt}${peak}</div>
+    <div style="overflow-x:auto;max-height:420px;overflow-y:auto"><table class="bd-table"><thead><tr><th>ID</th><th>Title</th>${typeCol ? `<th>${relEsc(typeCol)}</th>` : ''}<th>Arrived</th><th>Now in</th><th>Status</th>${cfdItemsView === 'finished' ? `<th>Reached ${relEsc(vis[vis.length - 1])}</th>` : ''}${hasBlk ? '<th>Blocked</th>' : ''}</tr></thead><tbody>
+      ${list.map(r => {
+        const id = cfg.idCol ? (r[cfg.idCol] || '') : '', link = cfg.linkCol ? (r[cfg.linkCol] || '') : '';
+        const st = relItemStatus(r, cfg), dk = defectKindOf(r);
+        return `<tr><td style="white-space:nowrap">${link ? `<a href="${relEsc(link)}" target="_blank" rel="noopener">${relEsc(id)}</a>` : relEsc(id)}</td>
+          <td>${relEsc(cfg.titleCol ? r[cfg.titleCol] : '')}${dk ? `<span class="df-tag" style="background:${defectColor(dk)}">${relEsc(dk.replace(/\s*\(.*\)$/, ''))}</span>` : ''}</td>
+          ${typeCol ? `<td>${relEsc(r[typeCol] || '')}</td>` : ''}
+          <td>${fmt(firstVis(r))}</td><td>${relEsc(relCurrentStage(r))}</td>
+          <td><span class="rel-status rel-status-${st}">${statusLbl[st]}</span></td>
+          ${cfdItemsView === 'finished' ? `<td>${fmt(reachedLast(r))}</td>` : ''}
+          ${hasBlk ? `<td>${blockedBadge(rowBlocked(r, cfg))}</td>` : ''}</tr>`;
+      }).join('')}</tbody></table></div>` : `<div class="muted" style="font-size:0.8rem;margin-top:0.4rem">Nothing here.</div>`}`;
+  el.innerHTML = `<div class="df-box${cfdItemsClosed ? ' closed' : ''}"${cfdItemsClosed ? ' data-snap-hide' : ''}>
+    <button class="df-box-head" onclick="toggleCfdItems()" aria-expanded="${!cfdItemsClosed}">
+      <span class="df-caret">${cfdItemsClosed ? '▸' : '▾'}</span><span class="df-box-title">Tickets in this range <span style="font-weight:400;color:#64748b;font-size:0.78rem">· ${fmt(d0)} → ${fmt(d1)} · ${lists.arrived.length} arrived · ${lists.finished.length} finished</span></span>
+      <span class="df-box-hint" data-snap-hide>${cfdItemsClosed ? 'closed · left out of snapshots · click to open' : 'click to close'}</span>
+    </button>
+    ${cfdItemsClosed ? '' : `<div class="df-box-body">${body}</div>`}
+  </div>`;
 }
 
 function exportCFDRangeItems() {
@@ -7403,7 +7485,8 @@ function renderInsights(completed, wip, committedQueue, backlog, p50, p70, p85, 
           ? `<a href="${i.link}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;border-bottom:1px dotted #d97706">${label}</a>`
           : label;
         return `<div class="ic2-smelly-item">
-          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${name}</span>
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1">${name}</span>
+          ${i.currentStage ? `<span class="ic2-smelly-stage" title="Status now">${relEsc(i.currentStage)}</span>` : ''}${i.currentlyBlocked ? '<span title="Blocked now" style="flex-shrink:0">⛔</span>' : ''}
           <span class="ic2-smelly-age">${Math.round(i.age)}d</span>
         </div>`;
       }).join('')}
