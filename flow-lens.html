@@ -1766,7 +1766,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-11-17a';
+const VERSION = '2026-11-17b';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -2003,7 +2003,11 @@ function processFile(file) {
 }
 
 function resetTool() {
+  // Every feature that adds a bar, config section or state must be cleared here too (Change dataset)
   allRows = []; columns = []; workflowStages = []; stageTypes = {}; hiddenStages = new Set();
+  milestones = []; activeMilestone = null;
+  releases = []; activeReleases = []; relComboTargets = {}; relDraft = null; relView = 'auto';
+  defectTypes = []; defectFixCol = ''; testingMode = 'include'; defectCache = new WeakMap(); defectView = ''; defectListState = '';
   Object.values(charts).forEach(c => c.destroy());
   charts = {};
   document.getElementById('config-panel').style.display = 'none';
@@ -2012,6 +2016,8 @@ function resetTool() {
   document.getElementById('milestone-section').style.display = 'none';
   document.getElementById('milestone-bar').style.display = 'none';
   document.getElementById('release-bar').style.display = 'none';
+  document.getElementById('testing-bar').style.display = 'none';
+  document.getElementById('defect-section').style.display = 'none';
   document.getElementById('info-release-bar').classList.remove('open');
   document.getElementById('config-dirty').style.display = 'none';
   document.getElementById('info-milestone').classList.remove('open');
