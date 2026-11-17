@@ -931,7 +931,7 @@ License: MIT
   <div class="info-panel" id="info-milestone" style="margin:0 0 0.75rem">
     <div class="info-row"><strong>What changes</strong>Picking a flow segment moves the Start and Finish points. An item counts as finished the first day it reached the segment's finish stage, or any later stage. Work past that point is no longer WIP.</div>
     <div class="info-row"><strong>Recalculated</strong>Flow Insights · <em>WIP &amp; Flow:</em> WIP Over Time, Work Split, Aging WIP, Arrival vs Departure · <em>Cycle Time:</em> CT Over Time, Histogram, Control Chart, Flow Efficiency, Fuzzy Front End, Time in Stage · <em>Throughput:</em> Throughput, Burn Up, Epic Progress, Releases, Forecast · <em>Health:</em> Team Health, Blocked, Bugs &amp; Defects · <em>Data:</em> Breakdown, Data Quality, AI</div>
-    <div class="info-row"><strong>Not changed</strong>CFD — always shows every stage, so the handoff is already visible there. Data — the raw rows from your file.</div>
+    <div class="info-row"><strong>Not changed</strong>CFD — keeps every stage, but starts with the stages after the segment's finish hidden (struck through in its legend; click one to show it). Data — the raw rows from your file.</div>
     <div class="info-row"><strong>Flow efficiency</strong>Only counts stages up to the segment's finish. Blocked days can't be split by stage, so all of an item's blocked days still count.</div>
   </div>
   <div id="release-bar"></div>
@@ -1373,6 +1373,7 @@ License: MIT
           </select>
         </div>
         <div id="cfd-focus-note" style="display:none;font-size:11px;color:#64748b;margin:4px 0 2px;"></div>
+        <div id="cfd-seg-note" style="display:none;font-size:11px;color:#5b21b6;margin:4px 0 2px;"></div>
         <div class="chart-wrap" style="cursor:crosshair"><canvas id="chart-cfd"></canvas></div>
         <div class="cfd-snapshot-wrap" id="cfd-snapshot-wrap">
           <div class="cfd-snapshot-header">
@@ -1790,7 +1791,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-11-17r';
+const VERSION = '2026-11-17s';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -5986,6 +5987,20 @@ function renderCFD() {
     },
     plugins: [cfdMarkerPlugin]
   });
+
+  // Measuring to a flow segment (e.g. a release done at Code Complete): start with the stages after its finish hidden.
+  // Display only — they're struck through in the legend and one click shows them again. Nothing is saved.
+  const segNote = document.getElementById('cfd-seg-note');
+  const segCfg = getConfig();
+  const endAt = segCfg.milestone ? workflowStages.indexOf(segCfg.endCol) : -1;
+  const after = endAt < 0 ? [] : reversedStages.map((st, i) => ({ st, i }))
+    .filter(x => workflowStages.indexOf(x.st) > endAt && stageTypes[x.st] !== 'discarded');
+  if (after.length) {
+    after.forEach(x => charts.cfd.setDatasetVisibility(x.i, false));
+    charts.cfd.update('none');
+    segNote.innerHTML = `Measuring to <strong>${relEsc(segCfg.milestone)}</strong>, so the stages after ${relEsc(segCfg.endCol)} start hidden (struck through below). Click one in the legend to show it.`;
+    segNote.style.display = '';
+  } else if (segNote) segNote.style.display = 'none';
 
   const canvas = document.getElementById('chart-cfd');
   if (!canvas._cfdHoverBound) {
