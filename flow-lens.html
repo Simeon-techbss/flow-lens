@@ -1793,7 +1793,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-11-17za';
+const VERSION = '2026-11-17zb';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -9114,18 +9114,34 @@ function fcRunCount(rates, days) {
   res.sort((a, b) => a - b);
   return { p95: res[Math.floor(0.05 * SIM)], p85: res[Math.floor(0.15 * SIM)], p70: res[Math.floor(0.30 * SIM)], p50: res[Math.floor(0.50 * SIM)] };
 }
+// Days until N items are done. The last week is split evenly across its days, so the answer is a day,
+// not a whole week (6 items at ~4 a week → 1½ weeks, not "2 weeks").
 function fcRunWhen(rates, N) {
   if (!rates.some(r => r > 0)) return null;
-  const SIM = 10000, wk = new Int32Array(SIM);
+  const SIM = 10000, dd = new Int32Array(SIM);
   for (let s = 0; s < SIM; s++) {
-    let done = 0, w = 0;
-    while (done < N && w < 520) { done += rates[Math.floor(Math.random() * rates.length)]; w++; }
-    wk[s] = w;
+    let done = 0, w = 0, days = 520 * 7;
+    while (w < 520) {
+      const r = rates[Math.floor(Math.random() * rates.length)];
+      if (r > 0 && done + r >= N) { days = Math.max(1, Math.ceil((w + (N - done) / r) * 7)); break; }
+      done += r; w++;
+    }
+    dd[s] = days;
   }
-  const sorted = Array.from(wk).sort((a, b) => a - b);
+  const sorted = Array.from(dd).sort((a, b) => a - b);
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  const at = p => mcAddDays(today, sorted[Math.min(SIM - 1, Math.floor(p * SIM))] * 7);
-  return { p50: at(0.50), p70: at(0.70), p85: at(0.85), p95: at(0.95) };
+  const at = p => mcAddDays(today, sorted[Math.min(SIM - 1, Math.floor(p * SIM))]);
+  // chance (0–1) of all N done by a date
+  const by = d => { const days = daysBetween(today, d); return sorted.filter(x => x <= days).length / SIM; };
+  return { p50: at(0.50), p70: at(0.70), p85: at(0.85), p95: at(0.95), by };
+}
+// "Chance of all N by target" line — shown on both How many and When, so they tell one story
+function fcChanceLine(c, N, team, mix, target) {
+  if (!target || !team) return '';
+  const tg = new Date(target + 'T00:00:00');
+  const pc = r => { const v = Math.round(r.by(tg) * 100); const col = v >= 85 ? '#15803d' : v >= 50 ? '#b45309' : '#dc2626'; return `<strong style="color:${col}">${v}%</strong>`; };
+  return `<div style="margin:0.25rem 0 0.25rem;padding:0.6rem 0.8rem;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;color:#334155">
+    Chance of finishing all <strong>${N}</strong> by <strong>${fmtDate(tg)}</strong>: ${pc(team)} if the team focuses on it${mix ? ` · ${pc(mix)} at today's mix` : ''}</div>`;
 }
 const fcHead = (title, sub) => `<div style="margin:1.1rem 0 0.5rem"><div style="font-weight:700;color:#1e293b;font-size:0.92rem">${title}</div><div style="font-size:0.78rem;color:#64748b">${sub}</div></div>`;
 
@@ -9176,7 +9192,7 @@ function runHowManySimulation() {
   };
 
   const cap = c.rel ? c.left : null;
-  const val = v => cap !== null && v >= cap ? `All ${cap}` : `${v}+ items`;
+  const val = v => cap !== null && v >= cap ? `All ${cap}` : v <= 0 ? 'None likely' : `${v}+ items`;
   const cards = r => `<div class="mc-headlines">${[
       { pct: 95, val: r.p95, cls: 'mc-s95', label: 'Very safe — high certainty' },
       { pct: 85, val: r.p85, cls: 'mc-s85', label: 'Recommended planning number ★' },
@@ -9185,6 +9201,10 @@ function runHowManySimulation() {
     ].map(s => `<div class="mc-stat ${s.cls}"><div class="mc-stat-pct">${s.pct}% confidence</div><div class="mc-stat-val">${val(s.val)}</div><div class="mc-stat-label">${s.label}</div></div>`).join('')}</div>`;
 
   let html = `<div style="font-size:0.82rem;color:#64748b;margin-bottom:0.5rem">Items finished by <strong>${fmtDate(targetDate)}</strong> · ${daysAhead} days${c.rel ? ` · <strong>${relEsc(c.rel.name)}</strong> has ${c.left} left` : ''}</div>`;
+  if (c.rel && c.left > 0) {
+    const tW = fcRunWhen(rates, c.left), mW = mix ? fcRunWhen(c.s.rates, c.left) : null;
+    html += fcChanceLine(c, c.left, tW, mW, targetStr);
+  }
   if (c.rel) {
     html += fcHead('If the team focuses on it', `The whole team's pace — ${rates.length} weeks of everything finished, not just this release`) + cards(team);
     html += fcHead(`At today's mix${c.s.share !== null ? ` — this release gets about ${Math.round(c.s.share * 100)}% of what the team finishes` : ''}`, "This release's own weekly pace since its work started (up to 12 weeks)")
@@ -9227,7 +9247,8 @@ function runWhenSimulation() {
       { pct: 95, date: r.p95, cls: 'mc-s95', label: 'Conservative — very safe' },
     ].map(s => `<div class="mc-stat ${s.cls}"><div class="mc-stat-pct">${s.pct}% confidence</div><div class="mc-stat-val" style="font-size:1.05rem;letter-spacing:-0.02em">${fmtDate(s.date)}</div><div class="mc-stat-label">${s.label}${tg && s.pct === 85 ? (s.date <= tg ? ' · <strong style="color:#15803d">before target</strong>' : ' · <strong style="color:#dc2626">after target</strong>') : ''}</div></div>`).join('')}</div>`;
 
-  let html = `<div style="font-size:0.82rem;color:#64748b;margin-bottom:0.5rem">Finishing <strong>${N} item${N === 1 ? '' : 's'}</strong>${c.rel ? ` in <strong>${relEsc(c.rel.name)}</strong>` : ''}${tg ? ` · target ${fmtDate(tg)}` : ''}</div>`;
+  let html = `<div style="font-size:0.82rem;color:#64748b;margin-bottom:0.5rem">Finishing <strong>${N} item${N === 1 ? '' : 's'}</strong>${c.rel ? ` in <strong>${relEsc(c.rel.name)}</strong>` : ''}${tg ? ` · target ${fmtDate(tg)}` : ''}</div>`
+    + (c.rel ? fcChanceLine(c, N, team, mix, c.target) : '');
   if (c.rel) {
     html += fcHead('If the team focuses on it', `The whole team's pace — ${rates.length} weeks of everything finished, not just this release`) + cards(team);
     html += fcHead(`At today's mix${c.s.share !== null ? ` — this release gets about ${Math.round(c.s.share * 100)}% of what the team finishes` : ''}`, "This release's own weekly pace since its work started (up to 12 weeks)")
