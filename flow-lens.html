@@ -398,6 +398,38 @@ License: MIT
     .ms-pill.rel-pill:hover { border-color:#0f766e; }
     .ms-pill.rel-pill-add { border-style:dashed; color:#0f766e; }
     .filter-chip-release { background:#ccfbf1; color:#115e59; border:1px solid #5eead4; }
+    .filter-chip-testing { background:#fff1f2; color:#9f1239; border:1px solid #fda4af; }
+    #testing-bar { display:none; align-items:center; flex-wrap:wrap; gap:0.4rem; margin:0 0 0.75rem; font-size:0.8rem; color:#475569; }
+    #testing-bar .ms-label { font-weight:600; margin-right:0.2rem; }
+    .ms-pill.test-pill.active { background:#be123c; border-color:#be123c; }
+    .ms-pill.test-pill:hover { border-color:#be123c; }
+    .ms-pill.test-pill-link { border-style:dashed; color:#be123c; }
+    .df-type { border:1px solid #e2e8f0; border-radius:8px; padding:0.5rem 0.7rem; margin-bottom:0.5rem; background:#fff; font-size:0.8rem; color:#64748b; }
+    .df-head { display:flex; align-items:center; gap:0.5rem; margin-bottom:0.35rem; }
+    .df-head i { width:10px; height:10px; border-radius:50%; display:inline-block; }
+    .df-head input { font-size:0.82rem; font-weight:600; padding:0.25rem 0.45rem; border:1px solid #d1d5db; border-radius:5px; width:13rem; color:#0f172a; }
+    .df-count { font-size:0.75rem; color:#94a3b8; }
+    .df-type .ms-del { background:none; border:none; color:#94a3b8; cursor:pointer; font-size:1rem; }
+    .df-type .ms-del:hover { color:#dc2626; }
+    .df-fixcol { font-size:0.8rem; color:#64748b; }
+    .df-cond { display:flex; align-items:center; gap:0.35rem; flex-wrap:wrap; margin:0.25rem 0 0.25rem 1.1rem; }
+    .df-cond select { font-size:0.8rem; padding:0.2rem; border:1px solid #d1d5db; border-radius:5px; max-width:14rem; }
+    .df-and { font-weight:600; color:#475569; min-width:2.6rem; }
+    .df-or { color:#94a3b8; font-size:0.72rem; }
+    .df-chip { display:inline-flex; align-items:center; gap:0.2rem; background:#fff1f2; color:#9f1239; border:1px solid #fda4af; border-radius:20px; padding:0.05rem 0.25rem 0.05rem 0.55rem; font-size:0.75rem; }
+    .df-chip button { background:none; border:none; color:#be123c; cursor:pointer; font-size:0.85rem; padding:0 0.15rem; }
+    .df-more, .ms-del + .df-more { background:none; border:none; color:#0ea5e9; cursor:pointer; font-size:0.75rem; margin-left:1.1rem; padding:0.15rem 0; }
+    .df-table td, .df-table th { text-align:right; }
+    .df-table td:first-child, .df-table th:first-child { text-align:left; }
+    .df-table .df-n { cursor:pointer; color:#0f172a; font-weight:600; text-decoration:underline dotted #cbd5e1; }
+    .df-table .df-n.zero { color:#cbd5e1; cursor:default; text-decoration:none; font-weight:400; }
+    .df-table .df-n.on { background:#fef3c7; border-radius:4px; padding:0 0.25rem; }
+    .df-dot { width:9px; height:9px; border-radius:50%; display:inline-block; margin-right:0.35rem; vertical-align:middle; }
+    .df-tag { display:inline-block; font-size:0.68rem; font-weight:600; border-radius:4px; padding:0.02rem 0.35rem; margin-left:0.35rem; color:white; vertical-align:middle; white-space:nowrap; }
+    .df-charts { display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:1rem; margin-top:1rem; }
+    .df-chart-box { position:relative; height:240px; }
+    .df-note { font-size:0.78rem; color:#64748b; background:#fff7ed; border:1px solid #fed7aa; border-radius:6px; padding:0.4rem 0.7rem; margin-bottom:0.75rem; }
+    .rel-df-line { display:flex; flex-wrap:wrap; gap:0.4rem 1rem; align-items:center; font-size:0.78rem; color:#475569; margin:0.4rem 0 0.2rem; }
     .rel-head { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; flex-wrap:wrap; margin-bottom:1rem; }
     .rel-head h2 { font-size:1.15rem; font-weight:700; }
     .rel-btn { font-size:0.78rem; padding:0.35rem 0.8rem; border-radius:6px; border:1px solid #cbd5e1; background:white; color:#475569; cursor:pointer; white-space:nowrap; }
@@ -832,6 +864,20 @@ License: MIT
       <button class="filter-add" onclick="addMilestone()">+ Add flow segment</button>
     </div>
 
+    <div class="workflow-section" id="defect-section" style="display:none">
+      <div class="workflow-section-header">
+        <span>Bugs &amp; defects</span>
+        <small>Tell Flow Lens which tickets are testing work. A ticket matches when <strong>every</strong> rule matches, e.g. <strong>Issue Type = Task and Labels = QA</strong>. Turns on the <em>Bugs &amp; Defects</em> report and the <em>Testing work: Include / Hide / Only</em> switch above the charts.</small>
+      </div>
+      <div id="defect-rows"></div>
+      <button class="filter-add" onclick="addDefectType()">+ Add type</button>
+      <div class="df-cond df-fixcol" style="margin:0.6rem 0 0">
+        <span class="df-and" style="min-width:auto">Fix type column</span>
+        <select id="defect-fix-col" onchange="defectFixCol = this.value; renderAll()"><option value="">— none —</option></select>
+        <span style="font-size:0.75rem;color:#94a3b8">optional — how each one was fixed (Code, Config, Data…). Adds a <em>By fix type</em> section to the report.</span>
+      </div>
+    </div>
+
   </div><!-- /#config-body -->
   </div><!-- /#config-panel -->
 
@@ -861,11 +907,12 @@ License: MIT
   <div id="milestone-bar"></div>
   <div class="info-panel" id="info-milestone" style="margin:0 0 0.75rem">
     <div class="info-row"><strong>What changes</strong>Picking a flow segment moves the Start and Finish points. An item counts as finished the first day it reached the segment's finish stage, or any later stage. Work past that point is no longer WIP.</div>
-    <div class="info-row"><strong>Recalculated</strong>Flow Insights · <em>WIP &amp; Flow:</em> WIP Over Time, Work Split, Aging WIP, Arrival vs Departure · <em>Cycle Time:</em> CT Over Time, Histogram, Control Chart, Flow Efficiency, Fuzzy Front End, Time in Stage · <em>Throughput:</em> Throughput, Burn Up, Epic Progress, Releases, Forecast · <em>Health:</em> Team Health, Blocked · <em>Data:</em> Breakdown, Data Quality, AI</div>
+    <div class="info-row"><strong>Recalculated</strong>Flow Insights · <em>WIP &amp; Flow:</em> WIP Over Time, Work Split, Aging WIP, Arrival vs Departure · <em>Cycle Time:</em> CT Over Time, Histogram, Control Chart, Flow Efficiency, Fuzzy Front End, Time in Stage · <em>Throughput:</em> Throughput, Burn Up, Epic Progress, Releases, Forecast · <em>Health:</em> Team Health, Blocked, Bugs &amp; Defects · <em>Data:</em> Breakdown, Data Quality, AI</div>
     <div class="info-row"><strong>Not changed</strong>CFD — always shows every stage, so the handoff is already visible there. Data — the raw rows from your file.</div>
     <div class="info-row"><strong>Flow efficiency</strong>Only counts stages up to the segment's finish. Blocked days can't be split by stage, so all of an item's blocked days still count.</div>
   </div>
   <div id="release-bar"></div>
+  <div id="testing-bar"></div>
   <div class="info-panel" id="info-release-bar" style="margin:0 0 0.75rem">
     <div class="info-row"><strong>What it does</strong>A release is a group of tickets you choose. Click it here and every report shows only those tickets. Click more than one to combine them (e.g. "R2.4 + R2.5 — when will both be done?"). Click again to remove; <em>All work</em> clears them all.</div>
     <div class="info-row"><strong>First, build the release</strong>Nothing to pick until you've made one. Click <em>+ Create a release</em> (or <em>Manage releases</em> → <em>+ New release</em>).</div>
@@ -987,6 +1034,10 @@ License: MIT
           <button class="tab-dropdown-item" data-tab="blocked">
             <span class="item-name">Blocked</span>
             <span class="item-desc">Items currently or previously blocked</span>
+          </button>
+          <button class="tab-dropdown-item" data-tab="defects">
+            <span class="item-name">Bugs &amp; Defects</span>
+            <span class="item-desc">Raised, in progress and fixed — internal and external</span>
           </button>
         </div>
       </div>
@@ -1460,6 +1511,14 @@ License: MIT
       </div>
     </div>
 
+    <div id="tab-defects" class="tab-pane">
+      <div class="chart-card">
+        <h2>Bugs &amp; Defects</h2>
+        <div class="subtitle">Testing work by type: raised, in progress, fixed. Fixed = reached the finish of <span class="ct-span"></span>. Follows the release and Measure-to pills.</div>
+        <div id="defects-content"></div>
+      </div>
+    </div>
+
     <div id="tab-data" class="tab-pane">
       <div class="chart-card">
         <h2>Imported Data</h2>
@@ -1707,7 +1766,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-11-02d';
+const VERSION = '2026-11-17a';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -1721,6 +1780,9 @@ let activeMilestone = null;     // name of the selected milestone, null = Full f
 let releases = [];              // [{ name, target, rules: [{ mode:'in'|'out', col, vals }] }]
 let activeReleases = [];        // names of the selected releases, [] = All work (several = combined)
 let relComboTargets = {};       // target dates for combined selections, keyed by "R1 + R2"
+let defectTypes = [];           // [{ name, conds: [{ col, vals }] }] — testing work (bugs / defects); a ticket matches when ALL conds match
+let defectFixCol = '';          // optional column saying how a bug/defect was fixed (Code, Config, Data…)
+let testingMode = 'include';    // 'include' | 'hide' | 'only' — the Bugs & defects switch above the reports
 let filterIdCounter = 0;
 let filterRowIds = [];
 let currentTab = 'insights';
@@ -2156,6 +2218,7 @@ function loadExampleData() {
       const keep = d => d <= today ? dayKey(d) : '';
       const row = {
         ID: makeId(), Title: title, 'Issue Type': isBug ? 'Bug' : 'Story', 'Epic Link': spec.epic, 'Fix Version': spec.fix,
+        Labels: isBug ? 'UAT' : '', 'Fix Type': '',
         'Demand Source': isBug ? 'Bug' : 'Feature', 'Demand Type': isBug ? 'Failure Demand' : 'Value Demand',
         'Blocked Days': 0, 'Currently Blocked': 'No',
         Backlog: dayKey(backlog), Ready: keep(ready), Dev: keep(dev), 'Ready for Test': keep(rft),
@@ -2170,6 +2233,7 @@ function loadExampleData() {
     });
     // Currently blocked stories in an in-flight release
     kids.filter(r => r.Dev && !r.Done).slice(0, spec.blockedNow || 0).forEach((r, j) => { r['Blocked Days'] = 4 + j * 3; r['Currently Blocked'] = 'Yes'; });
+    kids.forEach((r, j) => { if (r.Labels === 'UAT' && r.Done) r['Fix Type'] = ['Code', 'Config'][j % 2]; });
     relRows.push(...kids);
     relRows.push({ ID: spec.epic, Title: spec.epicTitle, 'Issue Type': 'Epic', 'Epic Link': '', 'Fix Version': spec.fix,
       'Demand Source': 'Feature', 'Demand Type': 'Value Demand', 'Blocked Days': 0, 'Currently Blocked': 'No',
@@ -2199,8 +2263,21 @@ function loadExampleData() {
     { id: 'AXM-0106', title: 'Platform Modernisation' },         // tech debt, ongoing
   ];
   const ago = v => v ? (today - new Date(v)) / 86400000 : null;
+  // Testing work: QA's internal bugs are Tasks labelled QA, external testers raise Bugs (labelled UAT).
+  // Tech debt is also a Task (no QA label), which is why the Bugs & defects setup needs the label rule too.
+  const fixTypes = ['Code', 'Code', 'Code', 'Code', 'Config', 'Config', 'Data', 'Test script', 'Requirements', 'Environment'];
   rows.forEach(r => {
-    r['Issue Type'] = r['Demand Source'] === 'Bug' ? 'Bug' : 'Story';
+    r.Labels = ''; r['Fix Type'] = '';
+    if (r['Demand Source'] === 'Bug') {
+      const internal = Math.random() < 0.55;
+      r['Issue Type'] = internal ? 'Task' : 'Bug';
+      r.Labels = internal ? 'QA' : 'UAT';
+      if (r.Done && Math.random() < 0.9) r['Fix Type'] = pick(fixTypes);
+      else if (r.Dev && !r.Done && Math.random() < 0.3) r['Fix Type'] = pick(fixTypes);
+    } else r['Issue Type'] = r['Demand Source'] === 'Tech Debt' ? 'Task' : 'Story';
+    if (r['Demand Source'] === 'Tech Debt') r.Labels = 'Tech';
+  });
+  rows.forEach(r => {
     r['Epic Link'] = '';
     const doneAgo = ago(r.Done);
     if (r['Demand Source'] === 'Tech Debt') { if (Math.random() < 0.6) r['Epic Link'] = 'AXM-0106'; return; }
@@ -2224,7 +2301,7 @@ function loadExampleData() {
   rows.push(...relRows);
   rows.sort(() => Math.random() - 0.5);
 
-  const fields = ['ID','Title','Issue Type','Epic Link','Fix Version','Demand Source','Demand Type','Blocked Days','Currently Blocked','Backlog','Ready','Dev','Ready for Test','Testing','Ready to Release','Done','Rejected'];
+  const fields = ['ID','Title','Issue Type','Labels','Fix Type','Epic Link','Fix Version','Demand Source','Demand Type','Blocked Days','Currently Blocked','Backlog','Ready','Dev','Ready for Test','Testing','Ready to Release','Done','Rejected'];
   const csv = [
     fields.join(','),
     ...rows.map(r => fields.map(f => { const v = String(r[f] ?? ''); return v.includes(',') ? `"${v}"` : v; }).join(','))
@@ -2254,6 +2331,11 @@ function loadExampleData() {
           { name: 'SIT/UAT', short: 'SIT/UAT', start: 'Ready for Test', end: 'Ready to Release' },
         ],
         releases: exampleReleases,
+        defectTypes: [
+          { name: 'Bug (internal)',    conds: [{ col: 'Issue Type', vals: ['Task'] }, { col: 'Labels', vals: ['QA'] }] },
+          { name: 'Defect (external)', conds: [{ col: 'Issue Type', vals: ['Bug'] }] },
+        ],
+        defectFixCol: 'Fix Type',
       });
     }
   });
@@ -2264,6 +2346,8 @@ function setupConfig() {
   stageTypes = {};
   milestones = []; activeMilestone = null;
   releases = []; activeReleases = []; relComboTargets = {}; relDraft = null; relView = 'auto';
+  defectTypes = defaultDefectTypes(); testingMode = 'include';
+  defectFixCol = columns.find(c => /fix.?type|root.?cause|fix.?category|defect.?cause/i.test(c)) || ''; defectCache = new WeakMap(); defectView = ''; defectListState = '';
   savedConfigSnapshot = null;
   document.getElementById('config-panel').style.display = 'block';
   const fp = document.getElementById('filter-panel');
@@ -2474,6 +2558,7 @@ function buildWorkflowUI() {
 
   initDragSort(list);
   buildMilestoneUI();
+  buildDefectUI();
 }
 
 // ── Milestones ─────────────────────────────────────────────────────────────
@@ -2556,6 +2641,147 @@ function renderMilestoneBar() {
     + `<button class="info-btn${infoOpen ? ' open' : ''}" data-info="info-milestone" onclick="toggleInfo('info-milestone')" title="Which reports change">ℹ</button>`;
   bar.style.display = 'flex';
 }
+
+// ── Bugs & defects (testing work) ──────────────────────────────────────────
+// A type matches a ticket when every rule with values matches (e.g. Issue Type = Task AND Labels = QA).
+// First matching type wins. Cached per row; the cache is reset whenever the types change.
+const DEFECT_COLORS = ['#f59e0b', '#e11d48', '#8b5cf6', '#0ea5e9'];
+let defectCache = new WeakMap();
+let defectView = '';            // Bugs & Defects tab: '' = all types, else a type name
+let defectListState = '';       // Bugs & Defects tab ticket list: '' = open, or "<type>|<status>"
+
+function defectTypeUsable(t) { return !!(t && t.name && t.conds.some(c => c.col && c.vals.length)); }
+function usableDefectTypes() { return defectTypes.filter(defectTypeUsable); }
+function defectKindOf(row) {
+  if (defectCache.has(row)) return defectCache.get(row);
+  const t = defectTypes.find(t => defectTypeUsable(t)
+    && t.conds.filter(c => c.col && c.vals.length).every(c => cellValues(row[c.col]).some(v => c.vals.includes(v))));
+  const k = t ? t.name : null;
+  defectCache.set(row, k);
+  return k;
+}
+function defectColor(name) { const i = usableDefectTypes().findIndex(t => t.name === name); return DEFECT_COLORS[(i < 0 ? 0 : i) % DEFECT_COLORS.length]; }
+function defectsChanged() { defectCache = new WeakMap(); renderAll(); }
+
+function defaultDefectTypes() {
+  const typeCol = columns.find(c => /^(issue.?type|work.?item.?type|type)$/i.test(c.trim())) || '';
+  return [
+    { name: 'Bug (internal)',    conds: [{ col: typeCol, vals: [] }] },
+    { name: 'Defect (external)', conds: [{ col: typeCol, vals: [] }] },
+  ];
+}
+
+function defectColValues(col) {
+  if (!col) return [];
+  const set = new Set();
+  allRows.forEach(r => cellValues(r[col]).forEach(v => set.add(v)));
+  return [...set].sort((a, b) => a.localeCompare(b)).slice(0, 400);
+}
+
+function buildDefectUI() {
+  const section = document.getElementById('defect-section');
+  const wrap = document.getElementById('defect-rows');
+  if (!section) return;
+  section.style.display = allRows.length ? 'block' : 'none';
+  const colOpts = sel => `<option value="">Pick a column…</option>` + columns.filter(c => !workflowStages.includes(c))
+    .map(c => `<option value="${relEsc(c)}"${c === sel ? ' selected' : ''}>${relEsc(c)}</option>`).join('');
+  const fixSel = document.getElementById('defect-fix-col');
+  if (fixSel) fixSel.innerHTML = `<option value="">— none —</option>` + columns.filter(c => !workflowStages.includes(c))
+    .map(c => `<option value="${relEsc(c)}"${c === defectFixCol ? ' selected' : ''}>${relEsc(c)}</option>`).join('');
+  wrap.innerHTML = defectTypes.map((t, i) => {
+    const n = allRows.filter(r => defectKindOf(r) === t.name).length;
+    const conds = t.conds.map((c, j) => {
+      const left = defectColValues(c.col).filter(v => !c.vals.includes(v));
+      return `<div class="df-cond">
+        <span class="df-and">${j ? 'and' : 'where'}</span>
+        <select onchange="updateDefectCond(${i}, ${j}, 'col', this.value)">${colOpts(c.col)}</select>
+        <span>is</span>
+        ${c.vals.map((v, k) => `<span class="df-chip">${relEsc(v)}<button onclick="removeDefectVal(${i}, ${j}, ${k})" title="Remove">×</button></span>`).join('<span class="df-or">or</span>')}
+        ${c.col ? `<select class="df-add" onchange="addDefectVal(${i}, ${j}, this.value)"><option value="">+ value…</option>${left.map(v => `<option value="${relEsc(v)}">${relEsc(v)}</option>`).join('')}</select>` : ''}
+        ${t.conds.length > 1 ? `<button class="ms-del" onclick="removeDefectCond(${i}, ${j})" title="Remove this rule">×</button>` : ''}
+      </div>`;
+    }).join('');
+    return `<div class="df-type">
+      <div class="df-head">
+        <i style="background:${DEFECT_COLORS[i % DEFECT_COLORS.length]}"></i>
+        <input type="text" value="${relEsc(t.name)}" placeholder="e.g. Bug (internal)" onchange="updateDefectName(${i}, this.value)">
+        <span class="df-count">${defectTypeUsable(t) ? `${n} ticket${n === 1 ? '' : 's'}` : 'pick a value to turn it on'}</span>
+        <button class="ms-del" onclick="removeDefectType(${i})" title="Remove this type">×</button>
+      </div>
+      ${conds}
+      <button class="df-more" onclick="addDefectCond(${i})">+ and another rule (e.g. a label)</button>
+    </div>`;
+  }).join('');
+}
+
+function updateDefectName(i, v) {
+  const t = defectTypes[i]; if (!t) return;
+  const old = t.name; t.name = v.trim();
+  if (defectView === old) defectView = t.name;
+  defectCache = new WeakMap(); buildDefectUI(); defectsChanged();
+}
+function updateDefectCond(i, j, key, v) {
+  const c = defectTypes[i] && defectTypes[i].conds[j]; if (!c) return;
+  c[key] = v; if (key === 'col') c.vals = [];
+  defectCache = new WeakMap(); buildDefectUI(); defectsChanged();
+}
+function addDefectVal(i, j, v) {
+  const c = defectTypes[i] && defectTypes[i].conds[j]; if (!c || !v) return;
+  if (!c.vals.includes(v)) c.vals.push(v);
+  defectCache = new WeakMap(); buildDefectUI(); defectsChanged();
+}
+function removeDefectVal(i, j, k) {
+  const c = defectTypes[i] && defectTypes[i].conds[j]; if (!c) return;
+  c.vals.splice(k, 1);
+  defectCache = new WeakMap(); buildDefectUI(); defectsChanged();
+}
+function addDefectCond(i) {
+  const t = defectTypes[i]; if (!t) return;
+  t.conds.push({ col: columns.find(c => /^labels?$/i.test(c.trim())) || '', vals: [] });
+  buildDefectUI();
+}
+function removeDefectCond(i, j) {
+  const t = defectTypes[i]; if (!t) return;
+  t.conds.splice(j, 1);
+  defectCache = new WeakMap(); buildDefectUI(); defectsChanged();
+}
+function addDefectType() {
+  const typeCol = (defectTypes[0] && defectTypes[0].conds[0] && defectTypes[0].conds[0].col) || '';
+  defectTypes.push({ name: `Type ${defectTypes.length + 1}`, conds: [{ col: typeCol, vals: [] }] });
+  buildDefectUI();
+}
+function removeDefectType(i) {
+  defectTypes.splice(i, 1);
+  defectCache = new WeakMap(); buildDefectUI(); defectsChanged();
+}
+
+function setTestingMode(m) {
+  testingMode = m;
+  renderAll(true);
+}
+
+// The "Testing work: Include / Hide / Only" switch — shown once a type is set up
+function renderTestingBar() {
+  const bar = document.getElementById('testing-bar');
+  if (!bar) return;
+  const types = usableDefectTypes();
+  if (!types.length || !allRows.length) { bar.style.display = 'none'; return; }
+  const label = types.map(t => t.name.replace(/\s*\(.*\)$/, '')).join(' & ');
+  const pill = (m, txt, tip) => `<button class="ms-pill test-pill${testingMode === m ? ' active' : ''}" onclick="setTestingMode('${m}')" title="${relEsc(tip)}">${txt}</button>`;
+  bar.innerHTML = `<span class="ms-label">Testing work:</span>`
+    + pill('include', 'Include', `Every report counts ${label} with the rest of the work`)
+    + pill('hide', 'Hide', `Leave ${label} out of every report, so flow metrics show feature work only`)
+    + pill('only', 'Only', `Show just ${label} in every report, e.g. how long fixes take`)
+    + `<button class="ms-pill test-pill-link" onclick="switchToTab('defects')" title="Raised, in progress and fixed, by type">Bugs &amp; Defects report →</button>`;
+  bar.style.display = 'flex';
+}
+
+function testingModeText(cfg) {
+  if (!cfg.testingMode || cfg.testingMode === 'include' || !usableDefectTypes().length) return '';
+  const names = usableDefectTypes().map(t => t.name).join(', ');
+  return cfg.testingMode === 'hide' ? `Hiding testing work (${names})` : `Only testing work (${names})`;
+}
+
 // ── Releases ───────────────────────────────────────────────────────────────
 // A release = tickets matching ANY include rule, minus tickets matching ANY exclude rule.
 // Rule = { mode: 'in'|'out', col, vals }. col REL_ID means "these ticket IDs".
@@ -3211,6 +3437,15 @@ function renderReleaseSummary(rel) {
         ${stateOrder.map(st => `<span class="rel-status rel-state-chip rel-status-${st}${stateCount(st) ? '' : ' zero'}" data-state="${st}" onclick="relFilterState(this)">${statusLbl[st]} ${stateCount(st)}</span>`).join('')}
         ${hasBlk ? `<span class="rel-status rel-state-chip rel-status-blocked${s.blockedNow ? '' : ' zero'}" data-state="blocked" title="Open tickets flagged as blocked right now" onclick="relFilterState(this)">⛔ Blocked now ${s.blockedNow}</span>` : ''}
       </div>${subChips}</div>` : '';
+  // Testing work inside this release (Bugs & defects types from the Config panel)
+  const dfParts = usableDefectTypes().map(t => {
+    const l = s.items.filter(i => defectKindOf(i.row) === t.name);
+    if (!l.length) return '';
+    const open = l.filter(i => i.status === 'notstarted' || i.status === 'progress').length;
+    const fixed = l.filter(i => i.status === 'done').length;
+    return `<span><span class="df-dot" style="background:${defectColor(t.name)}"></span><strong>${relEsc(t.name)}</strong>: ${open} open · ${fixed} fixed</span>`;
+  }).filter(Boolean);
+  const dfLine = dfParts.length ? `<div class="rel-df-line"><span style="font-weight:600">Testing work:</span>${dfParts.join('')}<a href="#" onclick="switchToTab('defects');return false" style="color:#0ea5e9">Bugs &amp; Defects report →</a></div>` : '';
   const rowsHtml = list.map(it => {
     const id = cfg.idCol ? (it.row[cfg.idCol] || '') : '';
     const link = cfg.linkCol ? (it.row[cfg.linkCol] || '') : '';
@@ -3220,7 +3455,7 @@ function renderReleaseSummary(rel) {
     const old = age !== null && p85 && age > p85;
     return `<tr data-state="${it.status}"${it.cp !== null ? ` data-sub="progress:${it.cp}"` : ''}${it.blk.now ? ' data-blocked="1"' : ''} class="${it.status === 'discarded' ? 'rel-row-discarded' : ''}">
       <td>${link ? `<a href="${relEsc(link)}" target="_blank" rel="noopener">${relEsc(id)}</a>` : relEsc(id)}</td>
-      <td>${relEsc(title)}</td>
+      <td>${relEsc(title)}${defectKindOf(it.row) ? `<span class="df-tag" style="background:${defectColor(defectKindOf(it.row))}">${relEsc(defectKindOf(it.row).replace(/\s*\(.*\)$/, ''))}</span>` : ''}</td>
       ${cfg.epicCol ? `<td class="muted">${relEsc(titleById[epicId] || epicId)}</td>` : ''}
       <td>${relEsc(relCurrentStage(it.row))}</td>
       <td><span class="rel-status rel-status-${it.status}">${statusLbl[it.status]}${it.cp !== null ? ` · ${relEsc(relCpLabel(it.cp, s.cps))}` : ''}</span>${curSo && (it.status === 'progress' || it.status === 'notstarted') ? ' <span class="rel-status rel-after-so" title="Still open when this finish line was signed off">after sign-off</span>' : ''}</td>
@@ -3263,7 +3498,7 @@ function renderReleaseSummary(rel) {
     ${finishLinesHtml}
     <div class="chart-card" style="margin-top:1rem">
       <h2>Everything in this release <span class="muted" style="font-weight:400;font-size:0.8rem">· ${s.items.length} ticket${s.items.length === 1 ? '' : 's'}</span></h2>
-      ${statesHtml}
+      ${statesHtml}${dfLine}
       <div style="overflow-x:auto;max-height:480px;overflow-y:auto"><table class="bd-table" id="rel-ticket-table">
         <thead><tr><th>ID</th><th>Title</th>${cfg.epicCol ? '<th>Epic</th>' : ''}<th>Stage</th><th>Status</th>${hasBlk ? '<th>Blocked</th>' : ''}<th style="text-align:right">Age</th></tr></thead>
         <tbody>${rowsHtml || `<tr><td colspan="7" class="muted">No tickets.</td></tr>`}</tbody></table></div>
@@ -3781,6 +4016,7 @@ function getConfig() {
     startCol, endCol, activeCol,
     milestone:      m ? m.name : null,
     release:        getActiveRelease(),
+    testingMode:    usableDefectTypes().length ? testingMode : 'include',
     base,
     idCol:          document.getElementById('col-id').value,
     titleCol:       document.getElementById('col-title').value,
@@ -3802,6 +4038,8 @@ function getConfig() {
 
 function rowMatchesFilters(row, cfg) {
   if (cfg.release && !rowInRelease(row, cfg.release, cfg)) return false;
+  if (cfg.testingMode === 'hide' && defectKindOf(row)) return false;
+  if (cfg.testingMode === 'only' && !defectKindOf(row)) return false;
   return cfg.filters.every(f => {
     if (!f.col) return true;
     const vals = f.vals && f.vals.length ? f.vals : (f.val ? [f.val] : []);
@@ -3988,6 +4226,7 @@ function _doRenderAll() {
   document.getElementById('stat-count-label').textContent = cfg.milestone ? `Reached ${cfg.milestone}` : 'Items completed';
   renderMilestoneBar();
   renderReleaseBar();
+  renderTestingBar();
   const dqLink = document.getElementById('stat-dq-link');
   if (dqLink) {
     if (dqIssues.length) { dqLink.style.display = 'inline'; dqLink.title = `${dqIssues.length} data quality issue${dqIssues.length !== 1 ? 's' : ''} — click to view`; }
@@ -4061,6 +4300,7 @@ function renderActiveTab() {
     case 'floweff':    renderFlowEff(completed); break;
     case 'aging':      renderAging(wip, p50, p70, p85, p95); break;
     case 'blocked':    renderBlocked(completed, wip, p85); break;
+    case 'defects':    renderDefects(); break;
     case 'health':     renderTeamHealth(); break;
     case 'ffe':        renderFFE(completed); break;
     case 'worksplit':  renderWorkSplit(); break;
@@ -4638,7 +4878,8 @@ function updateFilterContextBar() {
   if (!bar) return;
   const cfg = getConfig();
   const active = (cfg.filters || []).filter(f => f.col && f.vals && f.vals.length);
-  if (!active.length && !cfg.milestone && !cfg.release) { bar.style.display = 'none'; return; }
+  const tmText = testingModeText(cfg);
+  if (!active.length && !cfg.milestone && !cfg.release && !tmText) { bar.style.display = 'none'; return; }
 
   function fmtVals(vals) {
     return vals.map(v => v === '__BLANK__' ? '(blank)' : v).join(', ');
@@ -4651,7 +4892,8 @@ function updateFilterContextBar() {
   const msChip = cfg.milestone
     ? `<span class="filter-chip filter-chip-milestone">Measured to: ${cfg.milestone} (${cfg.startCol} → ${cfg.endCol})</span>` : '';
   const relChip = cfg.release ? `<span class="filter-chip filter-chip-release">Release: ${relEsc(cfg.release.name)}</span>` : '';
-  bar.innerHTML = relChip + msChip
+  const tmChip = tmText ? `<span class="filter-chip filter-chip-testing">${relEsc(tmText)}</span>` : '';
+  bar.innerHTML = relChip + msChip + tmChip
     + (active.length ? `<span style="font-weight:600;color:#475569;margin:0 0.2rem 0 ${msChip || relChip ? '0.5rem' : '0'}">Filters:</span>${[...excludeChips, ...includeChips].join('')}` : '');
   bar.style.display = 'flex';
 }
@@ -6552,6 +6794,205 @@ function renderAging(wip, p50, p70, p85, p95) {
 }
 
 // ── Blocked report ─────────────────────────────────────────────────────────
+// ── Bugs & Defects tab ─────────────────────────────────────────────────────
+const DF_STATUS = { raised: 'Raised', progress: 'In progress', fixed: 'Fixed', wontfix: "Won't fix" };
+const DF_STATUS_CLS = { raised: 'notstarted', progress: 'progress', fixed: 'done', wontfix: 'discarded' };
+
+// When a ticket was raised = its earliest workflow date (the first stage is usually "created")
+function rowRaisedDate(row) {
+  let min = null;
+  workflowStages.forEach(c => { if (stageTypes[c] === 'discarded') return; const d = getCachedDate(row, c); if (d && (!min || d < min)) min = d; });
+  return min || getDiscardDate(row);
+}
+
+function openDefectSetup() {
+  const body = document.getElementById('config-body');
+  if (body && body.classList.contains('config-collapsed')) toggleConfigPanel();
+  const sec = document.getElementById('defect-section');
+  if (sec) { sec.style.display = 'block'; sec.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+}
+
+// Testing tickets in the current selection (release, Measure to, filters), ignoring the Hide/Only switch
+function defectItems() {
+  const cfg = { ...getConfig(), testingMode: 'only' };
+  const p = processData(cfg);
+  const out = [];
+  const add = (arr, status, extra) => arr.forEach(d => {
+    const kind = defectKindOf(d._row);
+    if (!kind) return;
+    out.push({ kind, status, row: d._row, id: d.id, title: d.title, link: d.link,
+      raised: rowRaisedDate(d._row), blk: rowBlocked(d._row, cfg), ...extra(d) });
+  });
+  add(p.completed, 'fixed', d => ({ closed: d.endDate, ct: d.leadTime }));
+  add(p.wip, 'progress', () => ({}));
+  add(p.committedQueue, 'raised', () => ({}));
+  add(p.backlog, 'raised', () => ({}));
+  add(p.discarded, 'wontfix', d => ({ closed: d.discardDate }));
+  return { cfg, items: out };
+}
+
+function setDefectView(v) { defectView = v; defectListState = ''; renderDefects(); }
+function setDefectList(v) { defectListState = defectListState === v ? '' : v; renderDefects(); }
+
+function renderDefects() {
+  const el = document.getElementById('defects-content');
+  ['dfFlow', 'dfOpen'].forEach(k => { if (charts[k]) { charts[k].destroy(); charts[k] = null; } });
+  const types = usableDefectTypes();
+  if (!types.length) {
+    el.innerHTML = `<div class="empty-state" style="line-height:1.6"><strong>Tell Flow Lens which tickets are bugs and defects.</strong><br>
+      In the Config panel, under <em>Bugs &amp; defects</em>, pick the column and values for each type, e.g.
+      <em>Bug (internal)</em> = Issue Type <strong>Task</strong> and Labels <strong>QA</strong>; <em>Defect (external)</em> = Issue Type <strong>Bug</strong>.<br>
+      <button class="rel-btn rel-btn-primary" style="margin-top:0.75rem" onclick="openDefectSetup()">Set up bugs &amp; defects</button></div>`;
+    return;
+  }
+  if (defectView && !types.some(t => t.name === defectView)) defectView = '';
+  const { cfg, items } = defectItems();
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const statuses = ['raised', 'progress', 'fixed', 'wontfix'];
+  const isOpen = i => i.status === 'raised' || i.status === 'progress';
+  const pct = (a, q) => { const v = percentile([...a].sort((x, y) => x - y), q); return a.length ? `${Math.round(v * 10) / 10}d` : '—'; };
+
+  // ── Summary table: one row per type + total ──
+  const rowFor = (name, list, color) => {
+    const n = st => list.filter(i => i.status === st).length;
+    const cell = st => { const v = n(st), key = `${name}|${st}`;
+      return `<td><span class="df-n${v ? '' : ' zero'}${defectListState === key ? ' on' : ''}"${v ? ` onclick="setDefectList('${relEsc(key).replace(/'/g, "\\'")}')"` : ''}>${v}</span></td>`; };
+    const open = list.filter(isOpen);
+    const oldest = open.length ? Math.max(...open.map(i => i.raised ? daysBetween(i.raised, today) : 0)) : null;
+    const cts = list.filter(i => i.status === 'fixed').map(i => i.ct);
+    const bar = list.length ? `<div class="rel-bar" style="min-width:90px">${statuses.map(st => n(st) ? `<div style="width:${n(st) / list.length * 100}%;background:${{ raised: '#cbd5e1', progress: '#38bdf8', fixed: '#16a34a', wontfix: '#fca5a5' }[st]}" title="${DF_STATUS[st]}: ${n(st)}"></div>` : '').join('')}</div>` : '';
+    return `<tr${name ? '' : ' style="font-weight:600;border-top:2px solid #e2e8f0"'}>
+      <td>${color ? `<span class="df-dot" style="background:${color}"></span>` : ''}${name ? `<a href="#" onclick="setDefectView('${relEsc(name).replace(/'/g, "\\'")}');return false" title="Show only ${relEsc(name)} below">${relEsc(name)}</a>` : 'Total'}</td>
+      ${statuses.map(cell).join('')}
+      <td>${list.length}</td>
+      <td style="min-width:100px">${bar}</td>
+      <td>${pct(cts, 50)} · ${pct(cts, 85)}</td>
+      <td>${oldest === null ? '—' : `${Math.round(oldest)}d`}</td>
+    </tr>`;
+  };
+  const table = `<div style="overflow-x:auto"><table class="bd-table df-table">
+    <thead><tr><th>Type</th><th title="Logged, not started yet">Raised</th><th>In progress</th><th>Fixed</th><th title="Closed without a fix (Rejected, Cancelled…)">Won't fix</th><th>All raised</th><th></th><th title="Cycle time of fixed tickets, 50% and 85% of fixes took this long or less">Time to fix 50% · 85%</th><th title="Age of the oldest open ticket since it was raised">Oldest open</th></tr></thead>
+    <tbody>${types.map(t => rowFor(t.name, items.filter(i => i.kind === t.name), defectColor(t.name))).join('')}
+      ${types.length > 1 ? rowFor('', items, null) : ''}</tbody></table></div>`;
+
+  // ── Pills: which type the charts and list show ──
+  const view = defectView ? items.filter(i => i.kind === defectView) : items;
+  const pills = `<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;margin:1.1rem 0 0.25rem;font-size:0.8rem;color:#475569">
+    <span style="font-weight:600">Show:</span>
+    <button class="ms-pill test-pill${!defectView ? ' active' : ''}" onclick="setDefectView('')">All types</button>
+    ${types.map(t => `<button class="ms-pill test-pill${defectView === t.name ? ' active' : ''}" onclick="setDefectView('${relEsc(t.name).replace(/'/g, "\\'")}')">${relEsc(t.name)}</button>`).join('')}</div>`;
+
+  // ── Weekly raised vs fixed + open over time (last 26 weeks) ──
+  const end = weekStart(dataEndDate() && dataEndDate() > today ? dataEndDate() : today);
+  const firstRaised = view.reduce((m, i) => i.raised && (!m || i.raised < m) ? i.raised : m, null);
+  let start = firstRaised ? weekStart(firstRaised) : new Date(end);
+  const cap = new Date(end); cap.setDate(cap.getDate() - 25 * 7);
+  if (start < cap) start = cap;
+  const weeks = [];
+  for (const w = new Date(start); w <= end; w.setDate(w.getDate() + 7)) weeks.push(new Date(w));
+  const inWeek = (d, w) => { if (!d) return false; const e = new Date(w); e.setDate(e.getDate() + 7); return d >= w && d < e; };
+  const raisedW = weeks.map(w => view.filter(i => inWeek(i.raised, w)).length);
+  const fixedW  = weeks.map(w => view.filter(i => i.status === 'fixed' && inWeek(i.closed, w)).length);
+  const openAt = (w, list) => { const e = new Date(w); e.setDate(e.getDate() + 7);
+    return list.filter(i => i.raised && i.raised < e && !(i.closed && i.closed < e)).length; };
+
+  // One-line verdict over the last 4 weeks
+  const last = k => k.slice(-4).reduce((a, b) => a + b, 0);
+  const r4 = last(raisedW), f4 = last(fixedW);
+  const openNow = view.filter(isOpen).length;
+  const trend = r4 > f4 ? `<strong style="color:#b91c1c">open pile growing</strong>` : r4 < f4 ? `<strong style="color:#15803d">open pile shrinking</strong>` : `<strong>holding steady</strong>`;
+  const verdict = view.length ? `<div style="font-size:0.85rem;color:#334155;margin:0.4rem 0 0">Last 4 weeks: <strong>${r4}</strong> raised, <strong>${f4}</strong> fixed — ${trend}. <strong>${openNow}</strong> open now.</div>` : '';
+
+  // ── Ticket list ──
+  let listItems, listTitle;
+  if (defectListState.startsWith('fix:')) {
+    const fx = defectListState.slice(4);
+    listItems = view.filter(i => (cellValues(i.row[defectFixCol])[0] || '(not set)') === fx);
+    listTitle = `Fix type: ${fx} (${listItems.length})`;
+  } else if (defectListState) {
+    const [k, st] = defectListState.split('|');
+    listItems = items.filter(i => (!k || i.kind === k) && i.status === st);
+    listTitle = `${k || 'All types'} · ${DF_STATUS[st]} (${listItems.length})`;
+  } else {
+    listItems = view.filter(isOpen);
+    listTitle = `Open now (${listItems.length}) — oldest first`;
+  }
+  listItems.sort((a, b) => (a.raised || today) - (b.raised || today));
+  const hasBlk = !!(cfg.blockedDaysCol || cfg.blockedFlagCol);
+  const fmt = d => d ? d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' }) : '';
+  const listRows = listItems.map(i => {
+    const age = i.raised ? Math.round(daysBetween(i.raised, i.closed || today)) : null;
+    return `<tr>
+      <td>${i.link ? `<a href="${relEsc(i.link)}" target="_blank" rel="noopener">${relEsc(i.id)}</a>` : relEsc(i.id)}</td>
+      <td>${relEsc(i.title)}</td>
+      <td><span class="df-tag" style="background:${defectColor(i.kind)}">${relEsc(i.kind)}</span></td>
+      <td><span class="rel-status rel-status-${DF_STATUS_CLS[i.status]}">${DF_STATUS[i.status]}</span></td>
+      <td>${relEsc(relCurrentStage(i.row))}</td>
+      <td>${fmt(i.raised)}</td>
+      <td>${i.closed ? fmt(i.closed) : ''}</td>
+      <td style="text-align:right">${i.status === 'fixed' ? `${Math.round(i.ct * 10) / 10}d to fix` : age !== null ? `${age}d${i.closed ? '' : ' old'}` : ''}</td>
+      ${hasBlk ? `<td>${blockedBadge(i.blk)}</td>` : ''}
+    </tr>`;
+  }).join('');
+  const list = `<h3 class="blocked-section-title">${relEsc(listTitle)}${defectListState ? ` <a href="#" style="font-size:0.75rem;font-weight:400;color:#0ea5e9" onclick="setDefectList('');return false">show open instead</a>` : ''}</h3>
+    ${listItems.length ? `<div style="overflow-x:auto" data-snap-expand><table class="bd-table"><thead><tr><th>ID</th><th>Title</th><th>Type</th><th>Status</th><th>Stage</th><th>Raised</th><th>Closed</th><th style="text-align:right">Age</th>${hasBlk ? '<th>Blocked</th>' : ''}</tr></thead><tbody>${listRows}</tbody></table></div>` : `<div class="muted" style="font-size:0.8rem">Nothing here.</div>`}`;
+
+  // ── By fix type (optional column) ──
+  let fixSec = '';
+  if (defectFixCol) {
+    const fixOf = i => cellValues(i.row[defectFixCol])[0] || '(not set)';
+    const groups = {};
+    view.forEach(i => { (groups[fixOf(i)] = groups[fixOf(i)] || []).push(i); });
+    const keys = Object.keys(groups).sort((a, b) => (a === '(not set)') - (b === '(not set)') || groups[b].length - groups[a].length);
+    const max = Math.max(1, ...keys.map(k => groups[k].length));
+    const shownTypes = defectView ? types.filter(t => t.name === defectView) : types;
+    const fixedNoType = view.filter(i => i.status === 'fixed' && fixOf(i) === '(not set)').length;
+    fixSec = `<h3 class="blocked-section-title">By fix type <span style="font-size:0.75rem;font-weight:400;color:#64748b">· from the <em>${relEsc(defectFixCol)}</em> column</span></h3>
+      ${keys.length ? `<div style="overflow-x:auto"><table class="bd-table df-table"><thead><tr><th>Fix type</th>${shownTypes.length > 1 ? shownTypes.map(t => `<th><span class="df-dot" style="background:${defectColor(t.name)}"></span>${relEsc(t.name)}</th>`).join('') : ''}<th>Total</th><th>% of all</th><th style="min-width:120px"></th><th>Fixed</th><th>Open</th><th title="Cycle time of fixed tickets">Time to fix 50% · 85%</th></tr></thead><tbody>
+        ${keys.map(k => { const g = groups[k]; const cts = g.filter(i => i.status === 'fixed').map(i => i.ct); const key = `fix:${k}`;
+          return `<tr${k === '(not set)' ? ' class="muted"' : ''}><td><span class="df-n${defectListState === key ? ' on' : ''}" onclick="setDefectList('${relEsc(key).replace(/'/g, "\\'")}')">${relEsc(k)}</span></td>
+            ${shownTypes.length > 1 ? shownTypes.map(t => `<td>${g.filter(i => i.kind === t.name).length || ''}</td>`).join('') : ''}
+            <td><strong>${g.length}</strong></td><td>${Math.round(g.length / view.length * 100)}%</td>
+            <td><div class="rel-bar"><div style="width:${g.length / max * 100}%;background:${k === '(not set)' ? '#cbd5e1' : '#8b5cf6'}"></div></div></td>
+            <td>${g.filter(i => i.status === 'fixed').length}</td><td>${g.filter(isOpen).length}</td><td>${pct(cts, 50)} · ${pct(cts, 85)}</td></tr>`; }).join('')}
+      </tbody></table></div>
+      ${fixedNoType ? `<div class="muted" style="font-size:0.75rem;margin-top:0.3rem">${fixedNoType} fixed ticket${fixedNoType === 1 ? ' has' : 's have'} no fix type yet. Worth filling in, so this table tells the full story.</div>` : ''}` : `<div class="muted" style="font-size:0.8rem">Nothing here.</div>`}`;
+  }
+
+  const hiddenNote = testingMode === 'hide' ? `<div class="df-note">The other reports are <strong>hiding</strong> testing work right now (Testing work: Hide). This report always shows it.</div>` : '';
+  el.innerHTML = hiddenNote + (items.length ? table : `<div class="muted">No bugs or defects in this selection.</div>`) + pills + verdict
+    + `<div class="df-charts">
+        <div><div class="chart-sub" style="font-size:0.8rem;font-weight:600;color:#334155;margin-bottom:0.3rem">Raised vs fixed per week</div><div class="df-chart-box"><canvas id="chart-df-flow"></canvas></div></div>
+        <div><div class="chart-sub" style="font-size:0.8rem;font-weight:600;color:#334155;margin-bottom:0.3rem">Open at the end of each week</div><div class="df-chart-box"><canvas id="chart-df-open"></canvas></div></div>
+      </div>` + fixSec + list;
+
+  if (!weeks.length) return;
+  const labels = weeks.map(w => w.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }));
+  const axis = { grid: { color: '#f1f5f9' }, ticks: { color: '#94a3b8', font: { size: 11 } } };
+  charts.dfFlow = new Chart(document.getElementById('chart-df-flow'), {
+    type: 'bar',
+    data: { labels, datasets: [
+      { label: 'Raised', data: raisedW, backgroundColor: 'rgba(225,29,72,0.65)' },
+      { label: 'Fixed',  data: fixedW,  backgroundColor: 'rgba(22,163,74,0.65)' },
+    ] },
+    options: { responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#475569', font: { size: 11 }, boxWidth: 12 } }, tooltip: { mode: 'index', intersect: false, callbacks: { title: it => `Week of ${it[0].label}` } } },
+      scales: { x: axis, y: { ...axis, min: 0, ticks: { ...axis.ticks, precision: 0 } } } },
+  });
+  const openSets = (defectView ? types.filter(t => t.name === defectView) : types).map((t, n) => {
+    const l = items.filter(i => i.kind === t.name);
+    const c = defectColor(t.name);
+    return { label: t.name, data: weeks.map(w => openAt(w, l)), borderColor: c, backgroundColor: c + '55', fill: n ? '-1' : 'origin', pointRadius: 0, tension: 0.25 };
+  });
+  charts.dfOpen = new Chart(document.getElementById('chart-df-open'), {
+    type: 'line',
+    data: { labels, datasets: openSets },
+    options: { responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#475569', font: { size: 11 }, boxWidth: 12 } }, tooltip: { mode: 'index', intersect: false, callbacks: { title: it => `End of week of ${it[0].label}` } } },
+      scales: { x: axis, y: { ...axis, stacked: true, min: 0, ticks: { ...axis.ticks, precision: 0 } } } },
+  });
+}
+
 function renderBlocked(completed, wip, p85) {
   const cfg = getConfig();
   const container = document.getElementById('blocked-content');
@@ -7091,6 +7532,9 @@ function buildConfigPayload() {
     activeMilestone: cfg.milestone,
     releases: releases.filter(releaseUsable),
     activeReleases: activeReleases.filter(n => releases.some(r => r.name === n)),
+    defectTypes: defectTypes.filter(t => t.name).map(t => ({ name: t.name, conds: t.conds.filter(c => c.col).map(c => ({ col: c.col, vals: [...c.vals] })) })),
+    defectFixCol,
+    testingMode,
     fields:   { startCol: cfg.base.startCol, endCol: cfg.base.endCol, activeCol: cfg.base.activeCol, idCol: cfg.idCol, titleCol: cfg.titleCol, linkCol: cfg.linkCol, blockedDaysCol: cfg.blockedDaysCol, blockedFlagCol: cfg.blockedFlagCol, epicCol: cfg.epicCol },
     workflow: { stages: workflowStages, types: stageTypes, hidden: [...hiddenStages] },
     filters:  cfg.filters,
@@ -7130,7 +7574,7 @@ async function saveConfig() {
 let savedConfigSnapshot = null;
 function configSnapshot() {
   const p = buildConfigPayload();
-  delete p.savedAt; delete p.activeReleases; delete p.activeMilestone;
+  delete p.savedAt; delete p.activeReleases; delete p.activeMilestone; delete p.testingMode;
   return JSON.stringify(p);
 }
 function isConfigDirty() { return savedConfigSnapshot !== null && configSnapshot() !== savedConfigSnapshot; }
@@ -7260,6 +7704,12 @@ function applyConfig(cfg) {
   activeReleases = Array.isArray(cfg.activeReleases) ? cfg.activeReleases : (cfg.activeRelease ? [cfg.activeRelease] : []);
   relComboTargets = {};
   relDraft = null; relView = 'auto';
+  if (Array.isArray(cfg.defectTypes)) defectTypes = cfg.defectTypes.map(t => ({ name: t.name || '',
+    conds: (t.conds || []).map(c => ({ col: columns.includes(c.col) ? c.col : '', vals: Array.isArray(c.vals) ? c.vals : [] })) }))
+    .map(t => t.conds.length ? t : { ...t, conds: [{ col: '', vals: [] }] });
+  testingMode = ['include', 'hide', 'only'].includes(cfg.testingMode) ? cfg.testingMode : 'include';
+  if (cfg.defectFixCol !== undefined) defectFixCol = columns.includes(cfg.defectFixCol) ? cfg.defectFixCol : '';
+  defectCache = new WeakMap();
 
   buildWorkflowUI();
   renderAll(true);
@@ -7508,7 +7958,7 @@ function snapshotFilterText(cfg) {
       }).join(' · ')
     : '';
   const relText = cfg.release ? `Release: ${cfg.release.name}` : '';
-  return [relText, msText, fText].filter(Boolean).join('  ·  ') || null;
+  return [relText, msText, testingModeText(cfg), fText].filter(Boolean).join('  ·  ') || null;
 }
 
 async function copySnapshot() {
