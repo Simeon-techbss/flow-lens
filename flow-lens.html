@@ -1806,7 +1806,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-11-18a';
+const VERSION = '2026-11-18b';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -8548,7 +8548,7 @@ async function copySnapshot() {
       ctx.fillText(range, 20 * scale, dateY);
       ctx.fillStyle = '#94a3b8';
       ctx.textAlign = 'right';
-      ctx.fillText('flow-lens.com · ' + today, out.width - 20 * scale, dateY);
+      ctx.fillText('flow-lens.co.uk · ' + today, out.width - 20 * scale, dateY);
 
       return new Promise(res => out.toBlob(res, 'image/png'));
     });
@@ -8624,7 +8624,7 @@ async function saveSnapshot() {
     ctx.fillText(range, 20 * scale, dateY);
     ctx.fillStyle = '#94a3b8';
     ctx.textAlign = 'right';
-    ctx.fillText('flow-lens.com · ' + today, out.width - 20 * scale, dateY);
+    ctx.fillText('flow-lens.co.uk · ' + today, out.width - 20 * scale, dateY);
 
     // Build filename: dataset_tab_filters_date.png
     const datasetRaw = document.getElementById('status-text')?.textContent || 'data';
