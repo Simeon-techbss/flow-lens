@@ -1806,7 +1806,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-11-18b';
+const VERSION = '2026-11-18c';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -8197,20 +8197,20 @@ function applyConfig(cfg) {
   if (cfg.dateRange !== undefined) document.getElementById('filter-range').value = cfg.dateRange;
 
   milestones = Array.isArray(cfg.milestones) ? cfg.milestones.map(m => ({ name: m.name || '', short: m.short || '', start: m.start || '', end: m.end || '' })) : [];
-  activeMilestone = cfg.activeMilestone || null; relAutoMs = null;
+  activeMilestone = null; relAutoMs = null;   // always open on Full flow / All work / Include (saved pills are ignored)
   releases = Array.isArray(cfg.releases) ? cfg.releases.map(r => ({
     name: r.name || '', target: r.target || '', finish: typeof r.finish === 'string' ? r.finish : '',
     targets: r.targets && typeof r.targets === 'object' ? { ...r.targets } : {},
     signoffs: r.signoffs && typeof r.signoffs === 'object' ? JSON.parse(JSON.stringify(r.signoffs)) : {},
     rules: (r.rules || []).map(x => ({ mode: x.mode === 'out' ? 'out' : 'in', col: x.col || REL_ID, vals: Array.isArray(x.vals) ? x.vals : [] })),
   })) : [];
-  activeReleases = Array.isArray(cfg.activeReleases) ? cfg.activeReleases : (cfg.activeRelease ? [cfg.activeRelease] : []);
+  activeReleases = [];
   relComboTargets = {};
   relDraft = null; relView = 'auto';
   if (Array.isArray(cfg.defectTypes)) defectTypes = cfg.defectTypes.map(t => ({ name: t.name || '', join: t.join === 'or' ? 'or' : 'and',
     conds: (t.conds || []).map(c => ({ col: findCol(c.col), vals: Array.isArray(c.vals) ? c.vals : [] })) }))
     .map(t => t.conds.length ? t : { ...t, conds: [{ col: '', vals: [] }] });
-  testingMode = ['include', 'hide', 'only'].includes(cfg.testingMode) ? cfg.testingMode : 'include';
+  testingMode = 'include';
   dataNotes = Array.isArray(cfg.notes) ? cfg.notes.filter(n => n && n.date).map(n => ({ date: String(n.date).slice(0, 10), text: String(n.text || '') })) : [];
   if (cfg.deferRule && Array.isArray(cfg.deferRule.conds)) deferRule = { name: cfg.deferRule.name || 'Deferred (CR)', join: cfg.deferRule.join === 'or' ? 'or' : 'and',
     conds: cfg.deferRule.conds.length ? cfg.deferRule.conds.map(c => ({ col: findCol(c.col), vals: Array.isArray(c.vals) ? c.vals : [] })) : [{ col: '', vals: [] }] };
