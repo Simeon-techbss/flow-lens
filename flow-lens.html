@@ -399,6 +399,10 @@ License: MIT
     .ms-pill.rel-pill-add { border-style:dashed; color:#0f766e; }
     .filter-chip-release { background:#ccfbf1; color:#115e59; border:1px solid #5eead4; }
     .filter-chip-testing { background:#fff1f2; color:#9f1239; border:1px solid #fda4af; }
+    .filter-chip-note { background:#f5f3ff; color:#5b21b6; border:1px solid #ddd6fe; white-space:normal; }
+    .note-row { display:flex; gap:0.5rem; align-items:center; margin-bottom:0.4rem; flex-wrap:wrap; }
+    .note-row input[type=text] { flex:1; min-width:12rem; }
+    .note-out { font-size:0.72rem; color:#94a3b8; }
     #testing-bar { display:none; align-items:center; flex-wrap:wrap; gap:0.4rem; margin:0 0 0.75rem; font-size:0.8rem; color:#475569; }
     #testing-bar .ms-label { font-weight:600; margin-right:0.2rem; }
     .ms-pill.test-pill.active { background:#be123c; border-color:#be123c; }
@@ -899,6 +903,15 @@ License: MIT
         <select id="defect-fix-col" onchange="defectFixCol = this.value; renderAll()"><option value="">— none —</option></select>
         <span style="font-size:0.75rem;color:#94a3b8">optional — how each one was fixed (Code, Config, Data…). Adds a <em>By fix type</em> section to the report.</span>
       </div>
+    </div>
+
+    <div class="workflow-section" id="notes-section" style="display:none">
+      <div class="workflow-section-header">
+        <span>Notes</span>
+        <small>"On this date, I did this" — e.g. <strong>17 Nov: Jira tidy-up, 40 stories moved to Done late</strong>. A note never changes a number; it explains one. It shows under every report and on snapshots whenever its date falls inside the data you've loaded, so it carries over to next week's export. Saved in your config.</small>
+      </div>
+      <div id="notes-rows"></div>
+      <button class="filter-add" onclick="addNote()">+ Add note</button>
     </div>
 
   </div><!-- /#config-body -->
@@ -1793,7 +1806,7 @@ License: MIT
 </main>
 
 <script>
-const VERSION = '2026-11-17zb';
+const VERSION = '2026-11-18a';
 // ── State ──────────────────────────────────────────────────────────────────
 let allRows = [];
 let columns = [];
@@ -1807,6 +1820,7 @@ let activeMilestone = null;     // name of the selected milestone, null = Full f
 let releases = [];              // [{ name, target, rules: [{ mode:'in'|'out', col, vals }] }]
 let activeReleases = [];        // names of the selected releases, [] = All work (several = combined)
 let relComboTargets = {};       // target dates for combined selections, keyed by "R1 + R2"
+let dataNotes = [];             // [{ date: 'yyyy-mm-dd', text }] — "on this date, I did this"; shown when the date is inside the loaded data
 let defectTypes = [];           // [{ name, conds: [{ col, vals }] }] — testing work (bugs / defects); a ticket matches when ALL conds match
 let defectFixCol = '';
 let deferRule = { name: 'Deferred (CR)', conds: [{ col: '', vals: [] }] };   // tickets moved out to future work / a change request          // optional column saying how a bug/defect was fixed (Code, Config, Data…)
@@ -2039,7 +2053,7 @@ function resetTool() {
   allRows = []; columns = []; workflowStages = []; stageTypes = {}; hiddenStages = new Set();
   milestones = []; activeMilestone = null; relAutoMs = null;
   releases = []; activeReleases = []; relComboTargets = {}; relDraft = null; relView = 'auto';
-  defectTypes = []; defectFixCol = ''; testingMode = 'include';
+  defectTypes = []; defectFixCol = ''; testingMode = 'include'; dataNotes = [];
   deferRule = { name: 'Deferred (CR)', conds: [{ col: '', vals: [] }] }; deferCache = new WeakMap(); defectCache = new WeakMap(); defectView = ''; defectListState = '';
   Object.values(charts).forEach(c => { if (c) c.destroy(); });   // some entries are null after a tab clears its chart
   charts = {};
@@ -2051,6 +2065,7 @@ function resetTool() {
   document.getElementById('release-bar').style.display = 'none';
   document.getElementById('testing-bar').style.display = 'none';
   document.getElementById('defect-section').style.display = 'none';
+  document.getElementById('notes-section').style.display = 'none';
   document.getElementById('info-release-bar').classList.remove('open');
   document.getElementById('config-dirty').style.display = 'none';
   document.getElementById('info-milestone').classList.remove('open');
@@ -2380,6 +2395,7 @@ function loadExampleData() {
         ],
         defectFixCol: 'Fix Type',
         deferRule: { name: 'Deferred (CR)', conds: [{ col: 'Labels', vals: ['Deferred-CR'] }] },
+        notes: [{ date: dayKey(new Date(Date.now() - 9 * 86400000)), text: 'Jira tidy-up: closed stories that were finished weeks earlier (example note)' }],
       });
     }
   });
@@ -2390,7 +2406,7 @@ function setupConfig() {
   stageTypes = {};
   milestones = []; activeMilestone = null; relAutoMs = null;
   releases = []; activeReleases = []; relComboTargets = {}; relDraft = null; relView = 'auto';
-  defectTypes = defaultDefectTypes(); testingMode = 'include';
+  defectTypes = defaultDefectTypes(); testingMode = 'include'; dataNotes = [];
   defectFixCol = columns.find(c => /fix.?type|root.?cause|fix.?category|defect.?cause/i.test(c)) || '';
   deferRule = { name: 'Deferred (CR)', conds: [{ col: columns.find(c => /^labels?$/i.test(c.trim())) || '', vals: [] }] }; deferCache = new WeakMap(); defectCache = new WeakMap(); defectView = ''; defectListState = '';
   savedConfigSnapshot = null;
@@ -2604,7 +2620,39 @@ function buildWorkflowUI() {
   initDragSort(list);
   buildMilestoneUI();
   buildDefectUI();
+  buildNotesUI();
 }
+
+// ── Notes ── "on this date, I did this". Never change data; shown in the context bar + snapshots
+let _dataStartCache = { rows: null, date: null };
+function dataStartDate() {
+  if (_dataStartCache.rows === allRows) return _dataStartCache.date;
+  let min = null;
+  allRows.forEach(row => workflowStages.forEach(col => { const d = getCachedDate(row, col); if (d && (!min || d < min)) min = d; }));
+  _dataStartCache = { rows: allRows, date: min };
+  return min;
+}
+function noteInData(n) {
+  const a = dataStartDate(), b = dataEndDate();
+  return !!(a && b && n.date && n.date >= dayKey(a) && n.date <= dayKey(b));
+}
+function visibleNotes() {
+  return dataNotes.filter(n => n.date && (n.text || '').trim() && noteInData(n)).sort((x, y) => x.date < y.date ? -1 : 1);
+}
+const noteLabel = n => `${fmtDate(new Date(n.date + 'T00:00:00'))}: ${n.text.trim()}`;
+function buildNotesUI() {
+  const section = document.getElementById('notes-section');
+  if (!section) return;
+  section.style.display = allRows.length ? 'block' : 'none';
+  document.getElementById('notes-rows').innerHTML = dataNotes.map((n, i) => `<div class="note-row">
+      <input type="date" value="${n.date || ''}" onchange="dataNotes[${i}].date=this.value;notesChanged()">
+      <input type="text" value="${relEsc(n.text || '')}" placeholder="What happened, e.g. Jira tidy-up — 40 stories moved to Done late" maxlength="200" onchange="dataNotes[${i}].text=this.value;notesChanged()">
+      ${n.date && !noteInData(n) ? '<span class="note-out">outside this data — not shown</span>' : ''}
+      <button class="filter-remove" onclick="dataNotes.splice(${i},1);notesChanged()" title="Remove note">✕</button>
+    </div>`).join('');
+}
+function addNote() { dataNotes.push({ date: dayKey(new Date()), text: '' }); buildNotesUI(); }
+function notesChanged() { buildNotesUI(); updateFilterContextBar(); }
 
 // ── Milestones ─────────────────────────────────────────────────────────────
 function buildMilestoneUI() {
@@ -5095,7 +5143,8 @@ function updateFilterContextBar() {
   const cfg = getConfig();
   const active = (cfg.filters || []).filter(f => f.col && f.vals && f.vals.length);
   const tmText = testingModeText(cfg);
-  if (!active.length && !cfg.milestone && !cfg.release && !tmText) { bar.style.display = 'none'; return; }
+  const notes = visibleNotes();
+  if (!active.length && !cfg.milestone && !cfg.release && !tmText && !notes.length) { bar.style.display = 'none'; return; }
 
   function fmtVals(vals) {
     return vals.map(v => v === '__BLANK__' ? '(blank)' : v).join(', ');
@@ -5110,7 +5159,8 @@ function updateFilterContextBar() {
   const relChip = cfg.release ? `<span class="filter-chip filter-chip-release">Release: ${relEsc(cfg.release.name)}</span>` : '';
   const tmChip = tmText ? `<span class="filter-chip filter-chip-testing">${relEsc(tmText)}</span>` : '';
   bar.innerHTML = relChip + msChip + tmChip
-    + (active.length ? `<span style="font-weight:600;color:#475569;margin:0 0.2rem 0 ${msChip || relChip ? '0.5rem' : '0'}">Filters:</span>${[...excludeChips, ...includeChips].join('')}` : '');
+    + (active.length ? `<span style="font-weight:600;color:#475569;margin:0 0.2rem 0 ${msChip || relChip ? '0.5rem' : '0'}">Filters:</span>${[...excludeChips, ...includeChips].join('')}` : '')
+    + notes.map(n => `<span class="filter-chip filter-chip-note" title="A note from your config — explains, never changes the data">📝 ${relEsc(noteLabel(n))}</span>`).join('');
   bar.style.display = 'flex';
 }
 
@@ -7962,6 +8012,7 @@ function buildConfigPayload() {
     defectFixCol,
     deferRule: { name: deferRule.name, join: deferRule.join === 'or' ? 'or' : 'and', conds: deferRule.conds.filter(c => c.col).map(c => ({ col: c.col, vals: [...c.vals] })) },
     testingMode,
+    notes: dataNotes.filter(n => n.date && (n.text || '').trim()).map(n => ({ date: n.date, text: n.text.trim() })),
     fields:   { startCol: cfg.base.startCol, endCol: cfg.base.endCol, activeCol: cfg.base.activeCol, idCol: cfg.idCol, titleCol: cfg.titleCol, linkCol: cfg.linkCol, blockedDaysCol: cfg.blockedDaysCol, blockedFlagCol: cfg.blockedFlagCol, epicCol: cfg.epicCol },
     workflow: { stages: workflowStages, types: stageTypes, hidden: [...hiddenStages] },
     filters:  cfg.filters,
@@ -7978,6 +8029,7 @@ function configSummary(p) {
     n((p.releases || []).length, 'release', 'releases'),
     n((p.milestones || []).length, 'flow segment', 'flow segments'),
     p.deferRule && (p.deferRule.conds || []).some(c => c.col && c.vals && c.vals.length) ? `deferred rule: ${relEsc(p.deferRule.name)}` : '',
+    (p.notes || []).length ? n(p.notes.length, 'note', 'notes') : '',
     p.defectTypes ? (dt.length ? `bugs & defects: ${dt.map(t => relEsc(t.name)).join(', ')}${p.defectFixCol ? ` · fix type: ${relEsc(p.defectFixCol)}` : ''}` : 'bugs & defects: not set up') : 'no bugs & defects setup in this file',
   ].filter(Boolean).join(' · ');
 }
@@ -8159,6 +8211,7 @@ function applyConfig(cfg) {
     conds: (t.conds || []).map(c => ({ col: findCol(c.col), vals: Array.isArray(c.vals) ? c.vals : [] })) }))
     .map(t => t.conds.length ? t : { ...t, conds: [{ col: '', vals: [] }] });
   testingMode = ['include', 'hide', 'only'].includes(cfg.testingMode) ? cfg.testingMode : 'include';
+  dataNotes = Array.isArray(cfg.notes) ? cfg.notes.filter(n => n && n.date).map(n => ({ date: String(n.date).slice(0, 10), text: String(n.text || '') })) : [];
   if (cfg.deferRule && Array.isArray(cfg.deferRule.conds)) deferRule = { name: cfg.deferRule.name || 'Deferred (CR)', join: cfg.deferRule.join === 'or' ? 'or' : 'and',
     conds: cfg.deferRule.conds.length ? cfg.deferRule.conds.map(c => ({ col: findCol(c.col), vals: Array.isArray(c.vals) ? c.vals : [] })) : [{ col: '', vals: [] }] };
   deferCache = new WeakMap();
@@ -8418,6 +8471,20 @@ function snapshotFilterText(cfg) {
   return [relText, msText, testingModeText(cfg), fText].filter(Boolean).join('  ·  ') || null;
 }
 
+// Notes rows for the snapshot footer — one line each, cut to fit the width
+function drawSnapNotes(ctx, y, rowH, scale, width) {
+  const notes = visibleNotes();
+  ctx.textBaseline = 'middle'; ctx.textAlign = 'left'; ctx.fillStyle = '#5b21b6';
+  ctx.font = `${11 * scale}px system-ui,-apple-system,sans-serif`;
+  notes.forEach((n, i) => {
+    let t = 'Note — ' + noteLabel(n);
+    const max = width - 40 * scale;
+    if (ctx.measureText(t).width > max) { while (t.length > 1 && ctx.measureText(t + '…').width > max) t = t.slice(0, -1); t += '…'; }
+    ctx.fillText(t, 20 * scale, y + i * rowH + rowH / 2);
+  });
+  return notes.length * rowH;
+}
+
 async function copySnapshot() {
   const btn        = document.querySelector('#data-footer .copy-btn');
   const activePane = document.querySelector('.tab-pane.active');
@@ -8438,7 +8505,8 @@ async function copySnapshot() {
       const filterText = snapshotFilterText(getConfig());
 
       const rowH    = 36 * scale;
-      const footerH = filterText ? rowH * 2 : rowH;
+      const noteH   = visibleNotes().length * rowH;
+      const footerH = (filterText ? rowH * 2 : rowH) + noteH;
       const out = document.createElement('canvas');
       out.width  = captured.width;
       out.height = captured.height + footerH;
@@ -8470,8 +8538,9 @@ async function copySnapshot() {
         ctx.beginPath(); ctx.moveTo(0, fy + rowH); ctx.lineTo(out.width, fy + rowH); ctx.stroke();
       }
 
+      drawSnapNotes(ctx, fy + (filterText ? rowH : 0), rowH, scale, out.width);
       // Date range / branding row (bottom)
-      const dateY = fy + (filterText ? rowH : 0) + rowH / 2;
+      const dateY = fy + (filterText ? rowH : 0) + noteH + rowH / 2;
       ctx.textBaseline = 'middle';
       ctx.fillStyle = '#475569';
       ctx.font = `${13 * scale}px system-ui,-apple-system,sans-serif`;
@@ -8520,7 +8589,8 @@ async function saveSnapshot() {
     const activeFilters = (cfg.filters || []).filter(f => f.col && f.vals && f.vals.length);
     const filterText = snapshotFilterText(cfg);
     const rowH = 36 * scale;
-    const footerH = filterText ? rowH * 2 : rowH;
+    const noteH = visibleNotes().length * rowH;
+    const footerH = (filterText ? rowH * 2 : rowH) + noteH;
     const out = document.createElement('canvas');
     out.width = captured.width;
     out.height = captured.height + footerH;
@@ -8545,7 +8615,8 @@ async function saveSnapshot() {
       ctx.strokeStyle = '#fde68a'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(0, fy + rowH); ctx.lineTo(out.width, fy + rowH); ctx.stroke();
     }
-    const dateY = fy + (filterText ? rowH : 0) + rowH / 2;
+    drawSnapNotes(ctx, fy + (filterText ? rowH : 0), rowH, scale, out.width);
+    const dateY = fy + (filterText ? rowH : 0) + noteH + rowH / 2;
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#475569';
     ctx.font = `${13 * scale}px system-ui,-apple-system,sans-serif`;
